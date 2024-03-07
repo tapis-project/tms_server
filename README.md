@@ -1,2 +1,2 @@
 # tms_server
-Trust Manager Server (TMS) web server
+Trust Manager System (TMS) web server
