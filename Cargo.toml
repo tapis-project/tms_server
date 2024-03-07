@@ -1,0 +1,11 @@
+[package]
+name = "tms_server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+poem = "2"
+poem-openapi = { version = "4", features = ["swagger-ui"]}
+tokio = { version = "1", features = ["full"] }
