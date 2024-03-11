@@ -7,7 +7,8 @@ use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 // TMS Utilities
 use utils::errors::Errors;
 use utils::config::{RuntimeCtx, init_log, init_runtime_context};
-
+use crate::v1::tms::new_ssh_keys::NewSshKeysApi;
+use crate::v1::tms::public_key::PublicKeyApi;
 
 // Modules
 mod v1;
@@ -24,6 +25,9 @@ lazy_static! {
 
 struct Api;
 
+// ---------------------------------------------------------------------------
+// hello endpoint:
+// ---------------------------------------------------------------------------
 #[OpenApi]
 impl Api {
     #[oai(path = "/hello", method = "get")]
@@ -35,6 +39,9 @@ impl Api {
     }
 }
 
+// ---------------------------------------------------------------------------
+// server main loop:
+// ---------------------------------------------------------------------------
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
     // Announce ourselves.
@@ -47,7 +54,7 @@ async fn main() -> Result<(), std::io::Error> {
     info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
 
 	// Create a tuple with both the Api struct and the imported user::UserApi struct
-    let endpoints = (Api, v1::tms::TMSApi);
+    let endpoints = (Api, NewSshKeysApi, PublicKeyApi);
     let api_service =
         OpenApiService::new(endpoints, "TMS Server", "0.0.1").server("http://localhost:3000/v1");
     
