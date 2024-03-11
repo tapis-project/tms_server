@@ -1,7 +1,26 @@
+use anyhow::Result;
+use lazy_static::lazy_static;
+use log::info;
 use poem::{listener::TcpListener, Route};
 use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 
+// TMS Utilities
+use utils::errors::Errors;
+use utils::config::{RuntimeCtx, init_log, init_runtime_context};
+
+
+// Modules
 mod v1;
+mod utils;
+
+// ***************************************************************************
+//                             Static Variables 
+// ***************************************************************************
+// Lazily initialize the parameters variable so that is has a 'static lifetime.
+// We exit if we can't read our parameters.
+lazy_static! {
+    static ref RUNTIME_CTX: RuntimeCtx = init_runtime_context();
+}
 
 struct Api;
 
@@ -18,6 +37,15 @@ impl Api {
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
+    // Announce ourselves.
+    println!("Starting tms_server!");
+
+    // Configure out log.
+    init_log();
+
+    // Force the reading of input parameters and initialization of runtime context.
+    info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
+
 	// Create a tuple with both the Api struct and the imported user::UserApi struct
     let endpoints = (Api, v1::tms::TMSApi);
     let api_service =
@@ -37,4 +65,3 @@ async fn main() -> Result<(), std::io::Error> {
         .run(app)
         .await
 }
-
