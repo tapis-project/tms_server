@@ -23,22 +23,6 @@ lazy_static! {
     static ref RUNTIME_CTX: RuntimeCtx = init_runtime_context();
 }
 
-struct Api;
-
-// ---------------------------------------------------------------------------
-// hello endpoint:
-// ---------------------------------------------------------------------------
-#[OpenApi]
-impl Api {
-    #[oai(path = "/hello", method = "get")]
-    async fn index(&self, name: Query<Option<String>>) -> PlainText<String> {
-        match name.0 {
-            Some(name) => PlainText(format!("hello, {}!", name)),
-            None => PlainText("hello!".to_string()),
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // server main loop:
 // ---------------------------------------------------------------------------
@@ -62,13 +46,35 @@ async fn main() -> Result<(), std::io::Error> {
     let spec = api_service.spec_endpoint();
     let spec_yaml = api_service.spec_endpoint_yaml();
 
+    // Create the routes and run the server.
+    let addr = format!("{}{}","0.0.0.0:", RUNTIME_CTX.parms.config.http_port.to_string());
     let ui = api_service.swagger_ui();
     let app = Route::new()
             .nest("/v1", api_service)
             .nest("/", ui)
             .at("/spec", spec)
             .at("/spec_yaml", spec_yaml);
-        poem::Server::new(TcpListener::bind("0.0.0.0:3000"))
+        poem::Server::new(TcpListener::bind(addr))
         .run(app)
         .await
+}
+
+// ***************************************************************************
+//                             Hello Endpoint 
+// ***************************************************************************
+// Hello structure.
+struct Api;
+
+// ---------------------------------------------------------------------------
+// hello endpoint:
+// ---------------------------------------------------------------------------
+#[OpenApi]
+impl Api {
+    #[oai(path = "/hello", method = "get")]
+    async fn index(&self, name: Query<Option<String>>) -> PlainText<String> {
+        match name.0 {
+            Some(name) => PlainText(format!("hello, {}!", name)),
+            None => PlainText("hello!".to_string()),
+        }
+    }
 }

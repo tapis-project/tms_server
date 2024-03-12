@@ -54,7 +54,6 @@ impl ReqPublicKey {
            }
 }
 
-
 impl RespPublicKey {
     fn new(key: &str) -> Self {
         Self {public_key: key.to_string()}
