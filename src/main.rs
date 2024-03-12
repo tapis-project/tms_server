@@ -47,7 +47,7 @@ async fn main() -> Result<(), std::io::Error> {
     let spec_yaml = api_service.spec_endpoint_yaml();
 
     // Create the routes and run the server.
-    let addr = format!("{}{}","0.0.0.0:", RUNTIME_CTX.parms.config.http_port.to_string());
+    let addr = format!("{}{}","0.0.0.0:", RUNTIME_CTX.parms.config.http_port);
     let ui = api_service.swagger_ui();
     let app = Route::new()
             .nest("/v1", api_service)
