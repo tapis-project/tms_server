@@ -39,12 +39,10 @@ async fn main() -> Result<(), std::io::Error> {
     info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
 
     // Create a tuple with both the Api struct and the imported user::UserApi struct
-    let local_tms_url = format!(
-        "{}{}{}",
-        "https://localhost:", RUNTIME_CTX.parms.config.http_port, "/v1"
-    );
+    let local_tms_url = format!("{}{}{}","https://localhost:", RUNTIME_CTX.parms.config.http_port, "/v1");
     let endpoints = (Api, NewSshKeysApi, PublicKeyApi);
-    let api_service = OpenApiService::new(endpoints, "TMS Server", "0.0.1").server(local_tms_url);
+    let api_service = 
+        OpenApiService::new(endpoints, "TMS Server", "0.0.1").server(local_tms_url);
 
     // Allow the generated openapi specs to be retrieved from the server.
     let spec = api_service.spec_endpoint();
