@@ -38,6 +38,9 @@ async fn main() -> Result<(), std::io::Error> {
     // Force the reading of input parameters and initialization of runtime context.
     info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
 
+    // TODO: add to static configuration.
+    utils::db::testdb().await;
+
     // Create a tuple with both the Api struct and the imported user::UserApi struct
     let local_tms_url = format!("{}{}{}","https://localhost:", RUNTIME_CTX.parms.config.http_port, "/v1");
     let endpoints = (Api, NewSshKeysApi, PublicKeyApi);

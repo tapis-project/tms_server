@@ -15,6 +15,7 @@ const ENV_LOG4RS_FILE_KEY : &str = "TMS_LOG4RS_CONFIG_FILE";
 const LOG4RS_CONFIG_FILE  : &str = "resources/log4rs.yml";
 const ENV_CONFIG_FILE_KEY : &str = "TMS_CONFIG_FILE";
 const DEFAULT_CONFIG_FILE : &str = "~/tms.toml";
+const DEFAULT_HTTP_PORT   : u16  = 3000;
 
 // ***************************************************************************
 //                               Config Structs
@@ -56,7 +57,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             title: "TMS Server".to_string(),
-            http_port: 3000,
+            http_port: DEFAULT_HTTP_PORT,
         }
     }
 }
