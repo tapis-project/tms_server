@@ -18,7 +18,9 @@ pub enum Errors {
     #[error("Reading application configuration file: {}", .0)]
     ReadingConfigFile(String),
 
-
     #[error("Unable to parse TOML file: {}", .0)]
     TOMLParseError(String),
+
+    #[error("TMS Error: {}", .0)]
+    TMSError(String),
 }

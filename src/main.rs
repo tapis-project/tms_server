@@ -16,6 +16,11 @@ mod utils;
 mod v1;
 
 // ***************************************************************************
+//                                Constants
+// ***************************************************************************
+const SERVER_NAME : &str = "TmsServer"; // for poem logging
+
+// ***************************************************************************
 //                             Static Variables
 // ***************************************************************************
 // Lazily initialize the parameters variable so that is has a 'static lifetime.
@@ -34,18 +39,23 @@ async fn main() -> Result<(), std::io::Error> {
 
     // Configure out log.
     init_log();
-
+    
     // Force the reading of input parameters and initialization of runtime context.
     info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
 
-    // TODO: add to static configuration.
-    utils::db::testdb().await;
+    // TODO: figure out how to add to static configuration.
+    let db = utils::db::init_db().await;
+
+    // Assign base URL.
+    let tms_url = format!("{}:{}{}",
+        RUNTIME_CTX.parms.config.http_addr, 
+        RUNTIME_CTX.parms.config.http_port, 
+        "/v1");
 
     // Create a tuple with both the Api struct and the imported user::UserApi struct
-    let local_tms_url = format!("{}{}{}","https://localhost:", RUNTIME_CTX.parms.config.http_port, "/v1");
     let endpoints = (Api, NewSshKeysApi, PublicKeyApi);
     let api_service = 
-        OpenApiService::new(endpoints, "TMS Server", "0.0.1").server(local_tms_url);
+        OpenApiService::new(endpoints, "TMS Server", "0.0.1").server(tms_url);
 
     // Allow the generated openapi specs to be retrieved from the server.
     let spec = api_service.spec_endpoint();
@@ -68,6 +78,7 @@ async fn main() -> Result<(), std::io::Error> {
             ),
         ),
     )
+    .name(SERVER_NAME)
     .run(app)
     .await
 }

@@ -1,6 +1,9 @@
-use sqlx::{migrate::MigrateDatabase, Sqlite};
+use sqlx::{migrate::MigrateDatabase, Sqlite, Pool};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use std::str::FromStr;
+
+use log::{info, error};
+use crate::utils::errors::Errors;
 
 // Database constants.
 const DB_URL: &str = "sqlite://tms.db";
@@ -15,17 +18,21 @@ const POOL_MAX_CONNECTIONS: u32 = 8;
 //     client_secret: String,
 // }
 
-//#[tokio::main]
-pub async fn testdb() {
+pub async fn init_db() -> Pool<Sqlite> {
 
     if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {
-        println!("Creating database {}", DB_URL);
+        info!("Creating database {}", DB_URL);
         match Sqlite::create_database(DB_URL).await {
-            Ok(_) => println!("Create db success"),
-            Err(error) => panic!("database {} create error: {}", DB_URL, error),
+            Ok(_) => info!("Create db success"),
+            Err(error) => {
+                //let msg = format!("{}\n   {}", Errors::TOMLParseError(config_file_abs), e);
+                let msg = Errors::TMSError(format!("database {} create error: {}", DB_URL, error));
+                error!("{}", msg);
+                panic!("{}", msg);
+            }
         }
     } else {
-        println!("Database already exists");
+        info!("Database already exists");
     }
 
     // The synchronous setting 3 means EXTRA, the strongest durability setting.
@@ -39,7 +46,6 @@ pub async fn testdb() {
     //    SQLITE_DEFAULT_AUTOMATIC_INDEX=0
     //    SQLITE_DEFAULT_SYNCHRONOUS=3
     //    SQLITE_DEFAULT_WAL_SYNCHRONOUS=3
-
     let options = SqliteConnectOptions::from_str(DB_URL)
         .expect("Unable to create connection db options")
         .journal_mode(SqliteJournalMode::Wal)
@@ -47,14 +53,18 @@ pub async fn testdb() {
         .pragma("synchronous", "3")
         .foreign_keys(true);
         
+    // Create the database connection pool.    
     let db = SqlitePoolOptions::new()
         .min_connections(POOL_MIN_CONNECTIONS)
         .max_connections(POOL_MAX_CONNECTIONS)
-        .connect_with(options).await.expect("Unable to create connection db");
+        .connect_with(options).await
+        .expect("Unable to create connection db");
 
+    // Locate the migration files.
     let crate_dir = std::env::var("CARGO_MANIFEST_DIR").expect("No manifest directory");
     let migrations = std::path::Path::new(&crate_dir).join("./migrations");
 
+    // Run the migrations.
     let migration_results = sqlx::migrate::Migrator::new(migrations)
         .await
         .expect("Migration failed")
@@ -62,12 +72,13 @@ pub async fn testdb() {
         .await;
 
     match migration_results {
-        Ok(_) => println!("Migration success"),
+        Ok(_) => info!("Migration success"),
         Err(error) => {
             panic!("Migration run error: {}", error);
         }
     }
 
-    println!("migration: {:?}", migration_results);
+    info!("migration: {:?}", migration_results);
+    return db;
 
 }
