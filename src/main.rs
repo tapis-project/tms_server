@@ -24,7 +24,8 @@ const SERVER_NAME : &str = "TmsServer"; // for poem logging
 //                             Static Variables
 // ***************************************************************************
 // Lazily initialize the parameters variable so that is has a 'static lifetime.
-// We exit if we can't read our parameters.
+// We also initialize the database connection pool and run db migrations.
+// We exit if we can't read our parameters or access the database.
 lazy_static! {
     static ref RUNTIME_CTX: RuntimeCtx = init_runtime_context();
 }
@@ -41,10 +42,9 @@ async fn main() -> Result<(), std::io::Error> {
     init_log();
     
     // Force the reading of input parameters and initialization of runtime context.
+    // The runtime context also initializes the database, which makes db connections
+    // available to all modules.
     info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
-
-    // TODO: figure out how to add to static configuration.
-    let db = utils::db::init_db().await;
 
     // Assign base URL.
     let tms_url = format!("{}:{}{}",

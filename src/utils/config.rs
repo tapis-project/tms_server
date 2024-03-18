@@ -4,8 +4,14 @@ use serde::Deserialize;
 use std::{env, fs};
 use toml;
 
+// See https://users.rust-lang.org/t/relationship-between-std-futures-futures-and-tokio/38077
+// for a cogent explanation on dealing with futures and async programming in Rust.  More 
+// background can be found at https://rust-lang.github.io/async-book/.
+use sqlx::{Sqlite, Pool};
+use futures::executor::block_on;
+
 // TMS Utilities
-use crate::utils::{tms_utils, errors::Errors};
+use crate::utils::{tms_utils, db, errors::Errors};
 
 // ***************************************************************************
 //                                Constants
@@ -36,6 +42,7 @@ pub struct Parms {
 #[derive(Debug)]
 pub struct RuntimeCtx {
     pub parms: Parms,
+    pub db: Pool<Sqlite>,
 }
 
 // ---------------------------------------------------------------------------
@@ -148,9 +155,8 @@ fn get_parms() -> Result<Parms> {
 pub fn init_runtime_context() -> RuntimeCtx {
     // If either of these fail the application aborts.
     let parms = get_parms().expect("FAILED to read configuration file.");
-
-    // Return the context.
-    RuntimeCtx {parms}
+    let db = block_on(db::init_db());
+    RuntimeCtx {parms, db}
 }
 
 // ***************************************************************************
