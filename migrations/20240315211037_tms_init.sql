@@ -20,6 +20,8 @@ CREATE INDEX IF NOT EXISTS clts_created_idx ON clients (created);
 -- ---------------------------------------
 -- user_hosts table
 -- ---------------------------------------
+-- If both user_name and user_name_on_host are set to "*",
+-- then all users have their identity linked on host.
 CREATE TABLE IF NOT EXISTS user_hosts
 (
     id                INTEGER PRIMARY KEY NOT NULL,
@@ -38,6 +40,7 @@ CREATE INDEX IF NOT EXISTS uhost_created_idx ON user_hosts (created);
 -- ---------------------------------------
 -- delegations table
 -- ---------------------------------------
+-- If user_name "*", then the delegation applies to all users.
 CREATE TABLE IF NOT EXISTS delegations
 (
     id                INTEGER PRIMARY KEY NOT NULL,
@@ -92,8 +95,8 @@ CREATE INDEX IF NOT EXISTS adm_created_idx ON admin (created);
 -- hosts table
 -- ---------------------------------------
 -- addr takes 3 forms:
---  IPv4 addr
---  IPv4 addr with glob at least 2 segments the last being an asterisk
+--  IPv4 addr 
+--  IPv4 addr with at least 2 segments, the last can be an asterisk (*)
 --  IPv4 range [addr1, addr2] where both addresses are full IPv4 addresses 
 CREATE TABLE IF NOT EXISTS hosts
 (
