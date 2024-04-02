@@ -52,8 +52,8 @@ async fn main() -> Result<(), std::io::Error> {
         RUNTIME_CTX.parms.config.http_port, 
         "/v1");
 
-    // Create a tuple with both the Api struct and the imported user::UserApi struct
-    let endpoints = (Api, NewSshKeysApi, PublicKeyApi);
+    // Create a tuple with both the HelloApi struct and the imported user::UserApi struct
+    let endpoints = (HelloApi, NewSshKeysApi, PublicKeyApi);
     let api_service = 
         OpenApiService::new(endpoints, "TMS Server", "0.0.1").server(tms_url);
 
@@ -87,14 +87,14 @@ async fn main() -> Result<(), std::io::Error> {
 //                             Hello Endpoint
 // ***************************************************************************
 // Hello structure.
-struct Api;
+struct HelloApi;
 
 // ---------------------------------------------------------------------------
 // hello endpoint:
 // ---------------------------------------------------------------------------
 #[OpenApi]
-impl Api {
-    #[oai(path = "/hello", method = "get")]
+impl HelloApi {
+    #[oai(path = "/tms/hello", method = "get")]
     async fn index(&self, name: Query<Option<String>>) -> PlainText<String> {
         match name.0 {
             Some(name) => PlainText(format!("hello, {}!", name)),

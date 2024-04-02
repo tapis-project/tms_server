@@ -1,4 +1,5 @@
--- Initial TMS database schema
+-- Initial TMS database schema.
+-- Does not include foreign key definitions.
 
 -- ---------------------------------------
 -- clients table
@@ -25,6 +26,7 @@ CREATE INDEX IF NOT EXISTS clts_created_idx ON clients (created);
 CREATE TABLE IF NOT EXISTS user_hosts
 (
     id                INTEGER PRIMARY KEY NOT NULL,
+    tenant            TEXT NOT NULL,
     user_name         TEXT NOT NULL,
     host              TEXT NOT NULL,
     user_name_on_host TEXT NOT NULL,
@@ -32,7 +34,7 @@ CREATE TABLE IF NOT EXISTS user_hosts
     updated           TEXT NOT NULL
 ) STRICT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS uh_user_name_idx ON user_hosts (user_name);
+CREATE UNIQUE INDEX IF NOT EXISTS uh_user_name_idx ON user_hosts (tenant, user_name, host);
 CREATE INDEX IF NOT EXISTS uhost_host_idx ON user_hosts (host);
 CREATE INDEX IF NOT EXISTS uhost_user_on_host_idx ON user_hosts (user_name_on_host);
 CREATE INDEX IF NOT EXISTS uhost_created_idx ON user_hosts (created);
@@ -44,34 +46,42 @@ CREATE INDEX IF NOT EXISTS uhost_created_idx ON user_hosts (created);
 CREATE TABLE IF NOT EXISTS delegations
 (
     id                INTEGER PRIMARY KEY NOT NULL,
+    tenant            TEXT NOT NULL,
     user_name         TEXT NOT NULL,
     client_id         TEXT NOT NULL,
     created           TEXT NOT NULL,
     updated           TEXT NOT NULL
 ) STRICT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS delg_user_client_idx ON delegations (user_name, client_id);
+CREATE UNIQUE INDEX IF NOT EXISTS delg_user_client_idx ON delegations (tenant, user_name, client_id);
 CREATE INDEX IF NOT EXISTS delg_created_idx ON delegations (created);
 
 -- ---------------------------------------
 -- pubkeys table
 -- ---------------------------------------
+-- Public keys tie users and hosts together. The same public key can be 
+-- used on multiple hosts, though that practice is discouraged.  A user
+-- can have multiple keys defined for a host, but application code must
+-- ensure that a key can only be used by a single user in a single tenant.
 CREATE TABLE IF NOT EXISTS pubkeys
 (
-    id                INTEGER PRIMARY KEY NOT NULL,
-    key_name          TEXT NOT NULL,
-    user_name         TEXT NOT NULL,
-    host              TEXT NOT NULL,
-    public_key        TEXT NOT NULL,
-    ttl               TEXT NOT NULL,
-    max_uses          INT  NOT NULL,
-    available_uses    INT  NOT NULL,
-    created           TEXT NOT NULL,
-    updated           TEXT NOT NULL
+    id                     INTEGER PRIMARY KEY NOT NULL,
+    tenant                 TEXT NOT NULL,
+    user_name              TEXT NOT NULL,
+    key_name               TEXT NOT NULL,
+    host                   TEXT NOT NULL,
+    public_key_fingerprint TEXT NOT NULL,
+    public_key             TEXT NOT NULL,
+    max_uses               INT  NOT NULL,
+    remaining_uses         INT  NOT NULL,
+    expires_at             TEXT NOT NULL,
+    created                TEXT NOT NULL,
+    updated                TEXT NOT NULL
 ) STRICT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS pubk_key_name_idx ON pubkeys (key_name);
-CREATE UNIQUE INDEX IF NOT EXISTS pubk_user_host_idx ON pubkeys (user_name, host);
+CREATE UNIQUE INDEX IF NOT EXISTS pubk_key_name_idx ON pubkeys (tenant, user_name, key_name);
+CREATE UNIQUE INDEX IF NOT EXISTS pubk_fprint_idx ON pubkeys (public_key_fingerprint, host);
+CREATE INDEX IF NOT EXISTS pubk_expires_idx ON pubkeys (expires_at);
 CREATE INDEX IF NOT EXISTS pubk_created_idx ON pubkeys (created);
 
 -- ---------------------------------------
@@ -82,13 +92,14 @@ CREATE INDEX IF NOT EXISTS pubk_created_idx ON pubkeys (created);
 CREATE TABLE IF NOT EXISTS admin
 (
     id                INTEGER PRIMARY KEY NOT NULL,
+    tenant            TEXT NOT NULL,
     user_name         TEXT NOT NULL,
     privilege         TEXT NOT NULL,
     created           TEXT NOT NULL,
     updated           TEXT NOT NULL
 ) STRICT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS adm_user_priv_idx ON admin (user_name, privilege);
+CREATE UNIQUE INDEX IF NOT EXISTS adm_user_priv_idx ON admin (tenant, user_name, privilege);
 CREATE INDEX IF NOT EXISTS adm_created_idx ON admin (created);
 
 -- ---------------------------------------

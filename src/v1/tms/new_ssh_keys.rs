@@ -28,7 +28,7 @@ struct RespNewSshKeys
 // ***************************************************************************
 #[OpenApi]
 impl NewSshKeysApi {
-    #[oai(path = "/tms/NewSshKeys", method = "post")]
+    #[oai(path = "/tms/creds/sshkeys", method = "post")]
     async fn get_new_ssh_keys(&self, keys: Json<ReqNewSshKeys>) -> Json<RespNewSshKeys> {
         let resp = match RespNewSshKeys::process(&keys) {
             Ok(r) => r,

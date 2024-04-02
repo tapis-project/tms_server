@@ -27,7 +27,7 @@ struct RespPublicKey
 // ***************************************************************************
 #[OpenApi]
 impl PublicKeyApi {
-    #[oai(path = "/tms/PublicKey", method = "get")]
+    #[oai(path = "/tms/creds/publickey", method = "get")]
     async fn get_new_ssh_keys(&self, client_addr: Query<String>,
                               client_port: Query<i32>,
                               server_addr: Query<String>,
