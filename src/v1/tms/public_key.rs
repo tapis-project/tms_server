@@ -37,7 +37,9 @@ impl PublicKeyApi {
         let req = ReqPublicKey::new(client_addr.0, client_port.0, server_addr.0, server_port.0, user.0);                      
         let resp = match RespPublicKey::process(&req) {
             Ok(r) => r,
-            Err(e) => RespPublicKey::new("ERROR"),
+            Err(e) => {
+                let msg = "ERROR: ".to_owned() + e.to_string().as_str();
+                RespPublicKey::new(msg.as_str())},
         };
 
         Json(resp)

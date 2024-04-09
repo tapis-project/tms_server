@@ -32,7 +32,9 @@ impl NewSshKeysApi {
     async fn get_new_ssh_keys(&self, keys: Json<ReqNewSshKeys>) -> Json<RespNewSshKeys> {
         let resp = match RespNewSshKeys::process(&keys) {
             Ok(r) => r,
-            Err(e) => RespNewSshKeys::new("ERROR"),
+            Err(e) => {
+                let msg = "ERROR: ".to_owned() + e.to_string().as_str();
+                RespNewSshKeys::new(msg.as_str())},
         };
 
         Json(resp)

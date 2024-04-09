@@ -79,6 +79,6 @@ pub async fn init_db() -> Pool<Sqlite> {
     }
 
     info!("migration: {:?}", migration_results);
-    return db;
+    db
 
 }

@@ -128,7 +128,7 @@ fn get_parms() -> Result<Parms> {
     let contents = match fs::read_to_string(&config_file_abs) {
         Ok(c) => c,
         Err(_) => {
-            println!("{} {}{}", "Unable to read configuration at", config_file, ". Using default values.");
+            println!("Unable to read configuration at {}. Using default values.", config_file);
             return Ok(Parms { config_file: Default::default(), config: Config::new() });
         }
     };
