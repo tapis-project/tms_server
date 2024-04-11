@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use poem_openapi::{  OpenApi, payload::Json, Object };
 use poem::Error;
 
@@ -32,7 +34,7 @@ struct RespPublicKey
 #[OpenApi]
 impl PublicKeyApi {
     #[oai(path = "/tms/creds/publickey", method = "post")]
-    async fn get_new_ssh_keys(&self, req: Json<ReqPublicKey>) -> Json<RespPublicKey> {
+    async fn get_public_key(&self, req: Json<ReqPublicKey>) -> Json<RespPublicKey> {
         let resp = match RespPublicKey::process(&req) {
             Ok(r) => r,
             Err(e) => {

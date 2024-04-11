@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use sqlx::{migrate::MigrateDatabase, Sqlite, Pool};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use std::str::FromStr;

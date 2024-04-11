@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use anyhow::{Result, anyhow};
 use log::{info, error};
 use serde::Deserialize;

@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use path_absolutize::Absolutize;
 use std::ops::Deref;
 use std::path::Path;

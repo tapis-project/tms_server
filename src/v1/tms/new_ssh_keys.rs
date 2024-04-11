@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use poem_openapi::{ OpenApi, payload::Json, Object };
 use poem::Error;
 

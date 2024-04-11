@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use anyhow::Result;
 use lazy_static::lazy_static;
 use log::info;
@@ -8,6 +10,7 @@ use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 // TMS Utilities
 use crate::v1::tms::new_ssh_keys::NewSshKeysApi;
 use crate::v1::tms::public_key::PublicKeyApi;
+use crate::v1::tms::version::VersionApi;
 use utils::config::{init_log, init_runtime_context, RuntimeCtx};
 use utils::errors::Errors;
 
@@ -46,6 +49,16 @@ async fn main() -> Result<(), std::io::Error> {
     // available to all modules.
     info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
 
+    // Log build info.
+    info!("{}.", format!("*** Running TMS={}, BRANCH={}, COMMIT={}, DIRTY={}, SRC_TS={}, RUSTC={}",
+                        option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"),
+                        env!("GIT_BRANCH"),
+                        env!("GIT_COMMIT_SHORT"),
+                        env!("GIT_DIRTY"),
+                        env!("SOURCE_TIMESTAMP"),
+                        env!("RUSTC_VERSION")),
+    );
+
     // Assign base URL.
     let tms_url = format!("{}:{}{}",
         RUNTIME_CTX.parms.config.http_addr, 
@@ -53,7 +66,7 @@ async fn main() -> Result<(), std::io::Error> {
         "/v1");
 
     // Create a tuple with both the HelloApi struct and the imported user::UserApi struct
-    let endpoints = (HelloApi, NewSshKeysApi, PublicKeyApi);
+    let endpoints = (HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi);
     let api_service = 
         OpenApiService::new(endpoints, "TMS Server", "0.0.1").server(tms_url);
 
