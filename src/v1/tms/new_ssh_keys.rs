@@ -20,7 +20,10 @@ struct ReqNewSshKeys
 #[derive(Object)]
 struct RespNewSshKeys
 {
+    result_code: String,
+    result_msg: String,
     private_key: String,
+    public_key: String,
 }
 
 // ***************************************************************************
@@ -29,12 +32,12 @@ struct RespNewSshKeys
 #[OpenApi]
 impl NewSshKeysApi {
     #[oai(path = "/tms/creds/sshkeys", method = "post")]
-    async fn get_new_ssh_keys(&self, keys: Json<ReqNewSshKeys>) -> Json<RespNewSshKeys> {
-        let resp = match RespNewSshKeys::process(&keys) {
+    async fn get_new_ssh_keys(&self, req: Json<ReqNewSshKeys>) -> Json<RespNewSshKeys> {
+        let resp = match RespNewSshKeys::process(&req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
-                RespNewSshKeys::new(msg.as_str())},
+                RespNewSshKeys::new("1", msg.as_str(), "", "")},
         };
 
         Json(resp)
@@ -45,11 +48,14 @@ impl NewSshKeysApi {
 //                          Request/Response Methods
 // ***************************************************************************
 impl RespNewSshKeys {
-    fn new(key: &str) -> Self {
-        Self {private_key: key.to_string()}
+    fn new(result_code: &str, result_msg: &str, private_key: &str, public_key: &str) -> Self {
+        Self {result_code: result_code.to_string(), 
+              result_msg: result_msg.to_string(), 
+              private_key: private_key.to_string(), 
+              public_key: public_key.to_string()}
     }
 
     fn process(req: &ReqNewSshKeys) -> Result<RespNewSshKeys, Error> {
-        Ok(Self::new("PRIVATE_KEY"))
+        Ok(Self::new("0", "success", "PRIVATE_KEY", "PUBLIC_KEY"))
     }
 }
