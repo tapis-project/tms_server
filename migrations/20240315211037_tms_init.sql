@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS pubkeys
     host                   TEXT NOT NULL,
     public_key_fingerprint TEXT NOT NULL,
     public_key             TEXT NOT NULL,
+    key_type               TEXT NOT NULL,
     max_uses               INT  NOT NULL,
     remaining_uses         INT  NOT NULL,
     expires_at             TEXT NOT NULL,
