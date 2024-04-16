@@ -13,6 +13,7 @@ use crate::v1::tms::public_key::PublicKeyApi;
 use crate::v1::tms::version::VersionApi;
 use utils::config::{init_log, init_runtime_context, RuntimeCtx};
 use utils::errors::Errors;
+use utils::keygen;
 
 // Modules
 mod utils;
@@ -34,31 +35,18 @@ lazy_static! {
 }
 
 // ---------------------------------------------------------------------------
-// server main loop:
+// main:
 // ---------------------------------------------------------------------------
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
+    // --------------- Initialize TMS -----------------
     // Announce ourselves.
     println!("Starting tms_server!");
 
-    // Configure out log.
-    init_log();
-    
-    // Force the reading of input parameters and initialization of runtime context.
-    // The runtime context also initializes the database, which makes db connections
-    // available to all modules.
-    info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
+    // Initialize the server.
+    tms_init();
 
-    // Log build info.
-    info!("{}.", format!("*** Running TMS={}, BRANCH={}, COMMIT={}, DIRTY={}, SRC_TS={}, RUSTC={}",
-                        option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"),
-                        env!("GIT_BRANCH"),
-                        env!("GIT_COMMIT_SHORT"),
-                        env!("GIT_DIRTY"),
-                        env!("SOURCE_TIMESTAMP"),
-                        env!("RUSTC_VERSION")),
-    );
-
+    // --------------- Main Loop Set Up ---------------
     // Assign base URL.
     let tms_url = format!("{}:{}{}",
         RUNTIME_CTX.parms.config.http_addr, 
@@ -82,6 +70,8 @@ async fn main() -> Result<(), std::io::Error> {
         .nest("/", ui)
         .at("/spec", spec)
         .at("/spec_yaml", spec_yaml);
+
+    // ------------------ Main Loop -------------------
     poem::Server::new(
         TcpListener::bind(addr).rustls(
             RustlsConfig::new().fallback(
@@ -94,6 +84,46 @@ async fn main() -> Result<(), std::io::Error> {
     .name(SERVER_NAME)
     .run(app)
     .await
+}
+
+// ***************************************************************************
+//                             Private Functions
+// ***************************************************************************
+// ---------------------------------------------------------------------------
+// tms_init:
+// ---------------------------------------------------------------------------
+/** Initialing all subsystems and data structures other than those needed
+ * to configure the main loop processor.
+ */
+fn tms_init() {
+    // Configure out log.
+    init_log();
+    
+    // Force the reading of input parameters and initialization of runtime context.
+    // The runtime context also initializes the database, which makes db connections
+    // available to all modules.
+    info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
+
+    // Log build info.
+    print_version_info();
+
+    // Initialize keygen subsystem.
+    keygen::init_keygen();
+}
+
+// ---------------------------------------------------------------------------
+// print_version_info:
+// ---------------------------------------------------------------------------
+fn print_version_info() {
+    // Log build info.
+    info!("{}.", format!("\n*** Running TMS={}, BRANCH={}, COMMIT={}, DIRTY={}, SRC_TS={}, RUSTC={}",
+                        option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"),
+                        env!("GIT_BRANCH"),
+                        env!("GIT_COMMIT_SHORT"),
+                        env!("GIT_DIRTY"),
+                        env!("SOURCE_TIMESTAMP"),
+                        env!("RUSTC_VERSION")),
+    );
 }
 
 // ***************************************************************************

@@ -15,16 +15,18 @@ use futures::executor::block_on;
 // TMS Utilities
 use crate::utils::{tms_utils, db, errors::Errors};
 
+use super::keygen::KeygenConfig;
+
 // ***************************************************************************
 //                                Constants
 // ***************************************************************************
 // Constants.
-const ENV_LOG4RS_FILE_KEY : &str = "TMS_LOG4RS_CONFIG_FILE";
-const LOG4RS_CONFIG_FILE  : &str = "resources/log4rs.yml";
-const ENV_CONFIG_FILE_KEY : &str = "TMS_CONFIG_FILE";
-const DEFAULT_CONFIG_FILE : &str = "~/tms.toml";
-const DEFAULT_HTTP_ADDR   : &str = "https://localhost";
-const DEFAULT_HTTP_PORT   : u16  = 3000;
+const ENV_LOG4RS_FILE_KEY  : &str = "TMS_LOG4RS_CONFIG_FILE";
+const LOG4RS_CONFIG_FILE   : &str = "resources/log4rs.yml";
+const ENV_CONFIG_FILE_KEY  : &str = "TMS_CONFIG_FILE";
+const DEFAULT_CONFIG_FILE  : &str = "~/tms.toml";
+const DEFAULT_HTTP_ADDR    : &str = "https://localhost";
+const DEFAULT_HTTP_PORT    : u16  = 3000;
 
 // ***************************************************************************
 //                               Config Structs
@@ -55,6 +57,7 @@ pub struct Config {
     pub title: String,
     pub http_addr: String,
     pub http_port: u16,
+    pub keygen_config: KeygenConfig, 
 }
 
 impl Config {
@@ -70,6 +73,7 @@ impl Default for Config {
             title: "TMS Server".to_string(),
             http_addr: DEFAULT_HTTP_ADDR.to_string(),
             http_port: DEFAULT_HTTP_PORT,
+            keygen_config: KeygenConfig::new(),
         }
     }
 }

@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+//use ssh_key::private::{ KeypairData, PrivateKey, RsaKeypair };
 use poem_openapi::{ OpenApi, payload::Json, Object };
 use poem::Error;
 
@@ -58,6 +59,8 @@ impl RespNewSshKeys {
     }
 
     fn process(req: &ReqNewSshKeys) -> Result<RespNewSshKeys, Error> {
+        // let keypair = PrivateKey::new(KeypairData::Rsa, "x");
+
         Ok(Self::new("0", "success", "PRIVATE_KEY", "PUBLIC_KEY"))
     }
 }
