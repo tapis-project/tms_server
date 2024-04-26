@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.80"
+execute = "0.2.13"
 futures = "0.3"
 lazy_static = "1.4.0"
 log = "0.4.21"
@@ -24,6 +25,7 @@ ssh-key = { version = "0.6.5", features = [ "alloc" ] }
 thiserror = "1.0.57"
 tokio = { version = "1", features = ["full", "rt-multi-thread", "macros"] }
 toml = "0.8.11"
+uuid = { version = "1.8.0", features = ["v4", "serde"] }
 
 [build-dependencies]
 build-data = "0.1.5"
