@@ -3,6 +3,7 @@
 //use ssh_key::private::{ KeypairData, PrivateKey, RsaKeypair };
 use poem_openapi::{ OpenApi, payload::Json, Object };
 use poem::Error;
+use anyhow::anyhow;
 
 // ***************************************************************************
 //                          Request/Response Definiions
@@ -27,6 +28,7 @@ struct RespNewSshKeys
     result_msg: String,
     private_key: String,
     public_key: String,
+    public_key_fingerprint: String,
 }
 
 // ***************************************************************************
@@ -40,7 +42,7 @@ impl NewSshKeysApi {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
-                RespNewSshKeys::new("1", msg.as_str(), "", "")},
+                RespNewSshKeys::new("1", msg.as_str(), "".to_string(), "".to_string(), "".to_string())},
         };
 
         Json(resp)
@@ -51,16 +53,27 @@ impl NewSshKeysApi {
 //                          Request/Response Methods
 // ***************************************************************************
 impl RespNewSshKeys {
-    fn new(result_code: &str, result_msg: &str, private_key: &str, public_key: &str) -> Self {
+    fn new(result_code: &str, result_msg: &str, private_key: String, public_key: String, 
+           public_key_fingerprint: String) -> Self {
         Self {result_code: result_code.to_string(), 
               result_msg: result_msg.to_string(), 
-              private_key: private_key.to_string(), 
-              public_key: public_key.to_string()}
+              private_key, public_key, public_key_fingerprint,
+            }
     }
 
-    fn process(req: &ReqNewSshKeys) -> Result<RespNewSshKeys, Error> {
-        // let keypair = PrivateKey::new(KeypairData::Rsa, "x");
-
-        Ok(Self::new("0", "success", "PRIVATE_KEY", "PUBLIC_KEY"))
+    fn process(req: &ReqNewSshKeys) -> Result<RespNewSshKeys, anyhow::Error> {
+        // Generate the new key pair.
+        let keyinfo = match keygen::generate_key(keygen::KeyType::Rsa) {
+            Ok(k) => k,
+            Err(e) => {
+                return Result::Err(anyhow!(e));
+            }
+        };
+        
+        // Success!
+        Ok(Self::new("0", "success", 
+                    keyinfo.private_key, 
+                    keyinfo.public_key, 
+                    keyinfo.public_key_fingerprint))
     }
 }

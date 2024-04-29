@@ -1,15 +1,20 @@
 #![forbid(unsafe_code)]
 
+use core::panic;
 use std::collections::HashMap;
+use std::os::unix::fs::MetadataExt;
 use std::process::Command;
-use std::{fs, fmt};
+use std::path::Path;
+use std::{fs, fmt, io};
 
 use anyhow::{Result, anyhow};
 use log::{info, error};
 use serde::Deserialize;
 use uuid::Uuid;
+use fs_mistrust::Mistrust;
 
-use crate::utils::tms_utils::run_command;
+
+use crate::utils::tms_utils::{run_command, get_absolute_path};
 
 use crate::RUNTIME_CTX;
 
@@ -18,7 +23,7 @@ use crate::RUNTIME_CTX;
 // ***************************************************************************
 // Constants.
 const DEFAULT_KEYGEN_PATH   : &str = "/usr/bin/ssh-keygen";
-const DEFAULT_KEY_OUT_PATH  : &str = "/tmp/tms/keygen/";
+const DEFAULT_KEY_OUT_PATH  : &str = "~/.tms/keygen/";
 const DEFAULT_SHREDDER_PATH : &str = "/usr/bin/shred";
 
 // ***************************************************************************
@@ -34,6 +39,7 @@ pub enum KeyType {
     Rsa,
 }
 
+// Convert enum to it's string representation.
 impl fmt::Display for KeyType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -72,7 +78,7 @@ impl Default for KeygenConfig {
     fn default() -> Self {
         Self {
             keygen_path: DEFAULT_KEYGEN_PATH.to_string(),
-            key_output_path: DEFAULT_KEY_OUT_PATH.to_string(),
+            key_output_path: get_absolute_path(DEFAULT_KEY_OUT_PATH),
             shredder_path: DEFAULT_SHREDDER_PATH.to_string(),
             key_len_map: get_key_len_map(),
         }
@@ -104,22 +110,26 @@ impl GeneratedKeyObj {
 pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
 
     // -------------------------- Generate New Keys --------------------------
+    // -----------------------------------------------------------------------
+    // Convenience.
+    let kconfig = &RUNTIME_CTX.parms.config.keygen_config;
+
     // Get the bit length for this key type.
-    let bitlen = *RUNTIME_CTX.parms.config.keygen_config.key_len_map.get(&key_type)
-        .expect("Unable to determine bit length for key type");
+    let bitlen = *kconfig.key_len_map.get(&key_type)
+        .expect(format!("Unable to determine bit length for key type {}.", key_type).as_str());
 
     // Get a unique file name for this key.
     let key_name = Uuid::new_v4().as_hyphenated().to_string();
 
     // Construct the private key file name.
-    let mut key_output_path = RUNTIME_CTX.parms.config.keygen_config.key_output_path.clone();
+    let mut key_output_path = kconfig.key_output_path.clone();
     if !key_output_path.ends_with("/") {
         key_output_path += "/";
     }
     key_output_path += key_name.as_str();
 
     // Build the ssh-keygen command.
-    let mut keyscmd = Command::new(&RUNTIME_CTX.parms.config.keygen_config.keygen_path);
+    let mut keyscmd = Command::new(&kconfig.keygen_path);
     keyscmd.arg("-t").arg(key_type.to_string());
     if bitlen > 0 {
         keyscmd.arg("-b").arg(bitlen.to_string());
@@ -131,8 +141,9 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
     run_command(keyscmd, "keygen-createkeys")?;
 
     // -------------------------- Generate New Keys --------------------------
+    // -----------------------------------------------------------------------
     // Create fingerprint.
-    let mut fpcmd = Command::new(&RUNTIME_CTX.parms.config.keygen_config.keygen_path);
+    let mut fpcmd = Command::new(&kconfig.keygen_path);
     let pub_key_output_path = key_output_path.clone() + ".pub";
     fpcmd.arg("-l").arg("-f").arg(&pub_key_output_path);
     let fpcmdout = match run_command(fpcmd, "keygen-fingerprint") {
@@ -157,6 +168,7 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
     };
 
     // -------------------------- Generate Fingerprint -----------------------
+    // -----------------------------------------------------------------------
     // Extract the fingerprint hash from the string with this general format:
     //
     //   4096 SHA256:zIrsbkO7lZ/35472qdoQUFXoir2tcH2D09efHikBZxA bud@host (RSA)
@@ -176,6 +188,7 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
     info!("Generated public key with fingerprint: {}.", fingerprint);
 
     // -------------------------- Read Key Files -----------------------------
+    // -----------------------------------------------------------------------
     // Read the private key file into a string.
     let prv_key = match fs::read_to_string(&key_output_path) {
         Ok(s) => s,
@@ -201,6 +214,7 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
     };
 
     // -------------------------- Shred Key Files ----------------------------
+    // -----------------------------------------------------------------------
     // Delete the key files in a reasonably secure way.
     if !shred_keys(&key_output_path, &pub_key_output_path) {
         return Result::Err(anyhow!("**** Key file shred error ****"))
@@ -213,24 +227,60 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
 // ---------------------------------------------------------------------------
 // init_runtime_context:
 // ---------------------------------------------------------------------------
-/** This function panics if it cannot complete successfully.
- * 
+/** One time initialization routine. This function panics if it cannot complete 
+ * successfully. 
  */
 pub fn init_keygen() {
-    // Check that all keygen paths start are absolute.
-    let keygen_path = &RUNTIME_CTX.parms.config.keygen_config.keygen_path;
 
-    // Test that we can execute the keygen program.
+    // Check that the keygen path is absolute and represents an executable file.
+    // Note: The absolute check does not actually touch the file system.
+    let kconfig = &RUNTIME_CTX.parms.config.keygen_config;
+    let keygen_path_obj = Path::new(&kconfig.keygen_path);
+    if !keygen_path_obj.is_absolute() {
+        panic!("The keygen program path must be absolute: {}", &kconfig.keygen_path);
+    }
+    if !keygen_path_obj.is_file() {
+        panic!("The keygen program path must be an executable file: {}", &kconfig.keygen_path);
+    }
+    if !is_executable(keygen_path_obj) {
+        panic!("The keygen program file must be executable: {}", &kconfig.keygen_path);
+    }
 
-    // Test that we can execute the wipe progam.
+    // Check the shredder path is absolute and represents an executable file. 
+    let shredder_path_obj = Path::new(&kconfig.shredder_path);
+    if !shredder_path_obj.is_absolute() {
+        panic!("The shredder program path must be absolute: {}", &kconfig.shredder_path);
+    }
+    if !shredder_path_obj.is_file() {
+        panic!("The shredder program path must be an executable file: {}", &kconfig.shredder_path);
+    }
+    if !is_executable(shredder_path_obj) {
+        panic!("The shredder program file must be executable: {}", &kconfig.shredder_path);
+    }
 
-    // Create key output path if it doesn't exist.
+    // Check that the output path is absolute and is a directory (if exists).
+    let key_output_path_obj = Path::new(&kconfig.key_output_path);
+    if !key_output_path_obj.is_absolute() {
+        panic!("The TMS server key output path must be absolute: {}", &kconfig.key_output_path);
+    }
+    if key_output_path_obj.exists() && !key_output_path_obj.is_dir() {
+        panic!("The key output path must be a directory: {}", &kconfig.key_output_path);
+    }
 
-    // Check that the key output path has 700 permissions.
+    // Create key output path if it doesn't exist. The permissions
+    // on the key output path should always be 700. These methods
+    // can panic.
+    let mistrust = get_mistrust();
+    if !key_output_path_obj.exists() {
+        create_tms_dirs(&mistrust, key_output_path_obj);
+    } else {
+        // Make sure the path is accessible and a directory.
+        check_tms_dirs(&mistrust, key_output_path_obj);
 
-    // Wipe any files in the key output directory that may 
-    // have been left over from a previous run.
+        // TODO: Wipe any files in the key output directory that
+        // may have been left over from a previous run.
 
+    }
 
 }
 
@@ -274,6 +324,67 @@ fn shred(filepath : &String) -> bool {
 
     // File shredded.
     shredded
+}
+
+// ---------------------------------------------------------------------------
+// get_mistrust:
+// ---------------------------------------------------------------------------
+/** Configure a new mistrust object for initial directory processing. */
+fn get_mistrust() -> Mistrust {
+    // Configure our mistrust object.
+    let mistrust = match Mistrust::builder() 
+        .ignore_prefix(get_absolute_path("~"))
+        .trust_group(0)
+        .build() {
+            Ok(m) => m,
+            Err(e) => {
+                panic!("Mistrust configuration error: {}", &e.to_string());
+            }
+        };
+    mistrust
+}
+
+// ---------------------------------------------------------------------------
+// create_tms_dirs:
+// ---------------------------------------------------------------------------
+/** This function panics if the directory cannot be created and permission 
+ * properly set.  If the root of the path is the user's home directory, then
+ * all subdirectories are assigned 700 permissions. 
+ */
+fn create_tms_dirs(mistrust: &Mistrust, path: &Path) {
+    match mistrust.make_directory(path) {
+        Ok(_) => (),
+        Err(e) => {
+            panic!("Make directory error for {:?}: {}", path, &e.to_string());
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// check_tms_dirs:
+// ---------------------------------------------------------------------------
+/** This function panics if the directory cannot be created and permission 
+ * properly set.  The permissions on the final directory on the path are always
+ * enforced to be 700.  Intermediate path segments can have some group access, 
+ * specifically r+x (740).  Other can never have any access. 
+ */
+fn check_tms_dirs(mistrust: &Mistrust, path: &Path) {
+    match mistrust.check_directory(path) {
+        Ok(_) => (),
+        Err(e) => {
+            panic!("Check directory error for {:?}: {}", path, &e.to_string());
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// is_executable:
+// ---------------------------------------------------------------------------
+// Determine whether a path--typically a file--is executable.
+fn is_executable(path: &Path) -> bool {
+    let meta = path.metadata()
+    .expect(format!("Unable to retrieve metadata for {:?}", path).as_str());
+    meta.mode() & 0o111 != 0
 }
 
 // ---------------------------------------------------------------------------
