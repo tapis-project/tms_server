@@ -72,9 +72,10 @@ impl RespNewSshKeys {
             Some(k) => k.as_str(),
             None => "RSA",
         };
+        let key_type_upper = key_type_str.to_uppercase();
 
         // Get the enumerated key type.
-        let key_type = match key_type_str {
+        let key_type = match key_type_upper.as_str() {
             "RSA" => KeyType::Rsa,
             "ECDSA" => KeyType::Ecdsa,
             "ED25519" => KeyType::Ed25519,
