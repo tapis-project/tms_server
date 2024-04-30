@@ -93,11 +93,12 @@ pub struct GeneratedKeyObj {
     pub private_key: String,
     pub public_key: String,
     pub public_key_fingerprint: String,
+    pub key_type: String,
 }
 
 impl GeneratedKeyObj {
-    pub fn new(private_key: String, public_key: String, public_key_fingerprint: String) -> Self {
-        GeneratedKeyObj { private_key, public_key, public_key_fingerprint }
+    pub fn new(private_key: String, public_key: String, public_key_fingerprint: String, key_type: String) -> Self {
+        GeneratedKeyObj { private_key, public_key, public_key_fingerprint, key_type }
     }
 }
 
@@ -140,7 +141,7 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
     // We return from here on error, no clean up necessary.
     run_command(keyscmd, "keygen-createkeys")?;
 
-    // -------------------------- Generate New Keys --------------------------
+    // -------------------------- Generate Fingerprint -----------------------
     // -----------------------------------------------------------------------
     // Create fingerprint.
     let mut fpcmd = Command::new(&kconfig.keygen_path);
@@ -167,7 +168,7 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
         },
     };
 
-    // -------------------------- Generate Fingerprint -----------------------
+    // -------------------------- Parse Fingerprint --------------------------
     // -----------------------------------------------------------------------
     // Extract the fingerprint hash from the string with this general format:
     //
@@ -221,7 +222,10 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
     }
 
     // Return a newly populated key object.
-    Ok(GeneratedKeyObj::new(prv_key, pub_key, fingerprint.to_string()))
+    Ok(GeneratedKeyObj::new(prv_key, 
+                            pub_key, 
+                            fingerprint.to_string(), 
+                            key_type.to_string()))
 }
 
 // ---------------------------------------------------------------------------
