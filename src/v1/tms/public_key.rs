@@ -63,7 +63,7 @@ impl RespPublicKey {
               public_key: key.to_string()}
     }
 
-    fn process(req: &ReqPublicKey) -> Result<RespPublicKey, Error> {
+    fn process(_req: &ReqPublicKey) -> Result<RespPublicKey, Error> {
         Ok(Self::new("0", "success", "PUBLIC_KEY"))
     }
 }

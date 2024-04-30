@@ -11,9 +11,9 @@ use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 use crate::v1::tms::new_ssh_keys::NewSshKeysApi;
 use crate::v1::tms::public_key::PublicKeyApi;
 use crate::v1::tms::version::VersionApi;
-use utils::config::{init_log, init_runtime_context, RuntimeCtx};
-use utils::errors::Errors;
-use utils::keygen;
+use crate::utils::config::{init_log, init_runtime_context, RuntimeCtx};
+use crate::utils::errors::Errors;
+use crate::utils::keygen;
 
 // Modules
 mod utils;
@@ -109,19 +109,6 @@ fn tms_init() {
 
     // Initialize keygen subsystem.
     keygen::init_keygen();
-
-    // ************ test
-    let void = match keygen::generate_key(keygen::KeyType::Rsa) {
-        Ok(k) => {
-            println!("\n************** GENERATED KEYS **************");
-            println!("{:#?}", k);
-            println!("************ END GENERATED KEYS ************\n");
-        },
-        Err(e) => {
-            println!("{}", e.to_string());
-        },
-    };
-    
 }
 
 // ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::os::unix::fs::MetadataExt;
 use std::process::Command;
 use std::path::Path;
-use std::{fs, fmt, io};
+use std::{fs, fmt};
 
 use anyhow::{Result, anyhow};
 use log::{info, error};

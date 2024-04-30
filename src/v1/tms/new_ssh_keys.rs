@@ -2,8 +2,9 @@
 
 //use ssh_key::private::{ KeypairData, PrivateKey, RsaKeypair };
 use poem_openapi::{ OpenApi, payload::Json, Object };
-use poem::Error;
 use anyhow::anyhow;
+
+use crate::utils::keygen;
 
 // ***************************************************************************
 //                          Request/Response Definiions
@@ -61,7 +62,8 @@ impl RespNewSshKeys {
             }
     }
 
-    fn process(req: &ReqNewSshKeys) -> Result<RespNewSshKeys, anyhow::Error> {
+    #[allow(unused_variables)]
+    fn process(_req: &ReqNewSshKeys) -> Result<RespNewSshKeys, anyhow::Error> {
         // Generate the new key pair.
         let keyinfo = match keygen::generate_key(keygen::KeyType::Rsa) {
             Ok(k) => k,
