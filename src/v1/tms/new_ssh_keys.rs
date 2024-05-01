@@ -32,6 +32,7 @@ struct RespNewSshKeys
     public_key: String,
     public_key_fingerprint: String,
     key_type: String,
+    key_bits: String,
 }
 
 // ***************************************************************************
@@ -46,7 +47,7 @@ impl NewSshKeysApi {
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 RespNewSshKeys::new("1", msg.as_str(), "".to_string(), "".to_string(), 
-                                    "".to_string(), "".to_string())},
+                                    "".to_string(), "".to_string(), "".to_string() )},
         };
 
         Json(resp)
@@ -58,11 +59,11 @@ impl NewSshKeysApi {
 // ***************************************************************************
 impl RespNewSshKeys {
     fn new(result_code: &str, result_msg: &str, private_key: String, public_key: String, 
-           public_key_fingerprint: String, key_type: String) -> Self {
+           public_key_fingerprint: String, key_type: String, key_bits: String) -> Self {
         Self {result_code: result_code.to_string(), 
               result_msg: result_msg.to_string(), 
               private_key, public_key, public_key_fingerprint,
-              key_type,
+              key_type, key_bits
             }
     }
 
@@ -90,11 +91,12 @@ impl RespNewSshKeys {
             }
         };
         
-        // Success!
+        // Success! Zero key bits means a fixed key length.
         Ok(Self::new("0", "success", 
                     keyinfo.private_key, 
                     keyinfo.public_key, 
                     keyinfo.public_key_fingerprint,
-                    keyinfo.key_type))
+                    keyinfo.key_type,
+                    keyinfo.key_bits))
     }
 }

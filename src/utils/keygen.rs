@@ -94,11 +94,13 @@ pub struct GeneratedKeyObj {
     pub public_key: String,
     pub public_key_fingerprint: String,
     pub key_type: String,
+    pub key_bits: String,
 }
 
 impl GeneratedKeyObj {
-    pub fn new(private_key: String, public_key: String, public_key_fingerprint: String, key_type: String) -> Self {
-        GeneratedKeyObj { private_key, public_key, public_key_fingerprint, key_type }
+    pub fn new(private_key: String, public_key: String, public_key_fingerprint: String, 
+               key_type: String, key_bits: String) -> Self {
+        GeneratedKeyObj { private_key, public_key, public_key_fingerprint, key_type, key_bits}
     }
 }
 
@@ -221,11 +223,21 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
         return Result::Err(anyhow!("**** Key file shred error ****"))
     }
 
+    // -------------------------- Package Results ----------------------------
+    // -----------------------------------------------------------------------
+    // Substitute the a value for fixed length keys that we generate.
+    let mut key_bits = bitlen;
+    if key_bits == 0 && key_type == KeyType::Ed25519 {
+        key_bits = 256;
+    }
+
     // Return a newly populated key object.
     Ok(GeneratedKeyObj::new(prv_key, 
                             pub_key, 
                             fingerprint.to_string(), 
-                            key_type.to_string()))
+                            key_type.to_string(),
+                            key_bits.to_string(),
+                        ))
 }
 
 // ---------------------------------------------------------------------------
