@@ -8,7 +8,7 @@ use std::path::Path;
 use std::{fs, fmt};
 
 use anyhow::{Result, anyhow};
-use log::{info, error};
+use log::{info, warn, error};
 use serde::Deserialize;
 use uuid::Uuid;
 use fs_mistrust::Mistrust;
@@ -293,9 +293,9 @@ pub fn init_keygen() {
         // Make sure the path is accessible and a directory.
         check_tms_dirs(&mistrust, key_output_path_obj);
 
-        // TODO: Wipe any files in the key output directory that
+        // Wipe any files in the key output directory that
         // may have been left over from a previous run.
-
+        shred_files_in_dir(key_output_path_obj);
     }
 
 }
@@ -340,6 +340,35 @@ fn shred(filepath : &String) -> bool {
 
     // File shredded.
     shredded
+}
+
+// ---------------------------------------------------------------------------
+// shred_files_in_dir:
+// ---------------------------------------------------------------------------
+fn shred_files_in_dir(key_output_path_obj: &Path) {
+    // Get all the files in the directory.
+    let mut files_shredded = 0;
+    if let Ok(entries) = fs::read_dir(key_output_path_obj) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let entry_path = entry.path();
+                if entry_path.is_file() {
+                    // Delete the file.
+                    let p = &*entry_path.to_string_lossy();
+                    shred(&p.to_string());
+                    files_shredded += 1;
+                }
+            }
+        }
+    } else {
+        // Unable to read entries in directory.
+        let msg = format!("Unable to clean up key output directory ({:?}): ",
+                                    key_output_path_obj); 
+        warn!("{}", msg);
+    }
+
+    // Log activity.
+    info!("{} leftover files shredded in directory {:?}.", files_shredded, key_output_path_obj);
 }
 
 // ---------------------------------------------------------------------------
