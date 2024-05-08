@@ -5,6 +5,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::process::{Command, ExitStatus, Output, Stdio};
 use execute::Execute;
+use chrono::{Utc, DateTime, SecondsFormat, FixedOffset, ParseError};
 
 use anyhow::{Result, anyhow};
 use log::error;
@@ -59,6 +60,47 @@ pub fn get_absolute_path(path: &str) -> String {
 }
 
 // ---------------------------------------------------------------------------
+// timestamp_utc:
+// ---------------------------------------------------------------------------
+/** Get the current UTC timestamp */
+pub fn timestamp_utc() -> DateTime<Utc> {
+    Utc::now()
+}
+
+// ---------------------------------------------------------------------------
+// timestamp_str:
+// ---------------------------------------------------------------------------
+/** Get the current UTC timestamp as a string in rfc3339 format, which looks
+ * like this:  2022-09-13T14:14:42.719849Z
+ */
+#[allow(dead_code)]
+pub fn timestamp_str() -> String {
+    Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true)
+}
+
+// ---------------------------------------------------------------------------
+// timestamp_utc_to_str:
+// ---------------------------------------------------------------------------
+/** Convert a UTC datetime to rfc3339 format, which looks like this:  
+ * 2022-09-13T14:14:42.719849Z
+ */
+#[allow(dead_code)]
+pub fn timestamp_utc_to_str(ts: DateTime<Utc>) -> String {
+    ts.to_rfc3339_opts(SecondsFormat::Micros, true)
+}
+// ---------------------------------------------------------------------------
+// timestamp_str_to_datetime:
+// ---------------------------------------------------------------------------
+/** Convert a timestamp string in rfc3339 format (ex: 2022-09-13T14:14:42.719849912+00:00)
+ * to a DateTime object.  The result will contain a parse error if the string
+ * does not conform to rfc3339.
+ */
+#[allow(dead_code)]
+pub fn timestamp_str_to_datetime(ts: &str) -> Result<DateTime<FixedOffset>, ParseError> {
+    DateTime::parse_from_rfc3339(ts)
+}
+
+// ---------------------------------------------------------------------------
 // run_command:
 // ---------------------------------------------------------------------------
 /** Make an operating system call and return an Output object that contains
@@ -71,6 +113,7 @@ pub fn get_absolute_path(path: &str) -> String {
  * 
  * The only way Ok is returned is when the command has a zero exit code.
  */
+#[allow(clippy::needless_return)]
 pub fn run_command(mut command: Command, task: &str) -> Result<Output> {
     // Capture all output.
     command.stdout(Stdio::piped());

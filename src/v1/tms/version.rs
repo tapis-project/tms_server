@@ -46,6 +46,7 @@ impl VersionApi {
 //                          Request/Response Methods
 // ***************************************************************************
 impl RespVersion {
+    #[allow(clippy::too_many_arguments)]
     fn new(result_code: &str, result_msg: &str, tms: &str, branch: &str, commit: &str, dirty: &str, ts: &str, rustc: &str)
     -> Self {
         Self {result_code: result_code.to_string(), 

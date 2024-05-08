@@ -12,14 +12,7 @@ const DB_URL: &str = "sqlite://tms.db";
 const POOL_MIN_CONNECTIONS: u32 = 2;
 const POOL_MAX_CONNECTIONS: u32 = 8;
 
-// EXAMPLE row 
-// #[derive(Clone, FromRow, Debug)]
-// struct TmsAppRow {
-//     app_name: String,
-//     client_id: String,
-//     client_secret: String,
-// }
-
+// See migrations directory for database schema defintion. 
 pub async fn init_db() -> Pool<Sqlite> {
 
     if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {

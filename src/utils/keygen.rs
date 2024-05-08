@@ -13,7 +13,6 @@ use serde::Deserialize;
 use uuid::Uuid;
 use fs_mistrust::Mistrust;
 
-
 use crate::utils::tms_utils::{run_command, get_absolute_path};
 
 use crate::RUNTIME_CTX;
@@ -94,12 +93,12 @@ pub struct GeneratedKeyObj {
     pub public_key: String,
     pub public_key_fingerprint: String,
     pub key_type: String,
-    pub key_bits: String,
+    pub key_bits: i32,
 }
 
 impl GeneratedKeyObj {
     pub fn new(private_key: String, public_key: String, public_key_fingerprint: String, 
-               key_type: String, key_bits: String) -> Self {
+               key_type: String, key_bits: i32) -> Self {
         GeneratedKeyObj { private_key, public_key, public_key_fingerprint, key_type, key_bits}
     }
 }
@@ -117,16 +116,16 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
     // Convenience.
     let kconfig = &RUNTIME_CTX.parms.config.keygen_config;
 
-    // Get the bit length for this key type.
+    // Get the bit length for this key type. This should never fail.
     let bitlen = *kconfig.key_len_map.get(&key_type)
-        .expect(format!("Unable to determine bit length for key type {}.", key_type).as_str());
+        .unwrap_or_else(|| panic!("Unable to determine bit length for key type {}.", key_type));
 
     // Get a unique file name for this key.
     let key_name = Uuid::new_v4().as_hyphenated().to_string();
 
     // Construct the private key file name.
     let mut key_output_path = kconfig.key_output_path.clone();
-    if !key_output_path.ends_with("/") {
+    if !key_output_path.ends_with('/') {
         key_output_path += "/";
     }
     key_output_path += key_name.as_str();
@@ -236,7 +235,7 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
                             pub_key, 
                             fingerprint.to_string(), 
                             key_type.to_string(),
-                            key_bits.to_string(),
+                            key_bits,
                         ))
 }
 
@@ -307,8 +306,8 @@ pub fn init_keygen() {
 // shred_keys:
 // ---------------------------------------------------------------------------
 fn shred_keys(key_output_path: &String, pub_key_output_path: &String) -> bool {
-    let mut shredded = shred(&key_output_path);
-    shredded &= shred(&pub_key_output_path);
+    let mut shredded = shred(key_output_path);
+    shredded &= shred(pub_key_output_path);
     shredded
 }
 
@@ -345,21 +344,22 @@ fn shred(filepath : &String) -> bool {
 // ---------------------------------------------------------------------------
 // shred_files_in_dir:
 // ---------------------------------------------------------------------------
+/** Shred all the files in the key output directory.  Called only on initialization.
+ * Done on a best effort basis, try not to abort server if shredding isn't possible. 
+ */
 fn shred_files_in_dir(key_output_path_obj: &Path) {
     // Get all the files in the directory.
     let mut files_shredded = 0;
     if let Ok(entries) = fs::read_dir(key_output_path_obj) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let entry_path = entry.path();
+        for entry in entries.flatten() {
+            let entry_path = entry.path();
                 if entry_path.is_file() {
                     // Delete the file.
                     let p = &*entry_path.to_string_lossy();
                     shred(&p.to_string());
                     files_shredded += 1;
                 }
-            }
-        }
+        } 
     } else {
         // Unable to read entries in directory.
         let msg = format!("Unable to clean up key output directory ({:?}): ",
@@ -428,7 +428,7 @@ fn check_tms_dirs(mistrust: &Mistrust, path: &Path) {
 // Determine whether a path--typically a file--is executable.
 fn is_executable(path: &Path) -> bool {
     let meta = path.metadata()
-    .expect(format!("Unable to retrieve metadata for {:?}", path).as_str());
+        .unwrap_or_else(|_| panic!("Unable to retrieve metadata for {:?}", path));
     meta.mode() & 0o111 != 0
 }
 
