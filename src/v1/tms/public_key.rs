@@ -14,8 +14,7 @@ struct ReqPublicKey
     user: String,
     user_uid: String,
     user_home_dir: String,
-    public_key_fingerprint: String,
-    key_type: String,
+    public_key_fingerprint: String, // protocol:base64hash format
     requestor_host: String,
     requestor_addr: String,
 }
