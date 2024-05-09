@@ -11,7 +11,7 @@ use chrono::{Utc, DateTime, Duration};
 use crate::utils::keygen::{self, KeyType};
 use crate::utils::db_types::PubkeyInput;
 use crate::utils::db_statements::INSERT_PUBKEYS;
-use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_to_str};
+use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_to_str, timestamp_utc_secs_to_str};
 use log::{info, error};
 
 
@@ -45,6 +45,8 @@ struct RespNewSshKeys
     public_key_fingerprint: String,
     key_type: String,
     key_bits: String,
+    remaining_uses: String,
+    expires_at: String,
 }
 
 // ***************************************************************************
@@ -60,7 +62,8 @@ impl NewSshKeysApi {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
                 RespNewSshKeys::new("1", msg.as_str(), "".to_string(), "".to_string(), 
-                                    "".to_string(), "".to_string(), "".to_string() )},
+                                    "".to_string(), "".to_string(), "".to_string(), 
+                                    "".to_string(), "".to_string() )},
         };
 
         Json(resp)
@@ -72,11 +75,12 @@ impl NewSshKeysApi {
 // ***************************************************************************
 impl RespNewSshKeys {
     fn new(result_code: &str, result_msg: &str, private_key: String, public_key: String, 
-           public_key_fingerprint: String, key_type: String, key_bits: String) -> Self {
+           public_key_fingerprint: String, key_type: String, key_bits: String,
+           remaining_uses: String, expires_at: String) -> Self {
         Self {result_code: result_code.to_string(), 
               result_msg: result_msg.to_string(), 
               private_key, public_key, public_key_fingerprint,
-              key_type, key_bits
+              key_type, key_bits, remaining_uses, expires_at,
             }
     }
 
@@ -134,7 +138,7 @@ impl RespNewSshKeys {
             max_uses, 
             remaining_uses, 
             ttl_minutes, 
-            expires_at, 
+            expires_at.clone(), 
             current_ts.clone(), 
             current_ts,
         );
@@ -149,7 +153,9 @@ impl RespNewSshKeys {
                     keyinfo.public_key, 
                     keyinfo.public_key_fingerprint,
                     keyinfo.key_type,
-                    keyinfo.key_bits.to_string()))
+                    keyinfo.key_bits.to_string(),
+    remaining_uses.to_string(),
+                    expires_at,))
     }
 }
 
@@ -192,9 +198,9 @@ async fn insert_new_key(rec: PubkeyInput) -> Result<u64> {
 // ---------------------------------------------------------------------------
 fn calc_expires_at(now : DateTime<Utc>, ttl_minutes : i32) -> String {
     if ttl_minutes <= 0 {
-        timestamp_utc_to_str(DateTime::<Utc>::MAX_UTC)
+        timestamp_utc_secs_to_str(DateTime::<Utc>::MAX_UTC)
     } else {
-        timestamp_utc_to_str(now + Duration::minutes(ttl_minutes as i64))
+        timestamp_utc_secs_to_str(now + Duration::minutes(ttl_minutes as i64))
     }
 }
 

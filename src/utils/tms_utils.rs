@@ -81,13 +81,25 @@ pub fn timestamp_str() -> String {
 // ---------------------------------------------------------------------------
 // timestamp_utc_to_str:
 // ---------------------------------------------------------------------------
-/** Convert a UTC datetime to rfc3339 format, which looks like this:  
- * 2022-09-13T14:14:42.719849Z
+/** Convert a UTC datetime to rfc3339 format with microsecond precision, which 
+ * looks like this:  2022-09-13T14:14:42.719849Z
  */
 #[allow(dead_code)]
 pub fn timestamp_utc_to_str(ts: DateTime<Utc>) -> String {
     ts.to_rfc3339_opts(SecondsFormat::Micros, true)
 }
+
+// ---------------------------------------------------------------------------
+// timestamp_utc_secs_to_str:
+// ---------------------------------------------------------------------------
+/** Convert a UTC datetime to rfc3339 format with second precision,  which looks 
+ * like this:  2022-09-13T14:14:42Z
+ */
+#[allow(dead_code)]
+pub fn timestamp_utc_secs_to_str(ts: DateTime<Utc>) -> String {
+    ts.to_rfc3339_opts(SecondsFormat::Secs, true)
+}
+
 // ---------------------------------------------------------------------------
 // timestamp_str_to_datetime:
 // ---------------------------------------------------------------------------
