@@ -14,7 +14,6 @@ use crate::utils::db_statements::INSERT_PUBKEYS;
 use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_to_str, timestamp_utc_secs_to_str};
 use log::{info, error};
 
-
 use crate::RUNTIME_CTX;
 
 // ***************************************************************************

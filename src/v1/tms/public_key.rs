@@ -1,7 +1,13 @@
 #![forbid(unsafe_code)]
 
 use poem_openapi::{  OpenApi, payload::Json, Object };
-use poem::Error;
+use anyhow::Result;
+use futures::executor::block_on;
+use sqlx::Row;
+
+use crate::utils::db_statements::SELECT_PUBKEY;
+use crate::utils::db_types::PubkeyRetrieval;
+use crate::RUNTIME_CTX;
 
 // ***************************************************************************
 //                          Request/Response Definiions
@@ -14,6 +20,7 @@ struct ReqPublicKey
     user: String,
     user_uid: String,
     user_home_dir: String,
+    host: String,
     public_key_fingerprint: String, // protocol:base64hash format
     requestor_host: String,
     requestor_addr: String,
@@ -48,13 +55,6 @@ impl PublicKeyApi {
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-// impl ReqPublicKey {
-//     fn new(client_addr: String, client_port: i32, server_addr: String, 
-//            server_port: i32, user: String) -> ReqPublicKey {
-//                 ReqPublicKey {client_addr, client_port, server_addr, server_port, user}
-//            }
-// }
-
 impl RespPublicKey {
     fn new(result_code: &str, result_msg: &str, key: &str) -> Self {
         Self {result_code: result_code.to_string(), 
@@ -62,7 +62,45 @@ impl RespPublicKey {
               public_key: key.to_string()}
     }
 
-    fn process(_req: &ReqPublicKey) -> Result<RespPublicKey, Error> {
-        Ok(Self::new("0", "success", "PUBLIC_KEY"))
+    fn process(req: &ReqPublicKey) -> Result<RespPublicKey> {
+        // Look for the key in the database.
+        let result = block_on(get_public_key(req))?;
+        if "NOT_FOUND" == result.public_key {
+            Ok(Self::new("1", "NOT_FOUND", ""))
+        } else {
+            Ok(Self::new("0", "success", result.public_key.as_str()))
+        }
+    }
+}
+
+// ***************************************************************************
+//                          Private Functions
+// ***************************************************************************
+// ---------------------------------------------------------------------------
+// get_public_key:
+// ---------------------------------------------------------------------------
+async fn get_public_key(req: &ReqPublicKey) -> Result<PubkeyRetrieval> {
+    // Get a connection to the db and start a transaction.
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+    
+    // Create the insert statement.
+    let result = sqlx::query(SELECT_PUBKEY)
+        .bind(req.user.clone())
+        .bind(req.host.clone())
+        .bind(req.public_key_fingerprint.clone())
+        .fetch_optional(&mut *tx)
+        .await?;
+
+    // Commit the transaction.
+    tx.commit().await?;
+
+    // We found the key!
+    match result {
+        Some(row) => {
+            Ok(PubkeyRetrieval::new(row.get(0), row.get(1), row.get(2)))
+        },
+        None => {
+            Ok(PubkeyRetrieval::new("NOT_FOUND".to_string(), 0, "".to_string()))
+        },
     }
 }

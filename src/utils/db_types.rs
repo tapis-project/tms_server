@@ -41,6 +41,13 @@ pub struct PubkeyInput {
     pub updated: String,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct PubkeyRetrieval {
+    pub public_key: String,
+    pub remaining_uses: i32,
+    pub expires_at: String,
+}
+
 impl Pubkey {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
@@ -88,6 +95,19 @@ impl PubkeyInput {
         PubkeyInput {
             tenant, user_name, host, public_key_fingerprint, public_key, key_type, key_bits, max_uses, 
             remaining_uses, initial_ttl_minutes, expires_at, created, updated
+        }
+    }
+}
+
+impl PubkeyRetrieval {
+    pub fn new(
+        public_key: String,
+        remaining_uses: i32,
+        expires_at: String,
+    )
+    -> PubkeyRetrieval {
+        PubkeyRetrieval {
+            public_key, remaining_uses, expires_at,
         }
     }
 }
