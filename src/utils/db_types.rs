@@ -10,7 +10,7 @@ use serde::Deserialize;
 pub struct Pubkey {
     pub id: i32,
     pub tenant: String,
-    pub user_name: String,
+    pub client_user_id: String,
     pub host: String,
     pub public_key_fingerprint: String, 
     pub public_key: String,
@@ -27,7 +27,7 @@ pub struct Pubkey {
 #[derive(Debug, Deserialize)]
 pub struct PubkeyInput {
     pub tenant: String,
-    pub user_name: String,
+    pub client_user_id: String,
     pub host: String,
     pub public_key_fingerprint: String, 
     pub public_key: String,
@@ -53,7 +53,7 @@ impl Pubkey {
     pub fn new(
         id: i32,
         tenant: String,
-        user_name: String,
+        client_user_id: String,
         host: String,
         public_key_fingerprint: String,
         public_key: String,
@@ -68,7 +68,7 @@ impl Pubkey {
     ) 
     -> Pubkey {
         Pubkey {
-            id, tenant, user_name, host, public_key_fingerprint, public_key, key_type, key_bits, max_uses, 
+            id, tenant, client_user_id, host, public_key_fingerprint, public_key, key_type, key_bits, max_uses, 
             remaining_uses, initial_ttl_minutes, expires_at, created, updated
         }
     }
@@ -78,7 +78,7 @@ impl PubkeyInput {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         tenant: String,
-        user_name: String,
+        client_user_id: String,
         host: String,
         public_key_fingerprint: String,
         public_key: String,
@@ -93,7 +93,7 @@ impl PubkeyInput {
     ) 
     -> PubkeyInput {
         PubkeyInput {
-            tenant, user_name, host, public_key_fingerprint, public_key, key_type, key_bits, max_uses, 
+            tenant, client_user_id, host, public_key_fingerprint, public_key, key_type, key_bits, max_uses, 
             remaining_uses, initial_ttl_minutes, expires_at, created, updated
         }
     }

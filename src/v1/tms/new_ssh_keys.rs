@@ -27,7 +27,7 @@ struct ReqNewSshKeys
     client_id: String,
     client_secret: String,
     tenant: String,
-    user: String,
+    client_user_id: String,
     host: String,
     num_uses: u32,     // 0 means unlimited
     ttl_minutes: u32,  // 0 means unlimited
@@ -128,7 +128,7 @@ impl RespNewSshKeys {
         // Create the input record.
         let input_record = PubkeyInput::new(
             req.tenant.clone(),
-            req.user.clone(), 
+            req.client_user_id.clone(), 
             req.host.clone(), 
             keyinfo.public_key_fingerprint.clone(), 
             keyinfo.public_key.clone(), 
@@ -144,7 +144,7 @@ impl RespNewSshKeys {
 
         // Insert the new key record.
         block_on(insert_new_key(input_record))?;
-        info!("Key pair created for {}@{} for host {}.", req.user, req.tenant, req.host);
+        info!("Key pair created for {}@{} for host {}.", req.client_user_id, req.tenant, req.host);
 
         // Success! Zero key bits means a fixed key length.
         Ok(Self::new("0", "success", 
@@ -171,7 +171,7 @@ async fn insert_new_key(rec: PubkeyInput) -> Result<u64> {
     // Create the insert statement.
     let result = sqlx::query(INSERT_PUBKEYS)
         .bind(rec.tenant)
-        .bind(rec.user_name)
+        .bind(rec.client_user_id)
         .bind(rec.host)
         .bind(rec.public_key_fingerprint)
         .bind(rec.public_key)
