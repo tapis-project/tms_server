@@ -39,7 +39,7 @@ CREATE INDEX IF NOT EXISTS umfa_updated_idx ON user_mfa (updated);
 -- ---------------------------------------
 -- user_hosts table
 -- ---------------------------------------
--- If both user_name and user_name_on_host are set to "*",
+-- If both user_name and host_account are set to "*",
 -- then all users have their identity linked on host.
 CREATE TABLE IF NOT EXISTS user_hosts
 (
@@ -47,14 +47,14 @@ CREATE TABLE IF NOT EXISTS user_hosts
     tenant            TEXT NOT NULL,
     user_name         TEXT NOT NULL,
     host              TEXT NOT NULL,
-    user_name_on_host TEXT NOT NULL,
+    host_account      TEXT NOT NULL,
     created           TEXT NOT NULL,
     updated           TEXT NOT NULL
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS uh_user_name_idx ON user_hosts (tenant, user_name, host);
 CREATE INDEX IF NOT EXISTS uhost_host_idx ON user_hosts (host);
-CREATE INDEX IF NOT EXISTS uhost_user_on_host_idx ON user_hosts (user_name_on_host);
+CREATE INDEX IF NOT EXISTS uhost_host_account_idx ON user_hosts (host_account);
 CREATE INDEX IF NOT EXISTS uhost_updated_idx ON user_hosts (updated);
 
 -- ---------------------------------------
