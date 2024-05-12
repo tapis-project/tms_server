@@ -3,11 +3,12 @@
 
 -- User Identity
 -- 
--- Two different user identities are defined in this schema:
+-- Different user identities are referenced in this schema:
 --  
---  1. tms_user_id - The identity that TMS aquires directly from an IDP.
---  2. client_user_id - The identity that TMS aquires from a client 
+--  1. tms_user_id - The user identity that TMS aquires directly from an IDP.
+--  2. client_user_id - The user identity that TMS aquires from a client 
 --        application on API calls initiated by the client.
+--  3. host_account - the user's login account on a host.
 --
 -- The tms_user_id field is assigned during operations that do not include a
 -- client application, such a when a user links one of their identities to a
@@ -17,6 +18,25 @@
 -- their users.  These calls include requesting a new SSH key pair, delegating
 -- access and making a reservation. 
 --
+-- Even though the tms_user_id and client_user_id are assigned in different 
+-- ways at differnt times, various operations will depend on their values 
+-- being the same.  For example, when a client requests a new key pair, TMS
+-- will check that the tms_user_id in the user_hosts table matches the 
+-- client_user_id in the request and in the delegations table.  In addtion,
+-- the host_account in the user_hosts table must match the host_account in
+-- the request.
+--
+-- Another way of thinking about tms_user_id and client_user_id is that they
+-- are identities validated by some IDP.  For two identities to match--to 
+-- represent the same user--they must have been validated by the same IDP.
+-- The "tms_" and "client_" prefix on "user_id" simple indicates the component
+-- that initiated the IDP authentication action.  
+-- 
+-- Hosts identify users by their host_accounts, which is the login account a 
+-- for a user.  No matter what identity a user authenticated to an IDP with, 
+-- it's the host_account associated with that identity that is used to access
+-- a target host.
+--
 
 -- ---------------------------------------
 -- clients table
@@ -24,15 +44,17 @@
 CREATE TABLE IF NOT EXISTS clients
 (
     id            INTEGER PRIMARY KEY NOT NULL,
+    tenant        TEXT NOT NULL,
     app_name      TEXT NOT NULL,
+    app_version   TEXT NOT NULL,
     client_id     TEXT NOT NULL,
     client_secret TEXT NOT NULL,
     created       TEXT NOT NULL,
     updated       TEXT NOT NULL
 ) STRICT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS clts_app_name_idx ON clients (app_name);
-CREATE UNIQUE INDEX IF NOT EXISTS clts_client_id_idx ON clients (client_id);
+CREATE UNIQUE INDEX IF NOT EXISTS clts_app_idx ON clients (tenant, app_name, app_version);
+CREATE UNIQUE INDEX IF NOT EXISTS clts_app_client_id_idx ON clients (client_id);
 CREATE INDEX IF NOT EXISTS clts_updated_idx ON clients (updated);
 
 -- ---------------------------------------
@@ -104,6 +126,7 @@ CREATE TABLE IF NOT EXISTS pubkeys
     tenant                 TEXT NOT NULL,
     client_user_id         TEXT NOT NULL,
     host                   TEXT NOT NULL,
+    host_account           TEXT NOT NULL,
     public_key_fingerprint TEXT NOT NULL,
     public_key             TEXT NOT NULL,
     key_type               TEXT NOT NULL,
@@ -116,9 +139,10 @@ CREATE TABLE IF NOT EXISTS pubkeys
     updated                TEXT NOT NULL
 ) STRICT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS pubk_fprint_idx ON pubkeys (public_key_fingerprint, host);
+CREATE UNIQUE INDEX IF NOT EXISTS pubk_fprint_idx ON pubkeys (public_key_fingerprint, host, host_account);
 CREATE INDEX IF NOT EXISTS pubk_tenant_user_idx ON pubkeys (tenant, client_user_id);
 CREATE INDEX IF NOT EXISTS pubk_expires_idx ON pubkeys (expires_at);
+CREATE INDEX IF NOT EXISTS pubk_remaining_uses_idx ON pubkeys (remaining_uses);
 CREATE INDEX IF NOT EXISTS pubk_updated_idx ON pubkeys (updated);
 
 -- ---------------------------------------

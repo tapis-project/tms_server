@@ -12,6 +12,7 @@ pub struct Pubkey {
     pub tenant: String,
     pub client_user_id: String,
     pub host: String,
+    pub host_account: String,
     pub public_key_fingerprint: String, 
     pub public_key: String,
     pub key_type: String,
@@ -29,6 +30,7 @@ pub struct PubkeyInput {
     pub tenant: String,
     pub client_user_id: String,
     pub host: String,
+    pub host_account: String,
     pub public_key_fingerprint: String, 
     pub public_key: String,
     pub key_type: String,
@@ -55,6 +57,7 @@ impl Pubkey {
         tenant: String,
         client_user_id: String,
         host: String,
+        host_account: String,
         public_key_fingerprint: String,
         public_key: String,
         key_type: String,
@@ -68,7 +71,7 @@ impl Pubkey {
     ) 
     -> Pubkey {
         Pubkey {
-            id, tenant, client_user_id, host, public_key_fingerprint, public_key, key_type, key_bits, max_uses, 
+            id, tenant, client_user_id, host, host_account, public_key_fingerprint, public_key, key_type, key_bits, max_uses, 
             remaining_uses, initial_ttl_minutes, expires_at, created, updated
         }
     }
@@ -80,6 +83,7 @@ impl PubkeyInput {
         tenant: String,
         client_user_id: String,
         host: String,
+        host_account: String,
         public_key_fingerprint: String,
         public_key: String,
         key_type: String,
@@ -93,7 +97,7 @@ impl PubkeyInput {
     ) 
     -> PubkeyInput {
         PubkeyInput {
-            tenant, client_user_id, host, public_key_fingerprint, public_key, key_type, key_bits, max_uses, 
+            tenant, client_user_id, host, host_account, public_key_fingerprint, public_key, key_type, key_bits, max_uses, 
             remaining_uses, initial_ttl_minutes, expires_at, created, updated
         }
     }
