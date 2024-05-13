@@ -28,6 +28,10 @@ const DEFAULT_CONFIG_FILE  : &str = "~/tms.toml";
 const DEFAULT_HTTP_ADDR    : &str = "https://localhost";
 const DEFAULT_HTTP_PORT    : u16  = 3000;
 
+// Tenants used in all installations.
+pub const DEFAULT_TENANT   : &str = "default";
+pub const TEST_TENANT      : &str = "test";
+
 // ***************************************************************************
 //                               Config Structs
 // ***************************************************************************

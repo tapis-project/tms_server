@@ -7,13 +7,17 @@ use poem::listener::{Listener, RustlsCertificate, RustlsConfig};
 use poem::{listener::TcpListener, Route};
 use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 
+use futures::executor::block_on;
+use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str};
+
 // TMS Utilities
 use crate::v1::tms::new_ssh_keys::NewSshKeysApi;
 use crate::v1::tms::public_key::PublicKeyApi;
 use crate::v1::tms::version::VersionApi;
-use crate::utils::config::{init_log, init_runtime_context, RuntimeCtx};
+use crate::utils::config::{init_log, init_runtime_context, RuntimeCtx, DEFAULT_TENANT, TEST_TENANT};
 use crate::utils::errors::Errors;
 use crate::utils::keygen;
+use crate::utils::db_statements::INSERT_STD_TENANTS;
 
 // Modules
 mod utils;
@@ -107,6 +111,11 @@ fn tms_init() {
     // Log build info.
     print_version_info();
 
+    // Insert default records into database if they don't already exist.
+    let inserts = block_on(init_db_defaults())
+        .expect("Unable to create or access standard tenant records.");
+    info!("Number of standard tenants created: {}.", inserts);
+
     // Initialize keygen subsystem.
     keygen::init_keygen();
 }
@@ -145,3 +154,38 @@ impl HelloApi {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// init_db_defaults:
+// ---------------------------------------------------------------------------
+async fn init_db_defaults() -> Result<u64> {
+    // Get the timestamp string.
+    let now = timestamp_utc();
+    let current_ts = timestamp_utc_secs_to_str(now);
+
+    // Get a connection to the db and start a transaction.
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+
+    // Insert the two standard tenants.
+    let dft_result = sqlx::query(INSERT_STD_TENANTS)
+        .bind(DEFAULT_TENANT)
+        .bind(&current_ts)
+        .bind(&current_ts)
+        .execute(&mut *tx)
+        .await?;
+
+    let tst_result = sqlx::query(INSERT_STD_TENANTS)
+        .bind(TEST_TENANT)
+        .bind(&current_ts)
+        .bind(&current_ts)
+        .execute(&mut *tx)
+        .await?;
+
+    // Commit the transaction.
+    tx.commit().await?;
+
+    // return the number of insertions that took place.
+    Ok(dft_result.rows_affected() + tst_result.rows_affected())
+}
+
+

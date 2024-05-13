@@ -12,6 +12,9 @@ const DB_URL: &str = "sqlite://tms.db";
 const POOL_MIN_CONNECTIONS: u32 = 2;
 const POOL_MAX_CONNECTIONS: u32 = 8;
 
+// ---------------------------------------------------------------------------
+// init_db:
+// ---------------------------------------------------------------------------
 // See migrations directory for database schema defintion. 
 pub async fn init_db() -> Pool<Sqlite> {
 
