@@ -13,7 +13,7 @@ use sqlx::{Sqlite, Pool};
 use futures::executor::block_on;
 
 // TMS Utilities
-use crate::utils::{tms_utils, db, errors::Errors};
+use crate::utils::{tms_utils, db_init, errors::Errors};
 
 use super::keygen::KeygenConfig;
 
@@ -31,6 +31,10 @@ const DEFAULT_HTTP_PORT    : u16  = 3000;
 // Tenants used in all installations.
 pub const DEFAULT_TENANT   : &str = "default";
 pub const TEST_TENANT      : &str = "test";
+
+// Database constants.
+pub const SQLITE_TRUE      : i32 = 1;
+pub const SQLITE_FALSE     : i32 = 0;
 
 // ***************************************************************************
 //                               Config Structs
@@ -165,7 +169,7 @@ fn get_parms() -> Result<Parms> {
 pub fn init_runtime_context() -> RuntimeCtx {
     // If either of these fail the application aborts.
     let parms = get_parms().expect("FAILED to read configuration file.");
-    let db = block_on(db::init_db());
+    let db = block_on(db_init::init_db());
     RuntimeCtx {parms, db}
 }
 

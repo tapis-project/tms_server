@@ -1,82 +1,128 @@
 #![forbid(unsafe_code)]
 
-use sqlx::{migrate::MigrateDatabase, Sqlite, Pool};
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
-use std::str::FromStr;
+use anyhow::Result;
+use log::{info, warn, error};
 
-use log::{info, error};
-use crate::utils::errors::Errors;
+use futures::executor::block_on;
+use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str};
+use crate::utils::db_statements::INSERT_STD_TENANTS;
+use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, SQLITE_TRUE};
 
-// Database constants.
-const DB_URL: &str = "sqlite://tms.db";
-const POOL_MIN_CONNECTIONS: u32 = 2;
-const POOL_MAX_CONNECTIONS: u32 = 8;
+use crate::RUNTIME_CTX;
+
+use super::db_statements::INSERT_CLIENTS;
 
 // ---------------------------------------------------------------------------
-// init_db:
+// create_std_tenants:
 // ---------------------------------------------------------------------------
-// See migrations directory for database schema defintion. 
-pub async fn init_db() -> Pool<Sqlite> {
+pub async fn create_std_tenants() -> Result<u64> {
+    // Get the timestamp string.
+    let now = timestamp_utc();
+    let current_ts = timestamp_utc_secs_to_str(now);
 
-    if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {
-        info!("Creating database {}", DB_URL);
-        match Sqlite::create_database(DB_URL).await {
-            Ok(_) => info!("Create db success"),
-            Err(error) => {
-                //let msg = format!("{}\n   {}", Errors::TOMLParseError(config_file_abs), e);
-                let msg = Errors::TMSError(format!("database {} create error: {}", DB_URL, error));
-                error!("{}", msg);
-                panic!("{}", msg);
-            }
+    // Get a connection to the db and start a transaction.
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+
+    // -------- Insert the two standard tenants.
+    let dft_result = sqlx::query(INSERT_STD_TENANTS)
+        .bind(DEFAULT_TENANT)
+        .bind(&current_ts)
+        .bind(&current_ts)
+        .execute(&mut *tx)
+        .await?;
+
+    let tst_result = sqlx::query(INSERT_STD_TENANTS)
+        .bind(TEST_TENANT)
+        .bind(&current_ts)
+        .bind(&current_ts)
+        .execute(&mut *tx)
+        .await?;
+
+    // Commit the transaction.
+    tx.commit().await?;
+
+    // Return the number of tenant insertions that took place.
+    Ok(dft_result.rows_affected() + tst_result.rows_affected())
+}
+
+// ---------------------------------------------------------------------------
+// check_test_data:
+// ---------------------------------------------------------------------------
+pub fn check_test_data() {
+
+    // Assume we are initializing for the first time and need
+    // to populate the test tenant with some dummy data.
+    match block_on(create_test_data()) {
+        Ok(b) => {
+            if b {
+                info!("Test records inserted in test tenant.");
+            } 
         }
-    } else {
-        info!("Database already exists");
-    }
+        Err(e) => {
+            warn!("Ignoring error while inserting test records into test tenant: {}", e.to_string());
+        }
+    };
 
-    // The synchronous setting 3 means EXTRA, the strongest durability setting.
-    // The automatic index setting avoids temporary index creation on a connection
-    // when sqlite thinks one would be useful.  Instead, know your usage patterns!
-    //
-    // Update: It doesn't seem to matter what value we set in the pragmas, the database
-    // seems to be created with compiled-in defaults.  Setting the env variables below
-    // when doing "cargo clean;cargo build" does not change things either.  There must 
-    // be another way to affect the compile options for libsqlite3-sys.
-    //    SQLITE_DEFAULT_AUTOMATIC_INDEX=0
-    //    SQLITE_DEFAULT_SYNCHRONOUS=3
-    //    SQLITE_DEFAULT_WAL_SYNCHRONOUS=3
-    let options = SqliteConnectOptions::from_str(DB_URL)
-        .expect("Unable to create connection db options")
-        .journal_mode(SqliteJournalMode::Wal)
-        .pragma("automatic_index", "0")
-        .pragma("synchronous", "3")
-        .foreign_keys(true);
-        
-    // Create the database connection pool.    
-    let db = SqlitePoolOptions::new()
-        .min_connections(POOL_MIN_CONNECTIONS)
-        .max_connections(POOL_MAX_CONNECTIONS)
-        .connect_with(options).await
-        .expect("Unable to create connection db");
+    // match block_on(temp()) {
+    //     Ok(b) => {
+    //         if b {
+    //             info!("******** Test records DELETED in test tenant.");
+    //         } 
+    //     }
+    //     Err(e) => {
+    //         warn!("********* Ignoring error while DELETING test records into test tenant: {}", e.to_string());
+    //     }
 
-    // Locate the migration files.
-    let crate_dir = std::env::var("CARGO_MANIFEST_DIR").expect("No manifest directory");
-    let migrations = std::path::Path::new(&crate_dir).join("./migrations");
+    // };
+}
 
-    // Run the migrations.
-    let migration_results = sqlx::migrate::Migrator::new(migrations)
-        .await
-        .expect("Migration failed")
-        .run(&db)
+// ---------------------------------------------------------------------------
+// create_test_data:
+// ---------------------------------------------------------------------------
+/** This function either experiences an error or returns true (false is never returned). */
+async fn create_test_data() -> Result<bool> {
+    // Constants used locally.
+    const TEST_APP: &str = "testapp1";
+    const TEST_CLIENT: &str = "testclient1";
+    const TEST_SECRET: &str = "secret";
+
+    // Get the timestamp string.
+    let now = timestamp_utc();
+    let current_ts = timestamp_utc_secs_to_str(now);
+
+    // Get a connection to the db and start a transaction.
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+
+    // -------- Populate clients
+    info!("********* at insert");
+    let result = sqlx::query(INSERT_CLIENTS)
+        .bind(TEST_TENANT)
+        .bind(TEST_APP)
+        .bind("1.0")
+        .bind(TEST_CLIENT)
+        .bind(TEST_SECRET)
+        .bind(SQLITE_TRUE)
+        .bind(&current_ts)
+        .bind(&current_ts)
+        .execute(&mut *tx)
         .await;
 
-    match migration_results {
-        Ok(_) => info!("Migration success"),
-        Err(error) => {
-            panic!("Migration run error: {}", error);
-        }
-    }
+    // Commit the transaction.
+    info!("*********** at commit");
+    tx.commit().await;
+    
+    Ok(true)
+}
 
-    info!("migration: {:?}", migration_results);
-    db
-
+async fn temp() -> Result<bool> {
+    let mut tx2 = RUNTIME_CTX.db.begin().await?;
+    let r = sqlx::query("DELETE FROM clients")
+        .execute(&mut *tx2)
+        .await?;
+    info!("*********** delete rows affected = {}", r.rows_affected());
+    if let Err(e) = tx2.commit().await {
+        error!("********** DELETE failed (rows={}): {}", r.rows_affected() , e.to_string());
+    } 
+    info!("*********** delete rows affected after commit = {}", r.rows_affected());
+    Ok(true)
 }

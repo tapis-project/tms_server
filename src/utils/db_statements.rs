@@ -7,10 +7,34 @@ pub const INSERT_STD_TENANTS: &str = concat!(
     "VALUES (?, ?, ?)",
 );
 
+// ========================= clients table =========================
+pub const INSERT_CLIENTS: &str = concat!(
+    "INSERT INTO clients (tenant, app_name, app_version, client_id, client_secret, enabled, created, updated) ",
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+);
+
+// ========================= user_mfa table ========================
+pub const INSERT_USER_MFA: &str = concat!(
+    "INSERT INTO user_mfa (tenant, tms_user_id, expires_at, enabled, created, updated) ",
+    "VALUES (?, ?, ?, ?, ?, ?)",
+);
+
+// ========================= user_hosts table =======================
+pub const INSERT_USER_HOSTS: &str = concat!(
+    "INSERT INTO user_hosts (tenant, tms_user_id, host, host_account, enabled, created, updated) ",
+    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+);
+
+// ========================= user_delegations table =================
+pub const INSERT_DELEGATIONS: &str = concat!(
+    "INSERT INTO user_hosts (tenant, client_id, client_user_id, created, updated) ",
+    "VALUES (?, ?, ?, ?, ?)",
+);
+
 // ========================= pubkeys table =========================
 pub const INSERT_PUBKEYS: &str = concat!(
-    "INSERT INTO pubkeys (tenant, client_user_id, host, host_account, public_key_fingerprint, public_key, key_type, ",
-    "key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated) ", 
+    "INSERT INTO pubkeys (tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",
+    "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated) ", 
     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 );
 

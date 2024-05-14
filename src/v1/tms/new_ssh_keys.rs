@@ -129,6 +129,7 @@ impl RespNewSshKeys {
         // Create the input record.
         let input_record = PubkeyInput::new(
             req.tenant.clone(),
+            req.client_id.clone(),
             req.client_user_id.clone(), 
             req.host.clone(), 
             req.host_account.clone(),
@@ -173,6 +174,7 @@ async fn insert_new_key(rec: PubkeyInput) -> Result<u64> {
     // Create the insert statement.
     let result = sqlx::query(INSERT_PUBKEYS)
         .bind(rec.tenant)
+        .bind(rec.client_id)
         .bind(rec.client_user_id)
         .bind(rec.host)
         .bind(rec.host_account)

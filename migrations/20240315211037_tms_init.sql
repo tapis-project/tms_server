@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS delegations
         ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY(tenant, client_id) 
         REFERENCES clients(tenant, client_id)
-        ON UPDATE CASCADE ON DELETE CASCADE
+        ON UPDATE CASCADE ON DELETE CASCADE 
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS delg_user_client_idx ON delegations (tenant, client_id, client_user_id);
