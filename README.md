@@ -10,6 +10,8 @@ To run the server from the command line, type "cargo run".
 
 To run the server from within Visual Studio, press the *Run* hotspot above the main() function in main.rs.
 
+The TMS server looks for its configuration in file **~/tms.toml** and, if not found, it uses built-in defaults.  For now, see the code in *config.rs* for details about how to customize the TMS server's configuration.  When TMS starts it prints its effective configuration to its log (stdout by default).
+
 The automatically generated livedocs can be accessed by pointing your browser to https://localhost:3000.  The various APIs can be executed by filling in form data.
 
 ## Tenancy 

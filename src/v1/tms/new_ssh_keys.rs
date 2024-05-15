@@ -74,6 +74,7 @@ impl NewSshKeysApi {
 //                          Request/Response Methods
 // ***************************************************************************
 impl RespNewSshKeys {
+    #[allow(clippy::too_many_arguments)]
     fn new(result_code: &str, result_msg: &str, private_key: String, public_key: String, 
            public_key_fingerprint: String, key_type: String, key_bits: String,
            remaining_uses: String, expires_at: String) -> Self {

@@ -34,6 +34,7 @@ pub const TEST_TENANT      : &str = "test";
 
 // Database constants.
 pub const SQLITE_TRUE      : i32 = 1;
+#[allow(dead_code)]
 pub const SQLITE_FALSE     : i32 = 0;
 
 // ***************************************************************************
