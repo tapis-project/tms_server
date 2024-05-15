@@ -114,8 +114,9 @@ fn tms_init() {
         .expect("Unable to create or access standard tenant records.");
     info!("Number of standard tenants created: {}.", inserts);
 
-    // Optionally insert test records into test tenant.
-    db::check_test_data();
+    // Optionally insert test records into test tenant
+    // only if we just created the standard tenants.
+    if inserts > 0 {db::check_test_data();}
 
     // Initialize keygen subsystem.
     keygen::init_keygen();
@@ -155,79 +156,3 @@ impl HelloApi {
         }
     }
 }
-
-// // ---------------------------------------------------------------------------
-// // create_std_tenants:
-// // ---------------------------------------------------------------------------
-// async fn create_std_tenants() -> Result<u64> {
-//     // Get the timestamp string.
-//     let now = timestamp_utc();
-//     let current_ts = timestamp_utc_secs_to_str(now);
-
-//     // Get a connection to the db and start a transaction.
-//     let mut tx = RUNTIME_CTX.db.begin().await?;
-
-//     // -------- Insert the two standard tenants.
-//     let dft_result = sqlx::query(INSERT_STD_TENANTS)
-//         .bind(DEFAULT_TENANT)
-//         .bind(&current_ts)
-//         .bind(&current_ts)
-//         .execute(&mut *tx)
-//         .await?;
-
-//     let tst_result = sqlx::query(INSERT_STD_TENANTS)
-//         .bind(TEST_TENANT)
-//         .bind(&current_ts)
-//         .bind(&current_ts)
-//         .execute(&mut *tx)
-//         .await?;
-
-//     // Commit the transaction.
-//     tx.commit().await?;
-
-//     // Only create the test data once.
-//     let rows = dft_result.rows_affected() + tst_result.rows_affected();
-//     check_test_data(rows, &current_ts);
-
-//     // Return the number of tenant insertions that took place.
-//     Ok(rows)
-// }
-
-// // ---------------------------------------------------------------------------
-// // check_test_data:
-// // ---------------------------------------------------------------------------
-// fn check_test_data(rows: u64, current_ts: &String) {
-//     if rows != 0 {
-//         return;
-//     }
-
-//     // Assume we are initializing for the first time and need
-//     // to populate the test tenant with some dummy data.
-//     match block_on(create_test_data(current_ts)) {
-//         Ok(b) => {
-//             if b {
-//                 info!("Test records inserted in test tenant.");
-//             } 
-//         }
-//         Err(e) => {
-//             warn!("Ignoring error while inserting test records into test tenant: {}", e.to_string());
-//         }
-//     };
-// }
-
-// // ---------------------------------------------------------------------------
-// // create_test_data:
-// // ---------------------------------------------------------------------------
-// /** This function either experiences an error or returns true (false is never returned). */
-// async fn create_test_data(current_ts: &String) -> Result<bool> {
-
-//     // Get a connection to the db and start a transaction.
-//     //let mut tx = RUNTIME_CTX.db.begin().await?;
-
-//     // -------- Populate clients
-
-
-
-//     Ok(true)
-// }
-

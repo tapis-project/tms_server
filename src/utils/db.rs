@@ -1,11 +1,12 @@
 #![forbid(unsafe_code)]
 
 use anyhow::Result;
-use log::{info, warn, error};
+use log::{info, warn};
+use chrono::{Utc, DateTime};
 
 use futures::executor::block_on;
 use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str};
-use crate::utils::db_statements::INSERT_STD_TENANTS;
+use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_STD_TENANTS, INSERT_USER_HOSTS, INSERT_USER_MFA};
 use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, SQLITE_TRUE};
 
 use crate::RUNTIME_CTX;
@@ -26,6 +27,7 @@ pub async fn create_std_tenants() -> Result<u64> {
     // -------- Insert the two standard tenants.
     let dft_result = sqlx::query(INSERT_STD_TENANTS)
         .bind(DEFAULT_TENANT)
+        .bind(SQLITE_TRUE)
         .bind(&current_ts)
         .bind(&current_ts)
         .execute(&mut *tx)
@@ -33,6 +35,7 @@ pub async fn create_std_tenants() -> Result<u64> {
 
     let tst_result = sqlx::query(INSERT_STD_TENANTS)
         .bind(TEST_TENANT)
+        .bind(SQLITE_TRUE)
         .bind(&current_ts)
         .bind(&current_ts)
         .execute(&mut *tx)
@@ -54,26 +57,12 @@ pub fn check_test_data() {
     // to populate the test tenant with some dummy data.
     match block_on(create_test_data()) {
         Ok(b) => {
-            if b {
-                info!("Test records inserted in test tenant.");
-            } 
+            if b {info!("Test records inserted into test tenant.");} 
         }
         Err(e) => {
-            warn!("Ignoring error while inserting test records into test tenant: {}", e.to_string());
+            warn!("****** Ignoring error while inserting test records into test tenant: {}", e.to_string());
         }
     };
-
-    // match block_on(temp()) {
-    //     Ok(b) => {
-    //         if b {
-    //             info!("******** Test records DELETED in test tenant.");
-    //         } 
-    //     }
-    //     Err(e) => {
-    //         warn!("********* Ignoring error while DELETING test records into test tenant: {}", e.to_string());
-    //     }
-
-    // };
 }
 
 // ---------------------------------------------------------------------------
@@ -83,46 +72,70 @@ pub fn check_test_data() {
 async fn create_test_data() -> Result<bool> {
     // Constants used locally.
     const TEST_APP: &str = "testapp1";
+    const TEST_APP_VERS: &str = "1.0";
     const TEST_CLIENT: &str = "testclient1";
-    const TEST_SECRET: &str = "secret";
+    const TEST_SECRET: &str = "secret1";
+    const TEST_USER: &str = "testuser1";
+    const TEST_HOST: &str = "testhost1";
+    const TEST_HOST_ACCOUNT: &str = "testhostaccount1";
 
     // Get the timestamp string.
     let now = timestamp_utc();
     let current_ts = timestamp_utc_secs_to_str(now);
+    let max_datetime = timestamp_utc_secs_to_str(DateTime::<Utc>::MAX_UTC);
 
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
 
     // -------- Populate clients
-    info!("********* at insert");
-    let result = sqlx::query(INSERT_CLIENTS)
+    sqlx::query(INSERT_CLIENTS)
         .bind(TEST_TENANT)
         .bind(TEST_APP)
-        .bind("1.0")
+        .bind(TEST_APP_VERS)
         .bind(TEST_CLIENT)
         .bind(TEST_SECRET)
         .bind(SQLITE_TRUE)
         .bind(&current_ts)
         .bind(&current_ts)
         .execute(&mut *tx)
-        .await;
+        .await?;
+
+    // -------- Populate user_mfa
+    sqlx::query(INSERT_USER_MFA)
+        .bind(TEST_TENANT)
+        .bind(TEST_USER)
+        .bind(&max_datetime)
+        .bind(SQLITE_TRUE)
+        .bind(&current_ts)
+        .bind(&current_ts)
+        .execute(&mut *tx)
+        .await?;
+
+        // -------- Populate user_hosts
+    sqlx::query(INSERT_USER_HOSTS)
+        .bind(TEST_TENANT)
+        .bind(TEST_USER)
+        .bind(TEST_HOST)
+        .bind(TEST_HOST_ACCOUNT)
+        .bind(&max_datetime)
+        .bind(&current_ts)
+        .bind(&current_ts)
+        .execute(&mut *tx)
+        .await?;
+
+    // -------- Populate delegations
+    sqlx::query(INSERT_DELEGATIONS)
+        .bind(TEST_TENANT)
+        .bind(TEST_CLIENT)
+        .bind(TEST_USER)
+        .bind(&max_datetime)
+        .bind(&current_ts)
+        .bind(&current_ts)
+        .execute(&mut *tx)
+        .await?;
 
     // Commit the transaction.
-    info!("*********** at commit");
-    tx.commit().await;
+    tx.commit().await?;
     
-    Ok(true)
-}
-
-async fn temp() -> Result<bool> {
-    let mut tx2 = RUNTIME_CTX.db.begin().await?;
-    let r = sqlx::query("DELETE FROM clients")
-        .execute(&mut *tx2)
-        .await?;
-    info!("*********** delete rows affected = {}", r.rows_affected());
-    if let Err(e) = tx2.commit().await {
-        error!("********** DELETE failed (rows={}): {}", r.rows_affected() , e.to_string());
-    } 
-    info!("*********** delete rows affected after commit = {}", r.rows_affected());
     Ok(true)
 }

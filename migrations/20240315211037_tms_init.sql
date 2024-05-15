@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS tenants
 (
     id            INTEGER PRIMARY KEY NOT NULL,
     tenant        TEXT NOT NULL,
+    enabled       INTEGER NOT NULL CHECK (enabled IN (0, 1)),
     created       TEXT NOT NULL,
     updated       TEXT NOT NULL
 ) STRICT;
@@ -110,6 +111,7 @@ CREATE TABLE IF NOT EXISTS user_hosts
     tms_user_id       TEXT NOT NULL,
     host              TEXT NOT NULL,
     host_account      TEXT NOT NULL,
+    expires_at        TEXT NOT NULL,
     created           TEXT NOT NULL,
     updated           TEXT NOT NULL,
     FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -119,6 +121,7 @@ CREATE TABLE IF NOT EXISTS user_hosts
 CREATE UNIQUE INDEX IF NOT EXISTS uh_user_name_idx ON user_hosts (tenant, tms_user_id, host, host_account);
 CREATE INDEX IF NOT EXISTS uhost_host_idx ON user_hosts (host);
 CREATE INDEX IF NOT EXISTS uhost_host_account_idx ON user_hosts (host_account);
+CREATE INDEX IF NOT EXISTS uhost_expires_idx ON user_hosts (expires_at);
 CREATE INDEX IF NOT EXISTS uhost_updated_idx ON user_hosts (updated);
 
 -- ---------------------------------------
@@ -131,6 +134,7 @@ CREATE TABLE IF NOT EXISTS delegations
     tenant            TEXT NOT NULL,
     client_id         TEXT NOT NULL,
     client_user_id    TEXT NOT NULL,
+    expires_at        TEXT NOT NULL,
     created           TEXT NOT NULL,
     updated           TEXT NOT NULL,
     FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -139,6 +143,7 @@ CREATE TABLE IF NOT EXISTS delegations
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS delg_user_client_idx ON delegations (tenant, client_id, client_user_id);
+CREATE INDEX IF NOT EXISTS delg_expires_idx ON delegations (expires_at);
 CREATE INDEX IF NOT EXISTS delg_updated_idx ON delegations (updated);
 
 -- ---------------------------------------
@@ -176,7 +181,7 @@ CREATE TABLE IF NOT EXISTS pubkeys
 -- The unique index limits the use of a key to a single host, which makes it possible
 -- for the foreign key of the reservations table to be defined.
 CREATE UNIQUE INDEX IF NOT EXISTS pubk_fprint_idx ON pubkeys (public_key_fingerprint, host);
-CREATE UNIQUE INDEX IF NOT EXISTS pubk_tenant_user_idx ON pubkeys (tenant, client_user_id, host, host_account);
+CREATE INDEX IF NOT EXISTS pubk_tenant_user_idx ON pubkeys (tenant, client_user_id, host, host_account);
 CREATE INDEX IF NOT EXISTS pubk_expires_idx ON pubkeys (expires_at);
 CREATE INDEX IF NOT EXISTS pubk_remaining_uses_idx ON pubkeys (remaining_uses);
 CREATE INDEX IF NOT EXISTS pubk_updated_idx ON pubkeys (updated);

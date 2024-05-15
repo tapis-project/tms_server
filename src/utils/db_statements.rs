@@ -3,8 +3,8 @@
 
 // ========================= tenants table =========================
 pub const INSERT_STD_TENANTS: &str = concat!(
-    "INSERT OR IGNORE INTO tenants (tenant, created, updated) ",
-    "VALUES (?, ?, ?)",
+    "INSERT OR IGNORE INTO tenants (tenant, enabled, created, updated) ",
+    "VALUES (?, ?, ?, ?)",
 );
 
 // ========================= clients table =========================
@@ -21,21 +21,21 @@ pub const INSERT_USER_MFA: &str = concat!(
 
 // ========================= user_hosts table =======================
 pub const INSERT_USER_HOSTS: &str = concat!(
-    "INSERT INTO user_hosts (tenant, tms_user_id, host, host_account, enabled, created, updated) ",
+    "INSERT INTO user_hosts (tenant, tms_user_id, host, host_account, expires_at, created, updated) ",
     "VALUES (?, ?, ?, ?, ?, ?, ?)",
 );
 
 // ========================= user_delegations table =================
 pub const INSERT_DELEGATIONS: &str = concat!(
-    "INSERT INTO user_hosts (tenant, client_id, client_user_id, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?)",
+    "INSERT INTO delegations (tenant, client_id, client_user_id, expires_at, created, updated) ",
+    "VALUES (?, ?, ?, ?, ?, ?)",
 );
 
 // ========================= pubkeys table =========================
 pub const INSERT_PUBKEYS: &str = concat!(
     "INSERT INTO pubkeys (tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",
     "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated) ", 
-    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 );
 
 pub const SELECT_PUBKEY: &str = concat!(
