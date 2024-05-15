@@ -71,9 +71,7 @@ CREATE TABLE IF NOT EXISTS clients
     enabled       INTEGER NOT NULL CHECK (enabled IN (0, 1)),
     created       TEXT NOT NULL,
     updated       TEXT NOT NULL, 
-    FOREIGN KEY(tenant) 
-        REFERENCES tenants(tenant)
-        ON UPDATE CASCADE ON DELETE RESTRICT
+    FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS clts_app_idx ON clients (tenant, app_name, app_version);
@@ -93,9 +91,7 @@ CREATE TABLE IF NOT EXISTS user_mfa
     enabled                INTEGER NOT NULL CHECK (enabled IN (0, 1)),
     created                TEXT NOT NULL,
     updated                TEXT NOT NULL,
-    FOREIGN KEY(tenant) 
-        REFERENCES tenants(tenant)
-        ON UPDATE CASCADE ON DELETE RESTRICT
+    FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT
 ) STRICT; 
 
 CREATE UNIQUE INDEX IF NOT EXISTS umfa_name_idx ON user_mfa (tenant, tms_user_id);
@@ -116,12 +112,8 @@ CREATE TABLE IF NOT EXISTS user_hosts
     host_account      TEXT NOT NULL,
     created           TEXT NOT NULL,
     updated           TEXT NOT NULL,
-    FOREIGN KEY(tenant) 
-        REFERENCES tenants(tenant)
-        ON UPDATE CASCADE ON DELETE RESTRICT,
-    FOREIGN KEY(tenant, tms_user_id) 
-        REFERENCES user_mfa(tenant, tms_user_id)
-        ON UPDATE CASCADE ON DELETE CASCADE
+    FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY(tenant, tms_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS uh_user_name_idx ON user_hosts (tenant, tms_user_id, host, host_account);
@@ -141,15 +133,9 @@ CREATE TABLE IF NOT EXISTS delegations
     client_user_id    TEXT NOT NULL,
     created           TEXT NOT NULL,
     updated           TEXT NOT NULL,
-    FOREIGN KEY(tenant) 
-        REFERENCES tenants(tenant)
-        ON UPDATE CASCADE ON DELETE RESTRICT,
-    FOREIGN KEY(tenant, client_user_id) 
-        REFERENCES user_mfa(tenant, tms_user_id)
-        ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY(tenant, client_id) 
-        REFERENCES clients(tenant, client_id)
-        ON UPDATE CASCADE ON DELETE CASCADE 
+    FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY(tenant, client_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY(client_id) REFERENCES clients(client_id) ON UPDATE CASCADE ON DELETE CASCADE 
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS delg_user_client_idx ON delegations (tenant, client_id, client_user_id);
@@ -180,27 +166,17 @@ CREATE TABLE IF NOT EXISTS pubkeys
     expires_at             TEXT NOT NULL,
     created                TEXT NOT NULL,
     updated                TEXT NOT NULL,
-    FOREIGN KEY(tenant) 
-        REFERENCES tenants(tenant)
-        ON UPDATE CASCADE ON DELETE RESTRICT,
-    FOREIGN KEY(tenant, client_user_id) 
-        REFERENCES user_mfa(tenant, tms_user_id)
-        ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY(tenant, client_id) 
-        REFERENCES clients(tenant, client_id)
-        ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY(tenant, client_user_id, host, host_account) 
-        REFERENCES user_hosts(tenant, tms_user_id, host, host_account)
-        ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY(tenant, client_id, client_user_id) 
-        REFERENCES delegations(tenant, client_id, client_user_id)
-        ON UPDATE CASCADE ON DELETE CASCADE
+    FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY(tenant, client_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY(client_id) REFERENCES clients(client_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY(tenant, client_user_id, host, host_account) REFERENCES user_hosts(tenant, tms_user_id, host, host_account) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY(tenant, client_id, client_user_id) REFERENCES delegations(tenant, client_id, client_user_id) ON UPDATE CASCADE ON DELETE CASCADE
 ) STRICT;
 
 -- The unique index limits the use of a key to a single host, which makes it possible
 -- for the foreign key of the reservations table to be defined.
 CREATE UNIQUE INDEX IF NOT EXISTS pubk_fprint_idx ON pubkeys (public_key_fingerprint, host);
-CREATE INDEX IF NOT EXISTS pubk_tenant_user_idx ON pubkeys (tenant, client_user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS pubk_tenant_user_idx ON pubkeys (tenant, client_user_id, host, host_account);
 CREATE INDEX IF NOT EXISTS pubk_expires_idx ON pubkeys (expires_at);
 CREATE INDEX IF NOT EXISTS pubk_remaining_uses_idx ON pubkeys (remaining_uses);
 CREATE INDEX IF NOT EXISTS pubk_updated_idx ON pubkeys (updated);
@@ -222,18 +198,10 @@ CREATE TABLE IF NOT EXISTS reservations
     expires_at             TEXT NOT NULL,
     created                TEXT NOT NULL,
     updated                TEXT NOT NULL,
-    FOREIGN KEY(tenant) 
-        REFERENCES tenants(tenant)
-        ON UPDATE CASCADE ON DELETE RESTRICT,
-    FOREIGN KEY(tenant, client_user_id) 
-        REFERENCES user_mfa(tenant, tms_user_id)
-        ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY(tenant, client_id) 
-        REFERENCES clients(tenant, client_id)
-        ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY(public_key_fingerprint, host) 
-        REFERENCES pubkeys(public_key_fingerprint, host)
-        ON UPDATE CASCADE ON DELETE CASCADE
+    FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY(tenant, client_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY(client_id) REFERENCES clients(client_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY(public_key_fingerprint, host) REFERENCES pubkeys(public_key_fingerprint, host) ON UPDATE CASCADE ON DELETE CASCADE
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS res_unique_tuple_idx ON reservations (resid, tenant, client_id, client_user_id, host, public_key_fingerprint);
@@ -256,12 +224,8 @@ CREATE TABLE IF NOT EXISTS admin
     privilege         TEXT NOT NULL,
     created           TEXT NOT NULL,
     updated           TEXT NOT NULL,
-    FOREIGN KEY(tenant) 
-        REFERENCES tenants(tenant)
-        ON UPDATE CASCADE ON DELETE RESTRICT,
-    FOREIGN KEY(tenant, tms_user_id) 
-        REFERENCES user_mfa(tenant, tms_user_id)
-        ON UPDATE CASCADE ON DELETE CASCADE
+    FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY(tenant, tms_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS adm_user_priv_idx ON admin (tenant, tms_user_id, privilege);
