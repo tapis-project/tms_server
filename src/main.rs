@@ -7,13 +7,15 @@ use poem::listener::{Listener, RustlsCertificate, RustlsConfig};
 use poem::{listener::TcpListener, Route};
 use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 
+use futures::executor::block_on;
+
 // TMS Utilities
 use crate::v1::tms::new_ssh_keys::NewSshKeysApi;
 use crate::v1::tms::public_key::PublicKeyApi;
 use crate::v1::tms::version::VersionApi;
 use crate::utils::config::{init_log, init_runtime_context, RuntimeCtx};
 use crate::utils::errors::Errors;
-use crate::utils::keygen;
+use crate::utils::{keygen, db};
 
 // Modules
 mod utils;
@@ -106,6 +108,15 @@ fn tms_init() {
 
     // Log build info.
     print_version_info();
+
+    // Insert default records into database if they don't already exist.
+    let inserts = block_on(db::create_std_tenants())
+        .expect("Unable to create or access standard tenant records.");
+    info!("Number of standard tenants created: {}.", inserts);
+
+    // Optionally insert test records into test tenant
+    // only if we just created the standard tenants.
+    if inserts > 0 {db::check_test_data();}
 
     // Initialize keygen subsystem.
     keygen::init_keygen();

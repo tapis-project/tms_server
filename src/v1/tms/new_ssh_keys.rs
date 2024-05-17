@@ -29,6 +29,7 @@ struct ReqNewSshKeys
     tenant: String,
     client_user_id: String,
     host: String,
+    host_account: String,
     num_uses: u32,     // 0 means unlimited
     ttl_minutes: u32,  // 0 means unlimited
     key_type: Option<String>,  // RSA, ECDSA, ED25519, DEFAULT (=RSA)   
@@ -73,6 +74,7 @@ impl NewSshKeysApi {
 //                          Request/Response Methods
 // ***************************************************************************
 impl RespNewSshKeys {
+    #[allow(clippy::too_many_arguments)]
     fn new(result_code: &str, result_msg: &str, private_key: String, public_key: String, 
            public_key_fingerprint: String, key_type: String, key_bits: String,
            remaining_uses: String, expires_at: String) -> Self {
@@ -128,8 +130,10 @@ impl RespNewSshKeys {
         // Create the input record.
         let input_record = PubkeyInput::new(
             req.tenant.clone(),
+            req.client_id.clone(),
             req.client_user_id.clone(), 
             req.host.clone(), 
+            req.host_account.clone(),
             keyinfo.public_key_fingerprint.clone(), 
             keyinfo.public_key.clone(), 
             keyinfo.key_type.clone(), 
@@ -171,8 +175,10 @@ async fn insert_new_key(rec: PubkeyInput) -> Result<u64> {
     // Create the insert statement.
     let result = sqlx::query(INSERT_PUBKEYS)
         .bind(rec.tenant)
+        .bind(rec.client_id)
         .bind(rec.client_user_id)
         .bind(rec.host)
+        .bind(rec.host_account)
         .bind(rec.public_key_fingerprint)
         .bind(rec.public_key)
         .bind(rec.key_type)
