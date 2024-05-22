@@ -1,3 +1,5 @@
 /target
 *.log
 tms.db*
+.vscode
+tms.toml
