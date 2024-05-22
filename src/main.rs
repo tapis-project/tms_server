@@ -13,7 +13,7 @@ use futures::executor::block_on;
 use crate::v1::tms::new_ssh_keys::NewSshKeysApi;
 use crate::v1::tms::public_key::PublicKeyApi;
 use crate::v1::tms::version::VersionApi;
-use crate::utils::config::{init_log, init_runtime_context, RuntimeCtx};
+use crate::utils::config::{TMS_DIRS, init_log, init_runtime_context, RuntimeCtx};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
 
@@ -98,6 +98,9 @@ async fn main() -> Result<(), std::io::Error> {
  * to configure the main loop processor.
  */
 fn tms_init() {
+    // Directory setup.
+    println!("Calculating runtime file locations: \n{:#?}", *TMS_DIRS);
+
     // Configure out log.
     init_log();
     

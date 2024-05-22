@@ -6,7 +6,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Errors {
     /// Input parameter logging.
-    #[error("Camera-Traps input parameters:\n{}", .0)]
+    #[error("tms_server input parameters:\n{}", .0)]
     InputParms(String),
 
     /// Represents all other cases of `std::io::Error`.
