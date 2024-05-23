@@ -1,3 +1,7 @@
+# Replace <PUT_YOUR_ROOTDIR_HERE> with TMS's configured rootdir. 
+# By default, rootdir = ~/.tms.  Note that shell macros like ~ 
+# cannot be used in this file; use an absoluted path instead,
+
 refresh_rate: 60 seconds
 
 appenders:
@@ -6,33 +10,35 @@ appenders:
     encoder:
       pattern: "{d(%Y-%m-%dT%H:%M:%S.%f)(utc)}Z {l:<5} [{T}] {f:>.100}:{L} - {m}{n}"
 
-  fout:
-    kind: file
-    path: "test.log"
-    encoder:
-      pattern: "{d(%Y-%m-%dT%H:%M:%S.%f)(utc)}Z {l:<5} [{T}] {f:>.100}:{L} - {m}{n}"
+#  fout:
+#    kind: file
+#    path: "<PUT_YOUR_ROOTDIR_HERE>/logs/tms.log"
+#    encoder:
+#      pattern: "{d(%Y-%m-%dT%H:%M:%S.%f)(utc)}Z {l:<5} [{T}] {f:>.100}:{L} - {m}{n}"
 
   roller:
     kind: rolling_file
     append: true
-    path: "logs/roller.log"
+    path: "<PUT_YOUR_ROOTDIR_HERE>/logs/tms_roller.log"
     encoder:
+      kind: pattern
       pattern: "{d(%Y-%m-%dT%H:%M:%S.%f)(utc)}Z {l:<5} [{T}] {f:>.100}:{L} - {m}{n}"
     policy:
       kind: compound
       trigger:
         kind: size
-        limit: 10b
+        limit: 20 mb
       roller:
         kind: fixed_window
         base: 1
         count: 3
-        pattern: "logs/roller{}.log"
+        pattern: "<PUT_YOUR_ROOTDIR_HERE>/logs/tms_roller{}.log"
         
 root:
   level: debug
   appenders:
     - stdout
+    - roller
 
 # loggers:
 #   rust-logtest2:

@@ -11,9 +11,8 @@ use anyhow::{Result, anyhow};
 use log::{info, warn, error};
 use serde::Deserialize;
 use uuid::Uuid;
-use fs_mistrust::Mistrust;
 
-use crate::utils::tms_utils::{run_command, get_absolute_path};
+use crate::utils::tms_utils::run_command;
 
 use crate::RUNTIME_CTX;
 
@@ -22,7 +21,6 @@ use crate::RUNTIME_CTX;
 // ***************************************************************************
 // Constants.
 const DEFAULT_KEYGEN_PATH   : &str = "/usr/bin/ssh-keygen";
-const DEFAULT_KEY_OUT_PATH  : &str = "~/.tms/keygen/";
 const DEFAULT_SHREDDER_PATH : &str = "/usr/bin/shred";
 
 // ***************************************************************************
@@ -61,7 +59,6 @@ impl fmt::Display for KeyType {
 #[derive(Debug, Deserialize)]
 pub struct KeygenConfig {
     pub keygen_path: String,
-    pub key_output_path: String,
     pub shredder_path: String,
     pub key_len_map: HashMap<KeyType, i32>,
 }
@@ -77,7 +74,6 @@ impl Default for KeygenConfig {
     fn default() -> Self {
         Self {
             keygen_path: DEFAULT_KEYGEN_PATH.to_string(),
-            key_output_path: get_absolute_path(DEFAULT_KEY_OUT_PATH),
             shredder_path: DEFAULT_SHREDDER_PATH.to_string(),
             key_len_map: get_key_len_map(),
         }
@@ -124,7 +120,7 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
     let key_name = Uuid::new_v4().as_hyphenated().to_string();
 
     // Construct the private key file name.
-    let mut key_output_path = kconfig.key_output_path.clone();
+    let mut key_output_path = RUNTIME_CTX.tms_dirs.keygen_dir.clone();
     if !key_output_path.ends_with('/') {
         key_output_path += "/";
     }
@@ -273,29 +269,9 @@ pub fn init_keygen() {
         panic!("The shredder program file must be executable: {}", &kconfig.shredder_path);
     }
 
-    // Check that the output path is absolute and is a directory (if exists).
-    let key_output_path_obj = Path::new(&kconfig.key_output_path);
-    if !key_output_path_obj.is_absolute() {
-        panic!("The TMS server key output path must be absolute: {}", &kconfig.key_output_path);
-    }
-    if key_output_path_obj.exists() && !key_output_path_obj.is_dir() {
-        panic!("The key output path must be a directory: {}", &kconfig.key_output_path);
-    }
-
-    // Create key output path if it doesn't exist. The permissions
-    // on the key output path should always be 700. These methods
-    // can panic.
-    let mistrust = get_mistrust();
-    if !key_output_path_obj.exists() {
-        create_tms_dirs(&mistrust, key_output_path_obj);
-    } else {
-        // Make sure the path is accessible and a directory.
-        check_tms_dirs(&mistrust, key_output_path_obj);
-
-        // Wipe any files in the key output directory that
-        // may have been left over from a previous run.
-        shred_files_in_dir(key_output_path_obj);
-    }
+    // The output directory temperarily stored generated keys files.
+    let key_output_path_obj = Path::new(&RUNTIME_CTX.tms_dirs.keygen_dir);
+    shred_files_in_dir(key_output_path_obj);
 
 }
 
@@ -369,57 +345,6 @@ fn shred_files_in_dir(key_output_path_obj: &Path) {
 
     // Log activity.
     info!("{} leftover files shredded in directory {:?}.", files_shredded, key_output_path_obj);
-}
-
-// ---------------------------------------------------------------------------
-// get_mistrust:
-// ---------------------------------------------------------------------------
-/** Configure a new mistrust object for initial directory processing. */
-fn get_mistrust() -> Mistrust {
-    // Configure our mistrust object.
-    let mistrust = match Mistrust::builder() 
-        .ignore_prefix(get_absolute_path("~"))
-        .trust_group(0)
-        .build() {
-            Ok(m) => m,
-            Err(e) => {
-                panic!("Mistrust configuration error: {}", &e.to_string());
-            }
-        };
-    mistrust
-}
-
-// ---------------------------------------------------------------------------
-// create_tms_dirs:
-// ---------------------------------------------------------------------------
-/** This function panics if the directory cannot be created and permission 
- * properly set.  If the root of the path is the user's home directory, then
- * all subdirectories are assigned 700 permissions. 
- */
-fn create_tms_dirs(mistrust: &Mistrust, path: &Path) {
-    match mistrust.make_directory(path) {
-        Ok(_) => (),
-        Err(e) => {
-            panic!("Make directory error for {:?}: {}", path, &e.to_string());
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// check_tms_dirs:
-// ---------------------------------------------------------------------------
-/** This function panics if the directory cannot be created and permission 
- * properly set.  The permissions on the final directory on the path are always
- * enforced to be 700.  Intermediate path segments can have some group access, 
- * specifically r+x (740).  Other can never have any access. 
- */
-fn check_tms_dirs(mistrust: &Mistrust, path: &Path) {
-    match mistrust.check_directory(path) {
-        Ok(_) => (),
-        Err(e) => {
-            panic!("Check directory error for {:?}: {}", path, &e.to_string());
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------

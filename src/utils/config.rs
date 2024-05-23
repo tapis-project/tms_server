@@ -8,6 +8,7 @@ use toml;
 use fs_mistrust::Mistrust;
 use std::os::unix::fs::PermissionsExt;
 use lazy_static::lazy_static;
+use structopt::StructOpt;
 
 // See https://users.rust-lang.org/t/relationship-between-std-futures-futures-and-tokio/38077
 // for a cogent explanation on dealing with futures and async programming in Rust.  More 
@@ -25,17 +26,18 @@ use super::{keygen::KeygenConfig, tms_utils::get_absolute_path};
 // ***************************************************************************
 // Directory and file locations. Unless otherwise noted, all files and directories
 // are relative to the root directory.
-pub const TMS_ROOT_DIR     : &str = "~/.tms";
-pub const MIGRATIONS_DIR   : &str = "/migrations";
-const RESOURCES_DIR        : &str = "/resources";
+const ENV_TMS_ROOT_DIR     : &str = "TMS_ROOT_DIR";
+const DEFAULT_ROOT_DIR     : &str = "~/.tms";
+const MIGRATIONS_DIR       : &str = "/migrations";
+const CONFIG_DIR           : &str = "/config";
 const LOGS_DIR             : &str = "/logs";
 const DATABASE_DIR         : &str = "/database";
 const CERTS_DIR            : &str = "/certs";
 const KEYGEN_DIR           : &str = "/keygen";
-const ENV_LOG4RS_FILE_KEY  : &str = "TMS_LOG4RS_CONFIG_FILE";
-const LOG4RS_CONFIG_FILE   : &str = "/resources/log4rs.yml"; 
-const ENV_CONFIG_FILE_KEY  : &str = "TMS_CONFIG_FILE";
-const DEFAULT_CONFIG_FILE  : &str = "/tms.toml";  // relative to home dir
+const LOG4RS_CONFIG_FILE   : &str = "/log4rs.yml"; // relative to config dir
+const TMS_CONFIG_FILE      : &str = "/tms.toml";   // relative to config dir
+
+// Netorking.
 const DEFAULT_HTTP_ADDR    : &str = "https://localhost";
 const DEFAULT_HTTP_PORT    : u16  = 3000;
 
@@ -48,8 +50,12 @@ pub const SQLITE_TRUE      : i32 = 1;
 #[allow(dead_code)]
 pub const SQLITE_FALSE     : i32 = 0;
 
-// The directories calculated at runtime and initialized BEFORE
-// RUNTIME is initialized in main.
+// Assign the command line arguments BEFORE RUNTIME_CTX is initialized in main.
+lazy_static! {
+    pub static ref TMS_ARGS: TmsArgs = init_tms_args();
+}
+
+// Calculate the data directories BEFORE RUNTIME_CTX is initialized in main.
 lazy_static! {
     pub static ref TMS_DIRS: TmsDirs = init_tms_dirs();
 }
@@ -61,10 +67,11 @@ lazy_static! {
 // TmsDirs:
 // ---------------------------------------------------------------------------
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct TmsDirs {
     pub root_dir: String,
     pub migrations_dir: String,
-    pub resources_dir: String,
+    pub config_dir: String,
     pub logs_dir: String,
     pub database_dir: String,
     pub certs_dir: String,
@@ -75,9 +82,37 @@ pub struct TmsDirs {
 //                               Config Structs
 // ***************************************************************************
 // ---------------------------------------------------------------------------
+// CommandLineArgs:
+// ---------------------------------------------------------------------------
+#[derive(Debug, StructOpt)]
+#[structopt(name = "tms_args", about = "Command line arguments for TMS Server.")]
+pub struct TmsArgs {
+    /// Specify TMS's root data directory.
+    /// 
+    /// This directory contains all the files TMS uses during execution.
+    #[structopt(short, long)]
+    pub root_dir: Option<String>,
+
+    /// Create the data directories and then exit.
+    /// 
+    /// The data directories will be rooted at a root directory calculated 
+    /// using the following priority order:
+    /// 
+    ///   1. If set, the value of the TMS_ROOT_DIR environment,
+    /// 
+    ///   2. Otherwise, if set, the value of the --root_dir command line argument,
+    /// 
+    ///   3. Otherwise, ~/.tms
+    /// 
+    #[structopt(short, long)]
+    pub create_dirs_only: bool,
+}
+
+// ---------------------------------------------------------------------------
 // Parms:
 // ---------------------------------------------------------------------------
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Parms {
     pub config_file: String,
     pub config: Config,
@@ -87,9 +122,11 @@ pub struct Parms {
 // RuntimeCtx:
 // ---------------------------------------------------------------------------
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct RuntimeCtx {
     pub parms: Parms,
     pub db: Pool<Sqlite>,
+    pub tms_args: &'static TmsArgs,
     pub tms_dirs: &'static TmsDirs,
 }
 
@@ -97,6 +134,7 @@ pub struct RuntimeCtx {
 // Config:
 // ---------------------------------------------------------------------------
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct Config {
     pub title: String,
     pub http_addr: String,
@@ -126,8 +164,19 @@ impl Default for Config {
 //                            Directory Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
+// init_tms_args:
+// ---------------------------------------------------------------------------
+/** Get the command line arguments. */
+fn init_tms_args() -> TmsArgs {
+    let args = TmsArgs::from_args();
+    println!("{:?}", args);
+    args
+}
+
+// ---------------------------------------------------------------------------
 // init_tms_dirs:
 // ---------------------------------------------------------------------------
+/** Calculate the external data directories. */
 fn init_tms_dirs() -> TmsDirs {
     // Initialize the mistrust object.
     let mistrust = get_mistrust();
@@ -135,14 +184,14 @@ fn init_tms_dirs() -> TmsDirs {
     // Check that each path is absolute and is a directory with the
     // proper permission assign if it exists.  If it doesn't exist,
     // create it.
-    let root_dir = get_absolute_path(TMS_ROOT_DIR);
+    let root_dir = get_root_dir();
     check_tms_dir(&root_dir, "root directory", &mistrust);
 
     let migrations_dir = root_dir.clone() + MIGRATIONS_DIR;
     check_tms_dir(&migrations_dir, "resources directory", &mistrust);
     
-    let resources_dir = root_dir.clone() + RESOURCES_DIR;
-    check_tms_dir(&resources_dir, "resources directory", &mistrust);
+    let config_dir = root_dir.clone() + CONFIG_DIR;
+    check_tms_dir(&config_dir, "config directory", &mistrust);
     
     let logs_dir = root_dir.clone() + LOGS_DIR;
     check_tms_dir(&logs_dir, "logs directory", &mistrust);
@@ -158,7 +207,7 @@ fn init_tms_dirs() -> TmsDirs {
     
     // Package up and return the directories.
     TmsDirs {
-        root_dir, migrations_dir, resources_dir, logs_dir, database_dir, certs_dir, keygen_dir
+        root_dir, migrations_dir, config_dir, logs_dir, database_dir, certs_dir, keygen_dir
     }
 }
 
@@ -184,7 +233,7 @@ fn check_tms_dir(dir: &String, msgname: &str, mistrust: &Mistrust ) {
         }
 
         // Make sure the directory had rwx for owner only.
-        let meta = path.metadata().expect(format!("Unable to read metadata for {}: {}", msgname, dir).as_str());
+        let meta = path.metadata().unwrap_or_else(|_| panic!("Unable to read metadata for {}: {}", msgname, dir));
         let perm = meta.permissions().mode();
         if perm & 0o777 != 0o700 {
             panic!("The TMS {} path must be have 0o700 permissions: {}", msgname, dir);
@@ -218,6 +267,27 @@ fn get_mistrust() -> Mistrust {
     mistrust
 }
 
+// ---------------------------------------------------------------------------
+// get_root_dir:
+// ---------------------------------------------------------------------------
+fn get_root_dir() -> String {
+    // Order of precedence:
+    //  1. Environment variable
+    //  2. Command line --root-dir argument
+    //  3. Default location
+    //
+    let root_dir = env::var(ENV_TMS_ROOT_DIR).unwrap_or_else(
+        |_| {
+            match TMS_ARGS.root_dir.clone() {
+                Some(r) => r,
+                None => DEFAULT_ROOT_DIR.to_string(),
+            }
+        });
+
+    // Canonicalize the path.
+    get_absolute_path(&root_dir)    
+}
+
 // ***************************************************************************
 //                               Log Functions
 // ***************************************************************************
@@ -242,8 +312,7 @@ pub fn init_log() {
 // init_log_config:
 // ---------------------------------------------------------------------------
 fn init_log_config() -> String {
-    env::var(ENV_LOG4RS_FILE_KEY).unwrap_or_else(|_|
-        get_absolute_path(TMS_ROOT_DIR) + LOG4RS_CONFIG_FILE) 
+    TMS_DIRS.config_dir.clone() + LOG4RS_CONFIG_FILE 
 }
 
 /// ***************************************************************************
@@ -258,17 +327,9 @@ fn init_log_config() -> String {
  * default file path.
  */
 fn get_parms() -> Result<Parms> {
-    // Get the config file path from the environment, command line or default.
-    let config_file = env::var(ENV_CONFIG_FILE_KEY).unwrap_or_else(
-        |_| {
-            // Get the config file pathname as the first command line
-            // parameter or use the default path.
-            match env::args().nth(1) {
-                Some(f) => f,
-                None => get_absolute_path(TMS_ROOT_DIR) + DEFAULT_CONFIG_FILE
-            }
-        });
-
+    // Get the config file path from its data directory.
+    let config_file = TMS_DIRS.config_dir.clone() + TMS_CONFIG_FILE;
+    
     // Read the cofiguration file.
     let config_file_abs = tms_utils::get_absolute_path(&config_file);
     info!("{}", Errors::ReadingConfigFile(config_file_abs.clone()));
@@ -303,8 +364,7 @@ pub fn init_runtime_context() -> RuntimeCtx {
     // If either of these fail the application aborts.
     let parms = get_parms().expect("FAILED to read configuration file.");
     let db = block_on(db_init::init_db());
-    //RuntimeCtx {parms, db}
-    RuntimeCtx {parms, db, tms_dirs: &TMS_DIRS}
+    RuntimeCtx {parms, db, tms_args: &TMS_ARGS, tms_dirs: &TMS_DIRS}
 }
 
 // ***************************************************************************

@@ -90,7 +90,7 @@ impl RespNewSshKeys {
         // Get the caller's key type or use default.
         let key_type_str = match &req.key_type {
             Some(k) => k.as_str(),
-            None => "RSA",
+            None => "ED25519",
         };
         let key_type_upper = key_type_str.to_uppercase();
 
@@ -99,7 +99,7 @@ impl RespNewSshKeys {
             "RSA" => KeyType::Rsa,
             "ECDSA" => KeyType::Ecdsa,
             "ED25519" => KeyType::Ed25519,
-            _ => KeyType::Rsa,
+            _ => KeyType::Ed25519,
         };
 
         // Generate the new key pair.
