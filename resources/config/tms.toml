@@ -5,4 +5,3 @@ http_port = 3000
 [keygen_config]
     keygen_path = "/usr/bin/ssh-keygen"
     shredder_path = "/usr/bin/shred"
-    key_len_map = {"Dsa" = 1024, "Ecdsa" = 521, EcdsaSk = 0, Ed25519 = 0, Ed25519Sk = 0, Rsa = 4096}

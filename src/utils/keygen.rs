@@ -11,6 +11,7 @@ use anyhow::{Result, anyhow};
 use log::{info, warn, error};
 use serde::Deserialize;
 use uuid::Uuid;
+use lazy_static::lazy_static;
 
 use crate::utils::tms_utils::run_command;
 
@@ -22,6 +23,14 @@ use crate::RUNTIME_CTX;
 // Constants.
 const DEFAULT_KEYGEN_PATH   : &str = "/usr/bin/ssh-keygen";
 const DEFAULT_SHREDDER_PATH : &str = "/usr/bin/shred";
+
+// ***************************************************************************
+//                             Static Variables
+// ***************************************************************************
+// The number of bit used to create each key are hardcoded in TMS.
+lazy_static! {
+    static ref KEY_LEN_MAP: HashMap<KeyType, i32> = get_key_len_map();
+}
 
 // ***************************************************************************
 //                                Enums
@@ -60,7 +69,6 @@ impl fmt::Display for KeyType {
 pub struct KeygenConfig {
     pub keygen_path: String,
     pub shredder_path: String,
-    pub key_len_map: HashMap<KeyType, i32>,
 }
 
 impl KeygenConfig {
@@ -75,7 +83,6 @@ impl Default for KeygenConfig {
         Self {
             keygen_path: DEFAULT_KEYGEN_PATH.to_string(),
             shredder_path: DEFAULT_SHREDDER_PATH.to_string(),
-            key_len_map: get_key_len_map(),
         }
     }
 }
@@ -113,7 +120,7 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
     let kconfig = &RUNTIME_CTX.parms.config.keygen_config;
 
     // Get the bit length for this key type. This should never fail.
-    let bitlen = *kconfig.key_len_map.get(&key_type)
+    let bitlen = *KEY_LEN_MAP.get(&key_type)
         .unwrap_or_else(|| panic!("Unable to determine bit length for key type {}.", key_type));
 
     // Get a unique file name for this key.

@@ -50,6 +50,9 @@ pub const SQLITE_TRUE      : i32 = 1;
 #[allow(dead_code)]
 pub const SQLITE_FALSE     : i32 = 0;
 
+// ***************************************************************************
+//                             Static Variables
+// ***************************************************************************
 // Assign the command line arguments BEFORE RUNTIME_CTX is initialized in main.
 lazy_static! {
     pub static ref TMS_ARGS: TmsArgs = init_tms_args();

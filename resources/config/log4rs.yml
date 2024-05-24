@@ -35,7 +35,7 @@ appenders:
         pattern: "<PUT_YOUR_ROOTDIR_HERE>/logs/tms_roller{}.log"
         
 root:
-  level: debug
+  level: info
   appenders:
     - stdout
     - roller
