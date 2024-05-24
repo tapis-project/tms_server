@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# This script copies files from the resources subtree to the specified 
+# root data directory required by TMSS at runtime.
+
 # Make sure we have at least 1 parameter.
 if [ "$#" -eq  "0" ]
   then
