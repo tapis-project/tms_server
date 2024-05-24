@@ -7,6 +7,7 @@ use serde::Deserialize;
 // pubkeys:
 // ---------------------------------------------------------------------------
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct Pubkey {
     pub id: i32,
     pub tenant: String,
@@ -45,6 +46,7 @@ pub struct PubkeyInput {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[allow(dead_code)]
 pub struct PubkeyRetrieval {
     pub public_key: String,
     pub remaining_uses: i32,

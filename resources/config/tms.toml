@@ -1,0 +1,7 @@
+title = "My TMS Server"
+http_addr = "https://localhost"
+http_port = 3000
+
+[keygen_config]
+    keygen_path = "/usr/bin/ssh-keygen"
+    shredder_path = "/usr/bin/shred"

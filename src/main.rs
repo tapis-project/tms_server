@@ -13,7 +13,7 @@ use futures::executor::block_on;
 use crate::v1::tms::new_ssh_keys::NewSshKeysApi;
 use crate::v1::tms::public_key::PublicKeyApi;
 use crate::v1::tms::version::VersionApi;
-use crate::utils::config::{init_log, init_runtime_context, RuntimeCtx};
+use crate::utils::config::{TMS_ARGS, TMS_DIRS, init_log, init_runtime_context, RuntimeCtx};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
 
@@ -25,6 +25,10 @@ mod v1;
 //                                Constants
 // ***************************************************************************
 const SERVER_NAME : &str = "TmsServer"; // for poem logging
+
+// Server identity.
+const TMSS_KEY_FILE:  &str = "/key.pem";
+const TMSS_CERT_FILE: &str = "/cert.pem";
 
 // ***************************************************************************
 //                             Static Variables
@@ -45,8 +49,8 @@ async fn main() -> Result<(), std::io::Error> {
     // Announce ourselves.
     println!("Starting tms_server!");
 
-    // Initialize the server.
-    tms_init();
+    // Initialize the server and allow for early exit.
+    if !tms_init() { return Ok(()); }
 
     // --------------- Main Loop Set Up ---------------
     // Assign base URL.
@@ -74,12 +78,15 @@ async fn main() -> Result<(), std::io::Error> {
         .at("/spec_yaml", spec_yaml);
 
     // ------------------ Main Loop -------------------
+    // We expect the certificate and key to be in the external data directory.
+    let key = RUNTIME_CTX.tms_dirs.certs_dir.clone() + TMSS_KEY_FILE;
+    let cert = RUNTIME_CTX.tms_dirs.certs_dir.clone() + TMSS_CERT_FILE;
     poem::Server::new(
         TcpListener::bind(addr).rustls(
             RustlsConfig::new().fallback(
                 RustlsCertificate::new()
-                    .key(std::fs::read("key.pem")?)
-                    .cert(std::fs::read("cert.pem")?),
+                    .key(std::fs::read(key)?)
+                    .cert(std::fs::read(cert)?),
             ),
         ),
     )
@@ -97,7 +104,17 @@ async fn main() -> Result<(), std::io::Error> {
 /** Initialing all subsystems and data structures other than those needed
  * to configure the main loop processor.
  */
-fn tms_init() {
+fn tms_init() -> bool {
+    // Parse command line args and determine if early exit.
+    println!("*** Command line arguments *** \n{:?}\n", *TMS_ARGS);
+    
+    // Directory setup.
+    println!("*** Runtime file locations *** \n{:?}\n", *TMS_DIRS);
+    if TMS_ARGS.create_dirs_only { 
+        println!("Exiting early after processing data directories at {}", TMS_DIRS.root_dir.clone());
+        return false; 
+    }
+
     // Configure out log.
     init_log();
     
@@ -120,6 +137,9 @@ fn tms_init() {
 
     // Initialize keygen subsystem.
     keygen::init_keygen();
+
+    // Fully initialized.
+    true
 }
 
 // ---------------------------------------------------------------------------

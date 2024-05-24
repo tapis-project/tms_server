@@ -6,9 +6,11 @@ use std::str::FromStr;
 
 use log::{info, error};
 use crate::utils::errors::Errors;
+use crate::utils::config::TMS_DIRS;
 
 // Database constants.
-const DB_URL: &str = "sqlite://tms.db";
+const SQLITE_PROTOCOL: &str = "sqlite://";
+const DB_URL: &str = "/tms.db";
 const POOL_MIN_CONNECTIONS: u32 = 2;
 const POOL_MAX_CONNECTIONS: u32 = 8;
 
@@ -18,13 +20,16 @@ const POOL_MAX_CONNECTIONS: u32 = 8;
 // See migrations directory for database schema defintion. 
 pub async fn init_db() -> Pool<Sqlite> {
 
-    if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {
-        info!("Creating database {}", DB_URL);
-        match Sqlite::create_database(DB_URL).await {
+    // Should look like this: "sqlite:///home/rcardone/.tms/database/tms.db"
+    let url = SQLITE_PROTOCOL.to_string() + TMS_DIRS.database_dir.as_str() + DB_URL;
+
+    if !Sqlite::database_exists(&url).await.unwrap_or(false) {
+        info!("Creating database {}", &url);
+        match Sqlite::create_database(&url).await {
             Ok(_) => info!("Create db success"),
             Err(error) => {
                 //let msg = format!("{}\n   {}", Errors::TOMLParseError(config_file_abs), e);
-                let msg = Errors::TMSError(format!("database {} create error: {}", DB_URL, error));
+                let msg = Errors::TMSError(format!("database {} create error: {}", url, error));
                 error!("{}", msg);
                 panic!("{}", msg);
             }
@@ -44,7 +49,7 @@ pub async fn init_db() -> Pool<Sqlite> {
     //    SQLITE_DEFAULT_AUTOMATIC_INDEX=0
     //    SQLITE_DEFAULT_SYNCHRONOUS=3
     //    SQLITE_DEFAULT_WAL_SYNCHRONOUS=3
-    let options = SqliteConnectOptions::from_str(DB_URL)
+    let options = SqliteConnectOptions::from_str(&url)
         .expect("Unable to create connection db options")
         .journal_mode(SqliteJournalMode::Wal)
         .pragma("automatic_index", "0")
@@ -59,8 +64,8 @@ pub async fn init_db() -> Pool<Sqlite> {
         .expect("Unable to create connection db");
 
     // Locate the migration files.
-    let crate_dir = std::env::var("CARGO_MANIFEST_DIR").expect("No manifest directory");
-    let migrations = std::path::Path::new(&crate_dir).join("./migrations");
+    let tdir = &TMS_DIRS.migrations_dir;
+    let migrations = std::path::Path::new(tdir);
 
     // Run the migrations.
     let migration_results = sqlx::migrate::Migrator::new(migrations)
