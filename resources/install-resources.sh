@@ -34,3 +34,8 @@ migrationsdir="${rootdir}/migrations"
 cp -p "migrations/"* "$migrationsdir"
 chmod 600 "$migrationsdir"/*
 
+# Substitute the default rootdir into log4rs.yml
+# by replacing <PUT_YOUR_ROOTDIR_HERE> with the 
+# user's $HOME value.
+sed -i "s|<PUT_YOUR_ROOTDIR_HERE>|$HOME|g" "$configdir"/log4rs.yml 
+

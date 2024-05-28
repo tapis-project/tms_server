@@ -60,7 +60,9 @@ The result is that these files will now be present under the root directory:
 
   - ~/.tms/migrations/20240315211037_tms_init.sql
 
-The files in the **config** subdirectory can be modified for development or production purposes.  The **log4rs.yml** controls logging to the console and to rolling log files in the **~/.tms/logs** directory.  The **tms.toml** file specifies the server's runtime options.
+The files in the **config** subdirectory can be modified for development or production purposes.  The **log4rs.yml** controls logging to the console and to rolling log files in the **~/.tms/logs** directory.  See **log4rs.yml** for instructions on changing the output directory for the rolloing log.
+
+The **tms.toml** file specifies the server's runtime options that can be customized at runtime.
 
 ## Using a Non-Default Root Data Directory
 

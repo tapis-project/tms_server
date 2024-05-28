@@ -1,4 +1,7 @@
-# Replace <PUT_YOUR_ROOTDIR_HERE> with TMS's configured rootdir. 
+# To change the log file location, replace the roller.path and  
+# roller.policy.roller.pattern values below.  fout.path will also
+# need to be change if it's being used.
+#
 # By default, rootdir = ~/.tms.  Note that shell macros like ~ 
 # cannot be used in this file; use an absoluted path instead,
 
