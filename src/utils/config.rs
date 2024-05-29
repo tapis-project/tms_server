@@ -19,7 +19,7 @@ use futures::executor::block_on;
 // TMS Utilities
 use crate::utils::{tms_utils, db_init, errors::Errors};
 
-use super::{keygen::KeygenConfig, tms_utils::get_absolute_path};
+use super::tms_utils::get_absolute_path;
 
 // ***************************************************************************
 //                                Constants
@@ -33,7 +33,6 @@ const CONFIG_DIR           : &str = "/config";
 const LOGS_DIR             : &str = "/logs";
 const DATABASE_DIR         : &str = "/database";
 const CERTS_DIR            : &str = "/certs";
-const KEYGEN_DIR           : &str = "/keygen";
 const LOG4RS_CONFIG_FILE   : &str = "/log4rs.yml"; // relative to config dir
 const TMS_CONFIG_FILE      : &str = "/tms.toml";   // relative to config dir
 
@@ -78,7 +77,6 @@ pub struct TmsDirs {
     pub logs_dir: String,
     pub database_dir: String,
     pub certs_dir: String,
-    pub keygen_dir: String,
 }
 
 // ***************************************************************************
@@ -142,7 +140,6 @@ pub struct Config {
     pub title: String,
     pub http_addr: String,
     pub http_port: u16,
-    pub keygen_config: KeygenConfig, 
 }
 
 impl Config {
@@ -158,7 +155,6 @@ impl Default for Config {
             title: "TMS Server".to_string(),
             http_addr: DEFAULT_HTTP_ADDR.to_string(),
             http_port: DEFAULT_HTTP_PORT,
-            keygen_config: KeygenConfig::new(),
         }
     }
 }
@@ -205,12 +201,9 @@ fn init_tms_dirs() -> TmsDirs {
     let certs_dir = root_dir.clone() + CERTS_DIR;
     check_tms_dir(&certs_dir, "certs directory", &mistrust);
     
-    let keygen_dir = root_dir.clone() + KEYGEN_DIR;
-    check_tms_dir(&keygen_dir, "keygen directory", &mistrust);
-    
     // Package up and return the directories.
     TmsDirs {
-        root_dir, migrations_dir, config_dir, logs_dir, database_dir, certs_dir, keygen_dir
+        root_dir, migrations_dir, config_dir, logs_dir, database_dir, certs_dir,
     }
 }
 

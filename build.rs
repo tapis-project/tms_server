@@ -7,21 +7,27 @@ fn main() {
     // read in at run time (it won't be available at compile time when not building in Nix).
 
     // When building in Nix, the variables are computed in the flake and set directly in the environment.
+    #[allow(clippy::let_unit_value, clippy::redundant_closure)]
     let _ = std::panic::catch_unwind(|| build_data::set_GIT_BRANCH()).unwrap_or_else(|_| {
         std::env::var("GIT_BRANCH").unwrap();
     });
+
+    #[allow(clippy::let_unit_value, clippy::redundant_closure)]
     let _ = std::panic::catch_unwind(|| build_data::set_GIT_COMMIT_SHORT()).unwrap_or_else(|_| {
         std::env::var("GIT_COMMIT_SHORT").unwrap();
     });
 
+    #[allow(clippy::let_unit_value, clippy::redundant_closure)]
     let _ = std::panic::catch_unwind(|| build_data::set_GIT_DIRTY()).unwrap_or_else(|_| {
         std::env::var("GIT_DIRTY").unwrap();
     });
 
+    #[allow(clippy::let_unit_value, clippy::redundant_closure)]
     let _ = std::panic::catch_unwind(|| build_data::set_SOURCE_TIMESTAMP()).unwrap_or_else(|_| {
         std::env::var("SOURCE_TIMESTAMP").unwrap();
     });
 
+    #[allow(clippy::let_unit_value, clippy::redundant_closure)]
     let _ = std::panic::catch_unwind(|| build_data::set_RUSTC_VERSION()).unwrap_or_else(|_| {
         std::env::var("RUSTC_VERSION").unwrap();
     });

@@ -4,6 +4,7 @@ use path_absolutize::Absolutize;
 use std::ops::Deref;
 use std::path::Path;
 use std::process::{Command, ExitStatus, Output, Stdio};
+use std::os::unix::fs::MetadataExt;
 use execute::Execute;
 use chrono::{Utc, DateTime, SecondsFormat, FixedOffset, ParseError};
 
@@ -125,7 +126,7 @@ pub fn timestamp_str_to_datetime(ts: &str) -> Result<DateTime<FixedOffset>, Pars
  * 
  * The only way Ok is returned is when the command has a zero exit code.
  */
-#[allow(clippy::needless_return)]
+#[allow(clippy::needless_return, dead_code)]
 pub fn run_command(mut command: Command, task: &str) -> Result<Output> {
     // Capture all output.
     command.stdout(Stdio::piped());
@@ -153,6 +154,17 @@ pub fn run_command(mut command: Command, task: &str) -> Result<Output> {
     };
 }
 
+// ---------------------------------------------------------------------------
+// is_executable:
+// ---------------------------------------------------------------------------
+// Determine whether a path--typically a file--is executable.
+#[allow(dead_code)]
+pub fn is_executable(path: &Path) -> bool {
+    let meta = path.metadata()
+        .unwrap_or_else(|_| panic!("Unable to retrieve metadata for {:?}", path));
+    meta.mode() & 0o111 != 0
+}
+
 // ***************************************************************************
 // PRIVATE FUNCTIONS
 // ***************************************************************************
@@ -160,6 +172,7 @@ pub fn run_command(mut command: Command, task: &str) -> Result<Output> {
 // run_command_emsg:
 // ---------------------------------------------------------------------------
 /** Return a message for commands that return non-zero exit codes. */
+#[allow(dead_code)]
 fn run_command_emsg(command: Command, status: ExitStatus) -> String {
     "Unknown error condition returned by command: ".to_owned() + 
     command.get_program().to_str().unwrap_or("unknown") +

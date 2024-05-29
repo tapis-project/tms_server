@@ -135,7 +135,7 @@ fn tms_init() -> bool {
     // only if we just created the standard tenants.
     if inserts > 0 {db::check_test_data();}
 
-    // Initialize keygen subsystem.
+    // Initialize the key generator.
     keygen::init_keygen();
 
     // Fully initialized.
