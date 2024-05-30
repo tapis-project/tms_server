@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-//use ssh_key::private::{ KeypairData, PrivateKey, RsaKeypair };
+use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object };
 use anyhow::{Result, anyhow};
 
@@ -11,8 +11,8 @@ use chrono::{Utc, DateTime, Duration};
 use crate::utils::keygen::{self, KeyType};
 use crate::utils::db_types::PubkeyInput;
 use crate::utils::db_statements::INSERT_PUBKEYS;
-use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_to_str, timestamp_utc_secs_to_str};
-use log::{info, error};
+use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_secs_to_str, timestamp_utc_to_str};
+use log::{error, info};
 
 use crate::RUNTIME_CTX;
 
@@ -55,8 +55,8 @@ struct RespNewSshKeys
 #[OpenApi]
 impl NewSshKeysApi {
     #[oai(path = "/tms/creds/sshkeys", method = "post")]
-    async fn get_new_ssh_keys(&self, req: Json<ReqNewSshKeys>) -> Json<RespNewSshKeys> {
-        let resp = match RespNewSshKeys::process(&req) {
+    async fn get_new_ssh_keys(&self, http_req: &Request, req: Json<ReqNewSshKeys>) -> Json<RespNewSshKeys> {
+        let resp = match RespNewSshKeys::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -85,7 +85,10 @@ impl RespNewSshKeys {
             }
     }
 
-    fn process(req: &ReqNewSshKeys) -> Result<RespNewSshKeys, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqNewSshKeys) -> Result<RespNewSshKeys, anyhow::Error> {
+        // Conditional logging depending on log level.
+        tms_utils::debug_request(http_req);
+
         // ------------------------ Generate Keys ------------------------
         // Get the caller's key type or use default.
         let key_type_str = match &req.key_type {
@@ -148,7 +151,8 @@ impl RespNewSshKeys {
 
         // Insert the new key record.
         block_on(insert_new_key(input_record))?;
-        info!("Key pair created for {}@{} for host {}.", req.client_user_id, req.tenant, req.host);
+        info!("A key of type '{}' created for '{}@{}' for host '{}' expires at {} and has {} remaining uses.", 
+            keyinfo.key_type.clone(), req.client_user_id, req.tenant, req.host, expires_at, remaining_uses);
 
         // Success! Zero key bits means a fixed key length.
         Ok(Self::new("0", "success", 

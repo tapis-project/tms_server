@@ -11,9 +11,15 @@ use lazy_static::lazy_static;
 
 use ssh_key::{Algorithm, HashAlg, EcdsaCurve, PrivateKey};
 
-// ***************************************************************************
-//                                Constants
-// ***************************************************************************
+/* Generate ed25519, ecdsa or rsa keys using a native rust implementation and
+ * the OS hardware-based random number generator.  See the sshkeytest code
+ * (https://github.com/tapis-project/sshkeytest) for performance tests.  The
+ * elliptic curve algorithms run quicky, the rsa implementation is very slow.
+ * 
+ * This version replaces a prior version that directly invoked ssh-keygen and
+ * collected it output from file. 
+ */
+
 // ***************************************************************************
 //                             Static Variables
 // ***************************************************************************

@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+use poem::Request;
 use poem_openapi::{  OpenApi, payload::Json, Object };
 use anyhow::Result;
 use futures::executor::block_on;
@@ -7,6 +8,7 @@ use sqlx::Row;
 
 use crate::utils::db_statements::SELECT_PUBKEY;
 use crate::utils::db_types::PubkeyRetrieval;
+use crate::utils::tms_utils;
 use crate::RUNTIME_CTX;
 
 // ***************************************************************************
@@ -40,8 +42,8 @@ struct RespPublicKey
 #[OpenApi]
 impl PublicKeyApi {
     #[oai(path = "/tms/creds/publickey", method = "post")]
-    async fn get_public_key(&self, req: Json<ReqPublicKey>) -> Json<RespPublicKey> {
-        let resp = match RespPublicKey::process(&req) {
+    async fn get_public_key(&self, http_req: &Request, req: Json<ReqPublicKey>) -> Json<RespPublicKey> {
+        let resp = match RespPublicKey::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -62,7 +64,10 @@ impl RespPublicKey {
               public_key: key.to_string()}
     }
 
-    fn process(req: &ReqPublicKey) -> Result<RespPublicKey> {
+    fn process(http_req: &Request, req: &ReqPublicKey) -> Result<RespPublicKey> {
+        // Conditional logging depending on log level.
+        tms_utils::debug_request(http_req);
+
         // Look for the key in the database.
         let result = block_on(get_public_key(req))?;
         if "NOT_FOUND" == result.public_key {

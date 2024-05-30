@@ -8,8 +8,10 @@ use std::os::unix::fs::MetadataExt;
 use execute::Execute;
 use chrono::{Utc, DateTime, SecondsFormat, FixedOffset, ParseError};
 
+use poem::Request;
+
 use anyhow::{Result, anyhow};
-use log::error;
+use log::{error, debug, LevelFilter};
 
 // ***************************************************************************
 // GENERAL PUBLIC FUNCTIONS
@@ -163,6 +165,41 @@ pub fn is_executable(path: &Path) -> bool {
     let meta = path.metadata()
         .unwrap_or_else(|_| panic!("Unable to retrieve metadata for {:?}", path));
     meta.mode() & 0o111 != 0
+}
+
+// ---------------------------------------------------------------------------
+// debug_request:
+// ---------------------------------------------------------------------------
+// Dump http request information to the log.
+pub fn debug_request(http_req: &Request) {
+    // Check that debug or higher logging is in effect.
+    let level = log::max_level();
+    if level < LevelFilter::Debug {
+        return;
+    }
+    
+    // Accumulate the output.
+    let mut s = "\n".to_string();
+
+    // Restate the URI.
+    let uri = http_req.uri();
+    s += format!("  URI: {:?}\n", uri).as_str();
+
+    // Accumulate the headers
+    let it = http_req.headers().iter();
+    for v in it {
+         s += format!("  Header: {} = {:?} \n", v.0, v.1).as_str();
+    };
+
+    // List query parameters.
+    if let Some(q) = uri.query() {
+        s += format!("  Query Parameters: {:?}\n", q).as_str();
+    } else {
+        s += "  * No Query Parameters";
+    }
+
+    // Write the single log record.
+    debug!("{}", s);
 }
 
 // ***************************************************************************
