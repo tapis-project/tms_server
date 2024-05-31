@@ -20,12 +20,10 @@ pub struct PublicKeyApi;
 struct ReqPublicKey
 {
     user: String,
-    user_uid: String,
-    user_home_dir: String,
+    user_uid: Option<String>,
     host: String,
     public_key_fingerprint: String, // protocol:base64hash format
-    requestor_host: String,
-    requestor_addr: String,
+    key_type: Option<String>,       // RSA, ECDSA, ED25519
 }
 
 #[derive(Object)]

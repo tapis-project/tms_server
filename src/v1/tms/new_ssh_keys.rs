@@ -32,7 +32,7 @@ struct ReqNewSshKeys
     host_account: String,
     num_uses: u32,     // 0 means unlimited
     ttl_minutes: u32,  // 0 means unlimited
-    key_type: Option<String>,  // RSA, ECDSA, ED25519, DEFAULT (=RSA)   
+    key_type: Option<String>,  // RSA, ECDSA, ED25519, DEFAULT (=ED25519)   
 }
 
 #[derive(Object)]
