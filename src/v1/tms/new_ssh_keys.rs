@@ -70,12 +70,12 @@ impl RequestDebug for ReqNewSshKeys {
         s.push_str("\n    ttl_minutes: ");
         s.push_str(&self.ttl_minutes.to_string());
         s.push_str("\n    key_type: ");
-        let kt = match self.key_type.clone() {
-            Some(k) => k.to_string(),
-            None => "None".to_string(),
+        let kt = match &self.key_type {
+            Some(k) => k,
+            None => "None",
         };
-        s.push_str(&kt);
-        s.push_str("\n");
+        s.push_str(kt);
+        s.push('\n');
         s
     }
 }

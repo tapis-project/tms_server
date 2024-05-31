@@ -43,22 +43,22 @@ impl RequestDebug for ReqPublicKey {
         s.push_str("\n    user: ");
         s.push_str(&self.user);
         s.push_str("\n    user_uid: ");
-        let uid = match self.user_uid.clone() {
-            Some(k) => k.to_string(),
-            None => "None".to_string(),
+        let uid = match &self.user_uid {
+            Some(k) => k,
+            None => "None",
         };
-        s.push_str(&uid);
+        s.push_str(uid);
         s.push_str("\n    host: ");
         s.push_str(&self.host);
         s.push_str("\n    public_key_fingerprint: ");
         s.push_str(&self.public_key_fingerprint);
         s.push_str("\n    key_type: ");
-        let kt = match self.key_type.clone() {
-            Some(k) => k.to_string(),
-            None => "None".to_string(),
+        let kt = match &self.key_type {
+            Some(k) => k,
+            None => "None",
         };
-        s.push_str(&kt);
-        s.push_str("\n");
+        s.push_str(kt);
+        s.push('\n');
         s
     }
 }
