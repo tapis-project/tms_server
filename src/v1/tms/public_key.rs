@@ -8,7 +8,7 @@ use sqlx::Row;
 
 use crate::utils::db_statements::SELECT_PUBKEY;
 use crate::utils::db_types::PubkeyRetrieval;
-use crate::utils::tms_utils;
+use crate::utils::{tms_utils, tms_utils::RequestDebug};
 use crate::RUNTIME_CTX;
 
 // ***************************************************************************
@@ -32,6 +32,35 @@ struct RespPublicKey
     result_code: String,
     result_msg: String,
     public_key: String,
+}
+
+// Implement the debug record trait for logging.
+impl RequestDebug for ReqPublicKey {   
+    type Req = ReqPublicKey;
+    fn get_request_info(&self) -> String {
+        let mut s = String::with_capacity(255);
+        s.push_str("  Request body:");
+        s.push_str("\n    user: ");
+        s.push_str(&self.user);
+        s.push_str("\n    user_uid: ");
+        let uid = match self.user_uid.clone() {
+            Some(k) => k.to_string(),
+            None => "None".to_string(),
+        };
+        s.push_str(&uid);
+        s.push_str("\n    host: ");
+        s.push_str(&self.host);
+        s.push_str("\n    public_key_fingerprint: ");
+        s.push_str(&self.public_key_fingerprint);
+        s.push_str("\n    key_type: ");
+        let kt = match self.key_type.clone() {
+            Some(k) => k.to_string(),
+            None => "None".to_string(),
+        };
+        s.push_str(&kt);
+        s.push_str("\n");
+        s
+    }
 }
 
 // ***************************************************************************
@@ -64,7 +93,7 @@ impl RespPublicKey {
 
     fn process(http_req: &Request, req: &ReqPublicKey) -> Result<RespPublicKey> {
         // Conditional logging depending on log level.
-        tms_utils::debug_request(http_req);
+        tms_utils::debug_request(http_req, req);
 
         // Look for the key in the database.
         let result = block_on(get_public_key(req))?;

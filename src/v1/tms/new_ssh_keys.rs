@@ -11,7 +11,7 @@ use chrono::{Utc, DateTime, Duration};
 use crate::utils::keygen::{self, KeyType};
 use crate::utils::db_types::PubkeyInput;
 use crate::utils::db_statements::INSERT_PUBKEYS;
-use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_secs_to_str, timestamp_utc_to_str};
+use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_secs_to_str, timestamp_utc_to_str, RequestDebug};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -22,7 +22,7 @@ use crate::RUNTIME_CTX;
 pub struct NewSshKeysApi;
 
 #[derive(Object)]
-struct ReqNewSshKeys
+pub struct ReqNewSshKeys
 {
     client_id: String,
     client_secret: String,
@@ -47,6 +47,37 @@ struct RespNewSshKeys
     key_bits: String,
     remaining_uses: String,
     expires_at: String,
+}
+
+// Implement the debug record trait for logging.
+impl RequestDebug for ReqNewSshKeys {   
+    type Req = ReqNewSshKeys;
+    fn get_request_info(&self) -> String {
+        let mut s = String::with_capacity(255);
+        s.push_str("  Request body:");
+        s.push_str("\n    client_id: ");
+        s.push_str(&self.client_id);
+        s.push_str("\n    tenant: ");
+        s.push_str(&self.tenant);
+        s.push_str("\n    client_user_id: ");
+        s.push_str(&self.client_user_id);
+        s.push_str("\n    host: ");
+        s.push_str(&self.host);
+        s.push_str("\n    host_account: ");
+        s.push_str(&self.host_account);
+        s.push_str("\n    num_uses: ");
+        s.push_str(&self.num_uses.to_string());
+        s.push_str("\n    ttl_minutes: ");
+        s.push_str(&self.ttl_minutes.to_string());
+        s.push_str("\n    key_type: ");
+        let kt = match self.key_type.clone() {
+            Some(k) => k.to_string(),
+            None => "None".to_string(),
+        };
+        s.push_str(&kt);
+        s.push_str("\n");
+        s
+    }
 }
 
 // ***************************************************************************
@@ -87,7 +118,7 @@ impl RespNewSshKeys {
 
     fn process(http_req: &Request, req: &ReqNewSshKeys) -> Result<RespNewSshKeys, anyhow::Error> {
         // Conditional logging depending on log level.
-        tms_utils::debug_request(http_req);
+        tms_utils::debug_request(http_req, req);
 
         // ------------------------ Generate Keys ------------------------
         // Get the caller's key type or use default.

@@ -167,11 +167,19 @@ pub fn is_executable(path: &Path) -> bool {
     meta.mode() & 0o111 != 0
 }
 
+// ***************************************************************************
+//                                  Traits
+// ***************************************************************************
+pub trait RequestDebug {
+    type Req;
+    fn get_request_info(&self) -> String;
+}
+
 // ---------------------------------------------------------------------------
 // debug_request:
 // ---------------------------------------------------------------------------
 // Dump http request information to the log.
-pub fn debug_request(http_req: &Request) {
+pub fn debug_request(http_req: &Request, req: &impl RequestDebug) {
     // Check that debug or higher logging is in effect.
     let level = log::max_level();
     if level < LevelFilter::Debug {
@@ -195,8 +203,11 @@ pub fn debug_request(http_req: &Request) {
     if let Some(q) = uri.query() {
         s += format!("  Query Parameters: {:?}\n", q).as_str();
     } else {
-        s += "  * No Query Parameters";
+        s += "  * No Query Parameters\n";
     }
+
+    // Add the request's information.
+    s += req.get_request_info().as_str();
 
     // Write the single log record.
     debug!("{}", s);
