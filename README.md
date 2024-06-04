@@ -46,7 +46,7 @@ Starting at the tms_server source tree, issue the following commands:
 
   - cd resources
 
-  - ./install-resources ~/.tms
+  - ./install-resources.sh ~/.tms
 
 The result is that these files will now be present under the root directory:
 
@@ -62,7 +62,7 @@ The result is that these files will now be present under the root directory:
 
 The files in the **config** subdirectory can be modified for development or production purposes.  The **log4rs.yml** controls logging to the console and to rolling log files in the **~/.tms/logs** directory.  See **log4rs.yml** for instructions on changing the output directory for the rolloing log.
 
-The **tms.toml** file specifies the server's runtime options that can be customized at runtime.
+The **tms.toml** file specifies the server's runtime options that can be customized at runtime.  At least one server url should be specified so that the generated livedocs can execute commands.
 
 ## Using a Non-Default Root Data Directory
 

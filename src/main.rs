@@ -53,17 +53,15 @@ async fn main() -> Result<(), std::io::Error> {
     if !tms_init() { return Ok(()); }
 
     // --------------- Main Loop Set Up ---------------
-    // Assign base URL.
-    let tms_url = format!("{}:{}{}",
-        RUNTIME_CTX.parms.config.http_addr, 
-        RUNTIME_CTX.parms.config.http_port, 
-        "/v1");
-
-    // Create a tuple with both the HelloApi struct and the imported user::UserApi struct
+    // Create a tuple with all the endpoints, create the service and add the server urls to it.
     let endpoints = (HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi);
-    let api_service = 
-        OpenApiService::new(endpoints, "TMS Server", "0.0.1").server(tms_url);
-
+    let mut api_service = 
+        OpenApiService::new(endpoints, "TMS Server", "0.0.1");
+    let urls = &RUNTIME_CTX.parms.config.server_urls;
+    for url in urls.iter() {
+        api_service = api_service.server(url);
+    }
+ 
     // Allow the generated openapi specs to be retrieved from the server.
     let spec = api_service.spec_endpoint();
     let spec_yaml = api_service.spec_endpoint_yaml();

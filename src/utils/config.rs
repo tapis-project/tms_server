@@ -39,6 +39,7 @@ const TMS_CONFIG_FILE      : &str = "/tms.toml";   // relative to config dir
 // Netorking.
 const DEFAULT_HTTP_ADDR    : &str = "https://localhost";
 const DEFAULT_HTTP_PORT    : u16  = 3000;
+const DEFAULT_SVR_URL      : &str = "https://localhost:3000/v1";
 
 // Tenants used in all installations.
 pub const DEFAULT_TENANT   : &str = "default";
@@ -140,6 +141,7 @@ pub struct Config {
     pub title: String,
     pub http_addr: String,
     pub http_port: u16,
+    pub server_urls: Vec<String>,
 }
 
 impl Config {
@@ -155,6 +157,7 @@ impl Default for Config {
             title: "TMS Server".to_string(),
             http_addr: DEFAULT_HTTP_ADDR.to_string(),
             http_port: DEFAULT_HTTP_PORT,
+            server_urls: vec![DEFAULT_SVR_URL.to_string()],
         }
     }
 }
