@@ -25,7 +25,7 @@ use super::tms_utils::get_absolute_path;
 //                                Constants
 // ***************************************************************************
 // Directory and file locations. Unless otherwise noted, all files and directories
-// are relative to the root directory.
+// are relative to the TMS root directory.
 const ENV_TMS_ROOT_DIR     : &str = "TMS_ROOT_DIR";
 const DEFAULT_ROOT_DIR     : &str = "~/.tms";
 const MIGRATIONS_DIR       : &str = "/migrations";
@@ -33,8 +33,11 @@ const CONFIG_DIR           : &str = "/config";
 const LOGS_DIR             : &str = "/logs";
 const DATABASE_DIR         : &str = "/database";
 const CERTS_DIR            : &str = "/certs";
+
 const LOG4RS_CONFIG_FILE   : &str = "/log4rs.yml"; // relative to config dir
 const TMS_CONFIG_FILE      : &str = "/tms.toml";   // relative to config dir
+const CERT_PEM_FILE        : &str = "/cert.pem";   // relative to cert dir
+const KEY_PEM_FILE         : &str = "/key.pem";    // relative to cert dir
 
 // Netorking.
 const DEFAULT_HTTP_ADDR    : &str = "https://localhost";
@@ -249,6 +252,70 @@ fn check_tms_dir(dir: &String, msgname: &str, mistrust: &Mistrust ) {
 }
 
 // ---------------------------------------------------------------------------
+// check_resource_files:
+// ---------------------------------------------------------------------------
+/** Make sure all required configuration files are present in the tms directory
+ * subtree.  The log4rs.yml and tms.toml files have already been checked and 
+ * read, so we don't need to do that here (see init_log() and get_parms()).  
+ * 
+ * We panic if either of the pem files are not found or don't have the proper permissions.
+ */
+fn check_resource_files() {
+    // Get the directory in which the pem files reside.
+    let cert_path = Path::new(&TMS_DIRS.certs_dir);
+
+    // Set up loop for pem file checking.
+    let files = vec!(CERT_PEM_FILE, KEY_PEM_FILE, );
+    for f in files {
+        // Get the pem file as a path. Remove leading slash for join to work.
+        let pem_file_buf = cert_path.join(&f[1..f.to_string().len()]); 
+        let pem_file_path = pem_file_buf.as_path();
+
+        // Make sure the pem file exists as a file.
+        if !pem_file_path.is_file() {
+            panic!("The TMS pem file must exist: {}", pem_file_path.to_string_lossy());
+        }
+
+        // Make sure the pem file has the proper permissions.
+        let meta = pem_file_path.metadata()
+            .unwrap_or_else(|_| panic!("Unable to read metadata for: {}", pem_file_path.to_string_lossy()));
+        let perm = meta.permissions().mode();
+        if perm & 0o777 != 0o600 {
+            panic!("The TMS pem file must be have 0o600 permissions: {}", pem_file_path.to_string_lossy());
+        }
+    }
+
+    // Make sure we can read the migration directory.
+    let migration_path = Path::new(&TMS_DIRS.database_dir);
+    let paths = match fs::read_dir(migration_path) {
+        Ok(p) => p,
+        Err(e)=> {
+            panic!("The TMS migration directory '{}' must exist: {}", migration_path.to_string_lossy(), e);
+        }
+    };
+
+    // Check that there's at least 1 database migration file in the configured directory.
+    let mut found = false;
+    for path in paths {
+        match path {
+            Ok(entry) => {
+                if entry.path().is_file() {
+                    found = true;
+                    break;
+                }
+            },
+            Err(e) => {
+                panic!("Error reading TMS migration directory '{}': {}", migration_path.to_string_lossy(), e);
+            },
+        }
+    }
+    if !found {
+        panic!("No migration files found in TMS migration directory: {}", migration_path.to_string_lossy());
+    }
+
+}
+
+// ---------------------------------------------------------------------------
 // get_mistrust:
 // ---------------------------------------------------------------------------
 /** Configure a new mistrust object for initial directory processing. */
@@ -360,6 +427,9 @@ fn get_parms() -> Result<Parms> {
 // init_runtime_context:
 // ---------------------------------------------------------------------------
 pub fn init_runtime_context() -> RuntimeCtx {
+    // Make sure the 2 pem files are installed in the configured directory.
+    check_resource_files();
+
     // If either of these fail the application aborts.
     let parms = get_parms().expect("FAILED to read configuration file.");
     let db = block_on(db_init::init_db());
@@ -383,4 +453,3 @@ mod tests {
         println!("{:?}", Config::new());
     }
 }
-

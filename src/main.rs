@@ -115,7 +115,7 @@ fn tms_init() -> bool {
 
     // Configure out log.
     init_log();
-    
+
     // Force the reading of input parameters and initialization of runtime context.
     // The runtime context also initializes the database, which makes db connections
     // available to all modules.
