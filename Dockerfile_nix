@@ -1,0 +1,36 @@
+# Use nix flake to build docker image for TMS server
+#
+# Start with nix image for build stage
+FROM nixos/nix:latest AS builder
+
+# Create temporary build area
+COPY . /tmp/build
+WORKDIR /tmp/build
+
+# Run the build
+RUN nix --extra-experimental-features "nix-command flakes" build
+
+# Copy the nix store closure
+RUN mkdir /tmp/nix-store-closure
+RUN cp -R $(nix-store -qR result/) /tmp/nix-store-closure
+
+# Switch to minimal debian image for final staging
+FROM debian:bookworm-slim
+
+# Install less and vim. Add user tapistms
+RUN apt update && apt install -y less vim-tiny && useradd -m tapistms
+
+USER tapistms
+
+WORKDIR /home/tapistms
+
+# Copy build to final image
+COPY --from=builder /tmp/nix-store-closure /nix/store
+COPY --from=builder /tmp/build/result /app
+COPY --from=builder /tmp/build/resources /app/resources
+
+# Initial TMS setup
+RUN /app/bin/tms_server --create-dirs-only
+RUN cd /app/resources; ./install-resources.sh ~/.tms
+
+CMD ["/app/bin/tms_server"]

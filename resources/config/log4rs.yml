@@ -22,7 +22,8 @@ appenders:
   roller:
     kind: rolling_file
     append: true
-    path: "<PUT_YOUR_ROOTDIR_HERE>/logs/tms_roller.log"
+#    path: "PUT_YOUR_ROOTDIR_HERE/logs/tms_roller.log"
+    path: "logs/tms_roller.log"
     encoder:
       kind: pattern
       pattern: "{d(%Y-%m-%dT%H:%M:%S.%f)(utc)}Z {l:<5} [{T}] {f:>.100}:{L} - {m}{n}"
@@ -35,7 +36,8 @@ appenders:
         kind: fixed_window
         base: 1
         count: 3
-        pattern: "<PUT_YOUR_ROOTDIR_HERE>/logs/tms_roller{}.log"
+#        pattern: "PUT_YOUR_ROOTDIR_HERE/logs/tms_roller{}.log"
+        pattern: "logs/tms_roller{}.log"
         
 root:
   level: info

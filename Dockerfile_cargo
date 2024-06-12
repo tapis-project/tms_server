@@ -1,0 +1,48 @@
+# 
+# Use cargo to build docker image for TMS server
+#
+# Start with rust image for the build
+FROM rust:1.78.0 as build
+
+# Set up directory with cargo project
+RUN USER=root cargo new --bin tms_server
+
+WORKDIR /tms_server
+
+# Copy build setup
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./Cargo.toml ./Cargo.toml
+
+# Build dependencies for caching
+RUN cargo build --release
+RUN rm -fr src/*.rs
+
+# Copy source and resources
+COPY ./.git ./.git
+COPY ./build.rs ./build.rs
+COPY ./src ./src
+COPY ./resources ./resources
+
+# Build release
+RUN rm -fr ./target/release/deps/tms_server*
+RUN cargo build --release
+
+# Switch to final base image
+FROM debian:bookworm-slim
+
+# Install less and vim. Add user tapistms
+RUN apt update && apt install -y less vim-tiny && useradd -m tapistms
+
+USER tapistms
+
+WORKDIR /home/tapistms
+
+# Final copy of artifacts from build image
+COPY --from=build /tms_server/target/release/tms_server .
+COPY --from=build /tms_server/resources ./resources
+
+# Initial TMS setup
+RUN ./tms_server --create-dirs-only
+RUN cd resources; ./install-resources.sh ~/.tms
+
+CMD ["./tms_server"]

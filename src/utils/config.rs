@@ -39,7 +39,7 @@ const TMS_CONFIG_FILE      : &str = "/tms.toml";   // relative to config dir
 const CERT_PEM_FILE        : &str = "/cert.pem";   // relative to cert dir
 const KEY_PEM_FILE         : &str = "/key.pem";    // relative to cert dir
 
-// Netorking.
+// Networking.
 const DEFAULT_HTTP_ADDR    : &str = "https://localhost";
 const DEFAULT_HTTP_PORT    : u16  = 3000;
 const DEFAULT_SVR_URL      : &str = "https://localhost:3000/v1";
