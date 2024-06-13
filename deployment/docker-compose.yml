@@ -1,0 +1,8 @@
+version: "3"
+services:
+  tms_server:
+    image: tapis/tms-server-cargo:0.1
+    ports:
+      - "3001:3000"
+    volumes:
+      - ~/tms:/home/tapistms

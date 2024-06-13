@@ -33,16 +33,20 @@ FROM debian:bookworm-slim
 # Install less and vim. Add user tapistms
 RUN apt update && apt install -y less vim-tiny && useradd -m tapistms
 
-USER tapistms
-
-WORKDIR /home/tapistms
+# Create directory for installing build atifacts and switch to it
+RUN mkdir -p /opt/tms
+WORKDIR /opt/tms
 
 # Final copy of artifacts from build image
 COPY --from=build /tms_server/target/release/tms_server .
 COPY --from=build /tms_server/resources ./resources
 
-# Initial TMS setup
-RUN ./tms_server --create-dirs-only
-RUN cd resources; ./install-resources.sh ~/.tms
+# Become the user we will run as and switch to the home directory
+USER tapistms
+WORKDIR /home/tapistms
 
-CMD ["./tms_server"]
+# Initial TMS setup will be done by running the image with separate commands
+#RUN /opt/tms/tms_server --create-dirs-only
+#RUN cd /opt/tms/tms_server/resources; ./install-resources.sh ~/.tms
+
+CMD ["/opt/tms/tms_server"]

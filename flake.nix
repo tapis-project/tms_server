@@ -32,7 +32,7 @@
         overlays = [ (import rust-overlay) ];
       };
 
-      # Crane is used for building the Rust Camers Traps Engine        
+      # Crane is used for building the Rust TMS Server        
       craneLib = crane.lib.${system};
 
       # Build the TMS server

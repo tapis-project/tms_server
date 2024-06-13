@@ -193,7 +193,7 @@ fn init_tms_dirs() -> TmsDirs {
     check_tms_dir(&root_dir, "root directory", &mistrust);
 
     let migrations_dir = root_dir.clone() + MIGRATIONS_DIR;
-    check_tms_dir(&migrations_dir, "resources directory", &mistrust);
+    check_tms_dir(&migrations_dir, "migrations directory", &mistrust);
     
     let config_dir = root_dir.clone() + CONFIG_DIR;
     check_tms_dir(&config_dir, "config directory", &mistrust);
@@ -286,7 +286,7 @@ fn check_resource_files() {
     }
 
     // Make sure we can read the migration directory.
-    let migration_path = Path::new(&TMS_DIRS.database_dir);
+    let migration_path = Path::new(&TMS_DIRS.migrations_dir);
     let paths = match fs::read_dir(migration_path) {
         Ok(p) => p,
         Err(e)=> {
