@@ -41,12 +41,12 @@ WORKDIR /opt/tms
 COPY --from=build /tms_server/target/release/tms_server .
 COPY --from=build /tms_server/resources ./resources
 
-# Become the user we will run as and switch to the home directory
+# Become the user we will run as and switch to directory where the server is installed
 USER tapistms
-WORKDIR /home/tapistms
+WORKDIR /opt/tms
 
 # Initial TMS setup will be done by running the image with separate commands
 #RUN /opt/tms/tms_server --create-dirs-only
 #RUN cd /opt/tms/tms_server/resources; ./install-resources.sh ~/.tms
 
-CMD ["/opt/tms/tms_server"]
+CMD ["./tms_server"]
