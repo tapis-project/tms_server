@@ -30,8 +30,9 @@ RUN cargo build --release
 # Switch to final base image
 FROM debian:bookworm-slim
 
-# Install less and vim. Add user tapistms
-RUN apt update && apt install -y less vim-tiny && useradd -m tapistms
+# Install less and vim. Add user tms
+RUN apt update && apt install -y less vim-tiny && useradd -m tms -u 4873
+RUN chown -R tms:tms /home/tms
 
 # Create directory for installing build atifacts and switch to it
 RUN mkdir -p /opt/tms
@@ -41,8 +42,12 @@ WORKDIR /opt/tms
 COPY --from=build /tms_server/target/release/tms_server .
 COPY --from=build /tms_server/resources ./resources
 
-# Become the user we will run as and switch to directory where the server is installed
-USER tapistms
+# Become the user we will run as and create the tms directory
+USER tms
+RUN mkdir -p /home/tms/.tms
+RUN chmod 700 /home/tms/.tms
+
+# Switch to directory where the server is installed
 WORKDIR /opt/tms
 
 # Initial TMS setup will be done by running the image with separate commands
