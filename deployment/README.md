@@ -29,4 +29,8 @@ local     deployment_tms-root
 local     tms-root
 ```
 
+TODO/TBD: Solution was to use deployment_tms-root as the volume name when running the initial docker run commands.
+
+Then volume names matched up and "docker compose up" started the server as expected.
+
 
