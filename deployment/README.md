@@ -15,3 +15,18 @@ Example, to be run from top directory of tms_server repository.
 
 TBD
 
+## NOTES
+
+WIP Fix issue with volume.
+
+When started via docker the volume is created as tms-root
+
+When started using compose the volume is created as deployment_tms-root
+
+```
+docker volume ls | grep tms
+local     deployment_tms-root
+local     tms-root
+```
+
+

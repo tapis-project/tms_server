@@ -2,11 +2,10 @@ version: "3"
 services:
   tms_server:
     image: tapis/tms-server-cargo:0.1
-    user: tms
     ports:
       - "3001:3000"
     volumes:
       - tms-root:/home/tms/.tms
-
+    command: "/bin/bash -c 'ls -la ~/.tms/certs'"
 volumes:
   tms-root:
