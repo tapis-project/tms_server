@@ -6,7 +6,6 @@ services:
       - "3001:3000"
     volumes:
       - tms-root:/home/tms
-#    command: "/bin/bash -c 'ls -la ~/.tms/certs'"
 volumes:
   tms-root:
 
