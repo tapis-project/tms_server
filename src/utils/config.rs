@@ -112,7 +112,7 @@ pub struct TmsArgs {
     ///   3. Otherwise, ~/.tms
     /// 
     #[structopt(short, long)]
-    pub create_dirs_only: bool,
+    pub init_dirs_only: bool,
 }
 
 // ---------------------------------------------------------------------------

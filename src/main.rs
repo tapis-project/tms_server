@@ -108,8 +108,8 @@ fn tms_init() -> bool {
     
     // Directory setup.
     println!("*** Runtime file locations *** \n{:?}\n", *TMS_DIRS);
-    if TMS_ARGS.create_dirs_only { 
-        println!("Exiting early after processing data directories at {}", &TMS_DIRS.root_dir);
+    if TMS_ARGS.init_dirs_only { 
+        println!("Exiting early after processing TMS configuration directories at {}", &TMS_DIRS.root_dir);
         return false; 
     }
 

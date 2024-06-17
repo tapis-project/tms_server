@@ -2,17 +2,19 @@
 
 Trust Manager System (TMS) web server
 
-TMS is currently in prototype form and is being developed for a Minimal Viable Product release.  As development proceeds the SQLite database schema may change.  To upgrade to the new schema delete all tms.db* files from the top-level directory (all content will be lost).  TMS will automatically create a new database with the updated schema when run.
+TMS is currently being developed for a Minimal Viable Product release.  As development proceeds the SQLite database schema may change.  To upgrade to the new schema delete all tms.db* files from the *database* directory under the TMS root directory (all content will be lost).  TMS will automatically create a new database with the updated schema when run.
 
 ## Running the TMS Server (TMSS)
 
 There are 3 ways to start TMSS:
 
-  1. To run the server from the command line in a development environment, type "cargo run".
+  1. To run the server from the command line in a development environment, type "cargo run" from the top-level *tms_server* directory.
 
   2. To run the server from within Visual Studio, press the *Run* hotspot above the main() function in main.rs.
 
-  3. To run the server from the directory in which the server's executable resides, such as *target/debug*, issue "./tms_server".
+  3. To run the server from the directory in which the server's executable resides, such as *target/debug*, issue "./tms_server".  
+  
+  Note that the current directory from which TMSS is lauched must have a **resources** subdirectory.  The resources directory must match the resources directory in the source code repository, including all subdirectories and files.  This requirement is automatically met by launch methods 1 and 2 above, but usually requires a manual or automated process to copy content from the source code repository for method 3. 
 
 Use the --help flag to see the supported command line options.
 
@@ -20,7 +22,7 @@ The automatically generated livedocs can be accessed by pointing your browser to
 
 ## TMS Root Data Directory
 
-TMSS expects certain externals files to exist in a well-defined directory structure.  By default, TMSS will create its directory subtree rooted at ~/.tms.  The root directory has the following subdirectories:
+TMSS expects certain externals files to exist in a well-defined directory structure.  By default, TMSS will create its directory subtree rooted at **~/.tms**.  The root directory has the following subdirectories:
 
   - ~/.tms
       - certs
@@ -32,23 +34,7 @@ TMSS expects certain externals files to exist in a well-defined directory struct
 
 ## Initializing the TMS Root Data Directory
 
-Initializing the root data directories is a 2 step process.  The first step creates the root directory and its subdirectories and the second step populates the subtree with required configuration and security files.  In the examples below, we invoke TMSS directly from the command line.  
-
-### Step 1: Generating the Directories
-
-Issue the following command to create the root directory and it subdirectories with the required permissions.
-
-  - ./tms_server --create-dirs-only
-
-### Step 2: Populating the Directories.
-
-Starting at the tms_server source tree, issue the following commands:
-
-  - cd resources
-
-  - ./install-resources.sh ~/.tms
-
-The result is that these files will now be present under the root directory:
+The TMSS automatically initializes its root data directory on startup.  Initialization includes creating the root directory and all its subdirectories as well as moving the default configuration files into those subdirectories.  These default files are:
 
   - ~/.tms/certs/cert.pem
 
@@ -60,19 +46,23 @@ The result is that these files will now be present under the root directory:
 
   - ~/.tms/migrations/20240315211037_tms_init.sql
 
-The files in the **config** subdirectory can be modified for development or production purposes.  The **log4rs.yml** controls logging to the console and to rolling log files in the **~/.tms/logs** directory.  See **log4rs.yml** for instructions on changing the output directory for the rolloing log.
+TMSS sets owner-only permissions on it directories and files.  The files in the **config** subdirectory can be modified for development or production purposes.  The **log4rs.yml** controls logging to the console and to rolling log files in the **~/.tms/logs** directory.  See **log4rs.yml** for instructions on changing the output directory for the rolling log.
 
-The **tms.toml** file specifies the server's runtime options that can be customized at runtime.  At least one server url should be specified so that the generated livedocs can execute commands.
+The **tms.toml** file specifies the server's options that can be customized at runtime.  At least one server url should be specified so that the generated livedocs can execute commands (localhost is convenient).
 
-## Using a Non-Default Root Data Directory
+## Customizing the Configuration
 
-TMSS supports using a directory other than the default ~/.tms directory as its root directory.  Both the initialization and runtime execution processes need to be parameterized to support non-default root directories.  We use MYDIR as a custom root directory in the descriptions below.
+One can instruct TMSS to initialize its root directory and immediately exit.  This allows the configuration files to be customized before TMS starts handling requests.  Issue the following command to create and populate the TMS root directory and then exit:
+
+  - ./tms_server --init-dirs-only
+
+At this point, one can edit the various configuration files to meet his or her needs.  
 
 ### Non-Default Root Directory Initialization
 
-  - Issue: ./tms_server --create-dirs-only --root-dir MYDIR
+  - Issue: ./tms_server --root-dir MYDIR
 
-  - Issue: ./install-resources MYDIR
+The --root-dir option can work in conjunction with the --init-dirs-only option.
 
 ### Non-Default Root Directory Execution
 
