@@ -4,6 +4,13 @@
 #
 # By default, rootdir = ~/.tms.  Note that shell macros like ~ 
 # cannot be used in this file; use an absoluted path instead,
+#
+# Note the use of the jinja2-like template variable: {{TMS_ROOT_DIR}}.
+# This placeholder variable gets replaced by the rootdir on new 
+# installations of the tms_server.  This is a one time replacement when
+# a new, non-existing rootdir is specified.  If this file is copied to 
+# a new rootdir after installation, manual adjustment of the paths 
+# configured in this file will be necessary. 
 
 refresh_rate: 60 seconds
 
@@ -15,14 +22,14 @@ appenders:
 
 #  fout:
 #    kind: file
-#    path: "<PUT_YOUR_ROOTDIR_HERE>/logs/tms.log"
+#    path: "{{TMS_ROOT_DIR}}/logs/tms.log"
 #    encoder:
 #      pattern: "{d(%Y-%m-%dT%H:%M:%S.%f)(utc)}Z {l:<5} [{T}] {f:>.100}:{L} - {m}{n}"
 
   roller:
     kind: rolling_file
     append: true
-    path: "<PUT_YOUR_ROOTDIR_HERE>/logs/tms_roller.log"
+    path: "{{TMS_ROOT_DIR}}/logs/tms_roller.log"
     encoder:
       kind: pattern
       pattern: "{d(%Y-%m-%dT%H:%M:%S.%f)(utc)}Z {l:<5} [{T}] {f:>.100}:{L} - {m}{n}"
@@ -35,7 +42,7 @@ appenders:
         kind: fixed_window
         base: 1
         count: 3
-        pattern: "<PUT_YOUR_ROOTDIR_HERE>/logs/tms_roller{}.log"
+        pattern: "{{TMS_ROOT_DIR}}/logs/tms_roller{}.log"
         
 root:
   level: info

@@ -2,7 +2,8 @@
 
 use path_absolutize::Absolutize;
 use std::ops::Deref;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use glob::glob;
 use std::process::{Command, ExitStatus, Output, Stdio};
 use std::os::unix::fs::MetadataExt;
 use execute::Execute;
@@ -60,6 +61,36 @@ pub fn get_absolute_path(path: &str) -> String {
     };
 
     p2.to_owned()
+}
+
+// ---------------------------------------------------------------------------
+// get_files_in_dir:
+// ---------------------------------------------------------------------------
+/** Return a list of PathBufs representing the immediate children of the directory.
+ * This function is not recursive and does not include subdirectories.
+ */
+pub fn get_files_in_dir(dir: &str) -> Result<Vec<PathBuf>> {
+    
+    // Create the result vector and globify the directory string.
+    let mut v = vec!();
+    let pattern = if dir.ends_with('/') {dir.to_string() + "*"} else {dir.to_string() + "/*"};
+
+    // Collect all the immediate files in the directory. 
+    for entry in glob(&pattern)? {
+        match entry {
+            Ok(f) => {
+                if f.is_file() {v.push(f);}
+            },
+            Err(e) => {
+                let msg = format!("Unable to access an directory entry in {}: {:?}.", &pattern, e);
+                error!("{}", msg);
+                return Result::Err(anyhow!(msg));
+            },
+        }
+    }
+
+    //let v = vec!();
+    Ok(v)
 }
 
 // ---------------------------------------------------------------------------

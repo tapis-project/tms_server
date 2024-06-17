@@ -3,11 +3,12 @@
 use anyhow::{Result, anyhow};
 use log::{info, error};
 use serde::Deserialize;
-use std::{env, fs, path::Path};
+use std::{env, fs::{self, Permissions}, path::Path};
 use toml;
 use fs_mistrust::Mistrust;
 use std::os::unix::fs::PermissionsExt;
 use lazy_static::lazy_static;
+use tera::Tera;
 use structopt::StructOpt;
 
 // See https://users.rust-lang.org/t/relationship-between-std-futures-futures-and-tokio/38077
@@ -33,6 +34,7 @@ const CONFIG_DIR           : &str = "/config";
 const LOGS_DIR             : &str = "/logs";
 const DATABASE_DIR         : &str = "/database";
 const CERTS_DIR            : &str = "/certs";
+const RESOURCES_DIR        : &str = "./resources"; // relative to currnent dir
 
 const LOG4RS_CONFIG_FILE   : &str = "/log4rs.yml"; // relative to config dir
 const TMS_CONFIG_FILE      : &str = "/tms.toml";   // relative to config dir
@@ -186,6 +188,9 @@ fn init_tms_dirs() -> TmsDirs {
     // Initialize the mistrust object.
     let mistrust = get_mistrust();
 
+    // Declare directory create flag to control file copying.
+    let mut dir_created;
+
     // Check that each path is absolute and is a directory with the
     // proper permission assign if it exists.  If it doesn't exist,
     // create it.
@@ -193,10 +198,12 @@ fn init_tms_dirs() -> TmsDirs {
     check_tms_dir(&root_dir, "root directory", &mistrust);
 
     let migrations_dir = root_dir.clone() + MIGRATIONS_DIR;
-    check_tms_dir(&migrations_dir, "migrations directory", &mistrust);
+    dir_created = check_tms_dir(&migrations_dir, "migrations directory", &mistrust);
+    if dir_created {copy_resource_files(&migrations_dir, MIGRATIONS_DIR, &root_dir);}
     
     let config_dir = root_dir.clone() + CONFIG_DIR;
-    check_tms_dir(&config_dir, "config directory", &mistrust);
+    dir_created = check_tms_dir(&config_dir, "config directory", &mistrust);
+    if dir_created {copy_resource_files(&config_dir, CONFIG_DIR, &root_dir);}
     
     let logs_dir = root_dir.clone() + LOGS_DIR;
     check_tms_dir(&logs_dir, "logs directory", &mistrust);
@@ -205,7 +212,8 @@ fn init_tms_dirs() -> TmsDirs {
     check_tms_dir(&database_dir, "database directory", &mistrust);
 
     let certs_dir = root_dir.clone() + CERTS_DIR;
-    check_tms_dir(&certs_dir, "certs directory", &mistrust);
+    dir_created = check_tms_dir(&certs_dir, "certs directory", &mistrust);
+    if dir_created {copy_resource_files(&certs_dir, CERTS_DIR, &root_dir);}
     
     // Package up and return the directories.
     TmsDirs {
@@ -222,7 +230,7 @@ fn init_tms_dirs() -> TmsDirs {
  * 
  * Any failure results in a panic. 
  */
-fn check_tms_dir(dir: &String, msgname: &str, mistrust: &Mistrust ) {
+fn check_tms_dir(dir: &String, msgname: &str, mistrust: &Mistrust) -> bool {
     // Get the path object.
     let path = Path::new(dir);
     if !path.is_absolute() {
@@ -240,6 +248,8 @@ fn check_tms_dir(dir: &String, msgname: &str, mistrust: &Mistrust ) {
         if perm & 0o777 != 0o700 {
             panic!("The TMS {} path must be have 0o700 permissions: {}", msgname, dir);
         }
+        // Directory not created.
+        false
     } else {
         // Create the directory with the correct permissions.
         match mistrust.make_directory(path) {
@@ -248,6 +258,105 @@ fn check_tms_dir(dir: &String, msgname: &str, mistrust: &Mistrust ) {
                 panic!("Make directory error for {:?}: {}", path, &e.to_string());
             }
         }
+        // Directory created.
+        true
+    }
+}
+
+// ---------------------------------------------------------------------------
+// copy_resource_files:
+// ---------------------------------------------------------------------------
+/** Copy the resource files to the target directory from the ./resources directory.
+ * This function will not copy any files if the current working directory of this
+ * program does have a subdirectory named "resources".
+ * 
+ * Since this function is only called on source code resource directories that contain 
+ * files copied during installation process, at least one file must be available
+ * for copying each time this function is called.
+ * 
+ * Source files known to contain jinja2-style template variables will have those 
+ * variables replaced with values hardcoded in this function.     
+ */
+fn copy_resource_files(target_dir: &String, dir_suffix: &str, root_dir: &String) {
+    // Create the source directory pathname.
+    let source_dir = RESOURCES_DIR.to_string() + dir_suffix;
+
+    // Get the files in the specified resource directory.
+    let pathbufs = match tms_utils::get_files_in_dir(source_dir.as_str()) {
+        Ok(p) => p,
+        Err(e) => {
+            panic!("Unable to list files in directy {}: {}", &source_dir, e);
+        }
+    };
+
+    // Don't call this function if there's nothing to copy.
+    if pathbufs.is_empty() {
+        let mut msg = format!("Installation aborted because no files were found in directory {}. ", &source_dir);
+        msg += "For new installations, copy the 'resources' directory from source code ";
+        msg += format!("and remove the TMS root directory ({}) before retrying.", &root_dir).as_str();
+        panic!("{}", msg);
+    }
+
+    // Process directories that don't contain files with template variables.
+    // Copy each of the files to target directory and set permissions.
+    for pathbuf in pathbufs {
+        // Construct the full pathname of the target file.
+        let os_filename = pathbuf.file_name().expect("Unable to read file name");
+        let filename = os_filename.to_string_lossy();
+        let target_file = target_dir.to_string() + "/" + &filename;
+
+        // Do we need to replace template variables in the source file?
+        // If so, take the first branch and perform jinja2-style substitutions.
+        if dir_suffix == CONFIG_DIR && filename == LOG4RS_CONFIG_FILE[1..] {
+            // Create the source file path.
+            let source_file = source_dir.to_string() + "/" + &filename;
+
+            // Create the template processor and initialize with a single file.
+            let mut tera = Tera::default();
+            match tera.add_template_file(&source_file, None) {
+                Ok(_) => (),
+                Err(e) => {
+                    panic!("Unable to read and parse template file {}: {}", &source_file, e);
+                },
+            };
+
+            // Set the replacement value in a context and render the final output string. 
+            let mut context = tera::Context::new();
+            context.insert("TMS_ROOT_DIR", root_dir);
+            let rendered = match tera.render(&source_file, &context) {
+                Ok(s) => s,
+                Err(e) => {
+                    panic!("Unable to render template file {}: {}", &source_file, e);
+                },
+            };
+
+            // Write the file with all substitutions performed.
+            match fs::write(&target_file, rendered) {
+                Ok(_) => (),
+                Err(e) => {
+                    panic!("Unable to write rendered file {}: {}", &target_file, e);
+                },
+           };
+        } else {
+            // Copy the local resource file to the target file with no template substitutions.
+            match fs::copy(&pathbuf, &target_file) {
+                Ok(_) => (),
+                Err(e) => {
+                    panic!("File copy from {:?} to {} failed: {}", &pathbuf, &target_file, e);
+                },
+            }
+        }
+
+        // Set the target's permissions.
+        match fs::set_permissions(&target_file, Permissions::from_mode(0o600)) {
+            Ok(_) => (),
+            Err(e) => {
+                panic!("Unable to set 0o600 permission on {}: {}", target_file, e);
+            },    
+        };
+
+        // Print installation information to stdout since logger has not initialized yet.
+        println!("*** Copied default installation file to '{}'", &target_file);
     }
 }
 
