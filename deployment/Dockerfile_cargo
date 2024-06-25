@@ -31,7 +31,7 @@ RUN cargo build --release
 FROM debian:bookworm-slim
 
 # Install less and vim. Add user tms
-RUN apt update && apt install -y less vim-tiny && useradd -m tms -u 4873
+RUN apt update && apt install -y less vim-tiny sqlite3 && useradd -m tms -u 4873
 RUN chown -R tms:tms /home/tms
 
 # Create directory for installing build atifacts and switch to it
