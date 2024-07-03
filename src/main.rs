@@ -13,7 +13,7 @@ use futures::executor::block_on;
 use crate::v1::tms::new_ssh_keys::NewSshKeysApi;
 use crate::v1::tms::public_key::PublicKeyApi;
 use crate::v1::tms::version::VersionApi;
-use crate::utils::config::{TMS_ARGS, TMS_DIRS, init_log, init_runtime_context, RuntimeCtx};
+use crate::utils::config::{TMS_ARGS, TMS_DIRS, init_log, init_runtime_context, check_prior_installation, RuntimeCtx};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
 
@@ -105,13 +105,10 @@ async fn main() -> Result<(), std::io::Error> {
 fn tms_init() -> bool {
     // Parse command line args and determine if early exit.
     println!("*** Command line arguments *** \n{:?}\n", *TMS_ARGS);
+    check_prior_installation(); // Cannot run before installation.
     
     // Directory setup.
     println!("*** Runtime file locations *** \n{:?}\n", *TMS_DIRS);
-    if TMS_ARGS.init_dirs_only { 
-        println!("Exiting early after processing TMS configuration directories at {}", &TMS_DIRS.root_dir);
-        return false; 
-    }
 
     // Configure out log.
     init_log();
@@ -136,8 +133,14 @@ fn tms_init() -> bool {
     // Initialize the key generator.
     keygen::init_keygen();
 
-    // Fully initialized.
-    true
+    // Was this an initial installation?
+    if TMS_ARGS.install { 
+        println!("Exiting: TMS root directory installed and initialized at {}", &TMS_DIRS.root_dir);
+        false 
+    } else {
+        // Fully initialized.
+        true
+    }
 }
 
 // ---------------------------------------------------------------------------

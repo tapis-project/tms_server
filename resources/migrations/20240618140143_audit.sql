@@ -999,7 +999,7 @@ AFTER INSERT ON
 FOR EACH ROW 
 BEGIN
     INSERT INTO admin_audit (refid, refcol, change, newvalue)
-        VALUES (NEW.id, 'row', 'I', json_array(NEW.id, NEW.tenant, NEW.tms_user_id, NEW.privilege, 
+        VALUES (NEW.id, 'row', 'I', json_array(NEW.id, NEW.tenant, NEW.admin_user, NEW.privilege, 
                 NEW.created, NEW.updated));
 END;
 
@@ -1010,7 +1010,7 @@ AFTER DELETE ON
 FOR EACH ROW 
 BEGIN
     INSERT INTO admin_audit (refid, refcol, change, oldvalue)
-        VALUES (OLD.id, 'row', 'D', json_array(OLD.id, OLD.tenant, OLD.tms_user_id, OLD.privilege, 
+        VALUES (OLD.id, 'row', 'D', json_array(OLD.id, OLD.tenant, OLD.admin_user, OLD.privilege, 
                 OLD.created, OLD.updated));
 END;
 
@@ -1037,14 +1037,25 @@ BEGIN
 END;
 
 CREATE TRIGGER IF NOT EXISTS
-    update_admin_tms_user_id
+    update_admin_admin_user
 AFTER UPDATE ON
     admin
 FOR EACH ROW WHEN
-    OLD.tms_user_id != NEW.tms_user_id
+    OLD.admin_user != NEW.admin_user
 BEGIN
     INSERT INTO admin_audit (refid, refcol, change, oldvalue, newvalue)
-        VALUES (NEW.id, 'tms_user_id', 'U', OLD.tms_user_id, NEW.tms_user_id);
+        VALUES (NEW.id, 'admin_user', 'U', OLD.admin_user, NEW.admin_user);
+END;
+
+CREATE TRIGGER IF NOT EXISTS
+    update_admin_admin_secret
+AFTER UPDATE ON
+    admin
+FOR EACH ROW WHEN
+    OLD.admin_secret != NEW.admin_secret
+BEGIN
+    INSERT INTO admin_audit (refid, refcol, change, oldvalue, newvalue)
+        VALUES (NEW.id, 'admin_secret', 'U', '****', '****');
 END;
 
 
@@ -1074,12 +1085,12 @@ END;
 -- (
 --     id                INTEGER PRIMARY KEY NOT NULL,
 --     tenant            TEXT NOT NULL,
---     tms_user_id       TEXT NOT NULL,
+--     admin_user        TEXT NOT NULL,
+--     admin_secret      TEXT NOT NULL,
 --     privilege         TEXT NOT NULL,
 --     created           TEXT NOT NULL,
 --     updated           TEXT NOT NULL,
 --     FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
---     FOREIGN KEY(tenant, tms_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE
 -- ) STRICT;
 
 -- -------------------------------------------------------------
@@ -1092,7 +1103,7 @@ AFTER INSERT ON
 FOR EACH ROW 
 BEGIN
     INSERT INTO hosts_audit (refid, refcol, change, newvalue)
-        VALUES (NEW.id, 'row', 'I', json_array(NEW.id, NEW.host, NEW.addr, NEW.created, NEW.updated));
+        VALUES (NEW.id, 'row', 'I', json_array(NEW.id, NEW.tenant, NEW.host, NEW.addr, NEW.created, NEW.updated));
 END;
 
 CREATE TRIGGER IF NOT EXISTS
@@ -1102,7 +1113,7 @@ AFTER DELETE ON
 FOR EACH ROW 
 BEGIN
     INSERT INTO hosts_audit (refid, refcol, change, oldvalue)
-        VALUES (OLD.id, 'row', 'D', json_array(OLD.id, OLD.host, OLD.addr, OLD.created, OLD.updated));
+        VALUES (OLD.id, 'row', 'D', json_array(OLD.id, OLD.tenant, OLD.host, OLD.addr, OLD.created, OLD.updated));
 END;
 
 CREATE TRIGGER IF NOT EXISTS
@@ -1114,6 +1125,28 @@ FOR EACH ROW WHEN
 BEGIN
     INSERT INTO hosts_audit (refid, refcol, change, oldvalue, newvalue)
         VALUES (NEW.id, 'id', 'U', CAST(OLD.id as TEXT), CAST(NEW.id as TEXT));
+END;
+
+CREATE TRIGGER IF NOT EXISTS
+    update_hosts_tenant
+AFTER UPDATE ON
+    hosts
+FOR EACH ROW WHEN
+    OLD.tenant != NEW.tenant
+BEGIN
+    INSERT INTO hosts_audit (refid, refcol, change, oldvalue, newvalue)
+        VALUES (NEW.id, 'tenant', 'U', OLD.tenant, NEW.tenant);
+END;
+
+CREATE TRIGGER IF NOT EXISTS
+    update_hosts_host
+AFTER UPDATE ON
+    hosts
+FOR EACH ROW WHEN
+    OLD.host != NEW.host
+BEGIN
+    INSERT INTO hosts_audit (refid, refcol, change, oldvalue, newvalue)
+        VALUES (NEW.id, 'host', 'U', OLD.host, NEW.host);
 END;
 
 CREATE TRIGGER IF NOT EXISTS
@@ -1142,6 +1175,7 @@ END;
 -- CREATE TABLE IF NOT EXISTS hosts
 -- (
 --     id                INTEGER PRIMARY KEY NOT NULL,
+--     tenant            TEXT NOT NULL,
 --     host              TEXT NOT NULL,
 --     addr              TEXT NOT NULL,
 --     created           TEXT NOT NULL,

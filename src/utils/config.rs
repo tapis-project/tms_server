@@ -50,6 +50,12 @@ const DEFAULT_SVR_URL      : &str = "https://localhost:3000/v1";
 pub const DEFAULT_TENANT   : &str = "default";
 pub const TEST_TENANT      : &str = "test";
 
+// Admin table constants.
+#[allow(dead_code)]
+pub const ADMIN_ID_PREFIX  : &str = "$!"; // literal value repeated in next line
+pub const DEFAULT_ADMIN_ID : &str = concat!("$!", "admin"); // admin ids always start with prefix
+pub const PERM_ADMIN       : &str = "PERM_ADMIN";
+
 // Database constants.
 pub const SQLITE_TRUE      : i32 = 1;
 #[allow(dead_code)]
@@ -100,7 +106,7 @@ pub struct TmsArgs {
     #[structopt(short, long)]
     pub root_dir: Option<String>,
 
-    /// Create the data directories and then exit.
+    /// Create the data directories and initial database records and then exit.
     /// 
     /// The data directories will be rooted at a root directory calculated 
     /// using the following priority order:
@@ -112,7 +118,7 @@ pub struct TmsArgs {
     ///   3. Otherwise, ~/.tms
     /// 
     #[structopt(short, long)]
-    pub init_dirs_only: bool,
+    pub install: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +184,43 @@ fn init_tms_args() -> TmsArgs {
     let args = TmsArgs::from_args();
     println!("{:?}", args);
     args
+}
+
+// ---------------------------------------------------------------------------
+// check_prior_installation:
+// ---------------------------------------------------------------------------
+/** Panic if we are trying to run the server before an installation run. */
+pub fn check_prior_installation() {
+    let rootdir = get_root_dir();
+    let path = Path::new(&rootdir);
+    if path.is_file() {
+        // No directory found.
+        let msg = 
+            format!("\n***********************************************************************\n\
+                    ERROR: Expected the TMS root directory but found a file at {}. \n\n\
+                    Please correct the path and try again.\n\
+                    ***********************************************************************\n", rootdir);
+        panic!("{}", msg);
+    }
+    else if !path.is_dir() && !TMS_ARGS.install {
+        // No directory found.
+        let msg = 
+            format!("\n***********************************************************************\n\
+                    ERROR: Expected the TMS root directory to exist at {}. \n\n\
+                    Please run 'tms_server --install' to install TMS's root directory \n\
+                    in it's default location or consult the README file for configuring \n\
+                    a non-default root directory location.\n\
+                    ***********************************************************************\n", rootdir);
+        panic!("{}", msg);
+    } else if path.is_dir() && TMS_ARGS.install {
+        // Root directory already exists.
+        let msg = 
+            format!("\n***********************************************************************\n\
+                    ERROR: Cannot install over existing TMS root directory at {}. \n\n\
+                    Please run tms_server without the --install option.\n\
+                    ***********************************************************************\n", rootdir);
+        panic!("{}", msg);
+    }
 }
 
 // ---------------------------------------------------------------------------

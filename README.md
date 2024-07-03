@@ -14,7 +14,7 @@ There are 3 ways to start TMSS:
 
   3. To run the server from the directory in which the server's executable resides, such as *target/debug*, issue "./tms_server".  
   
-  Note that the current directory from which TMSS is lauched must have a **resources** subdirectory.  The resources directory must match the resources directory in the source code repository, including all subdirectories and files.  This requirement is automatically met by launch methods 1 and 2 above, but usually requires a manual or automated process to copy content from the source code repository for method 3. 
+  Note that the current directory from which TMSS is lauched must have a **resources** subdirectory.  The resources directory must match the resources directory in the source code repository, including all its subdirectories and files.  This requirement is automatically met by launch methods 1 and 2 above, but usually requires a manual or automated process to copy content from the source code repository for method 3. 
 
 Use the --help flag to see the supported command line options.
 
@@ -28,13 +28,12 @@ TMSS expects certain externals files to exist in a well-defined directory struct
       - certs
       - config
       - database
-      - keygen
       - logs
       - migrations
 
 ## Initializing the TMS Root Data Directory
 
-The TMSS automatically initializes its root data directory on startup.  Initialization includes creating the root directory and all its subdirectories as well as moving the default configuration files into those subdirectories.  These default files are:
+The TMSS automatically initializes its root data directory on startup.  Initialization includes creating the root directory and all its subdirectories as well as moving the default configuration files into those subdirectories.  These default files include these:
 
   - ~/.tms/certs/cert.pem
 
@@ -52,17 +51,19 @@ The **tms.toml** file specifies the server's options that can be customized at r
 
 ## Customizing the Configuration
 
-One can instruct TMSS to initialize its root directory and immediately exit.  This allows the configuration files to be customized before TMS starts handling requests.  Issue the following command to create and populate the TMS root directory and then exit:
+TMSS must be run with the *--install* option before it can be run for request handling.  Here's how to install TMSS:
 
-  - ./tms_server --init-dirs-only
+  - ./tms_server --install
 
-At this point, one can edit the various configuration files to meet his or her needs.  
+Installation initializes TMSS's root directory, sets up the standard tenants (*default* and *test*), inserts test records into the database and then immediately exits.  By exiting, the configuration files in the TMSS root directory can be customized before TMS starts handling requests.  Once customization is complete, TMSS can be invoked as follows:
+
+  - ./tms_server
 
 ### Non-Default Root Directory Initialization
 
-  - Issue: ./tms_server --root-dir MYDIR
+The --root-dir works in conjunction with the --install option to define a non-default TMSS root directory.
 
-The --root-dir option can work in conjunction with the --init-dirs-only option.
+  - ./tms_server --install --root-dir MYDIR
 
 ### Non-Default Root Directory Execution
 

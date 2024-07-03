@@ -43,3 +43,10 @@ pub const SELECT_PUBKEY: &str = concat!(
     "WHERE host_account = ? AND host = ? AND public_key_fingerprint = ?",
 );
 
+// ========================= admin table ===========================
+pub const INSERT_ADMIN: &str = concat!(
+    "INSERT INTO admin (tenant, admin_user, admin_secret, privilege, created, updated) ",
+    "VALUES (?, ?, ?, ?, ?, ?)",
+);
+
+

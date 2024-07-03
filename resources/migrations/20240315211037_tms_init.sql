@@ -220,20 +220,24 @@ CREATE INDEX IF NOT EXISTS res_updated_idx ON reservations (updated);
 -- admin table
 -- ---------------------------------------
 -- ENUMS not supported and column checks cannot be altered,
--- so valid privileges enforced in application code 
+-- so valid privileges enforced in application code.  Note that
+-- the admin_user and tms_user_id's defined in other tables
+-- (such as user_mfa, user_hosts, etc.) are in different namespaces.
+-- The admin_user/admin_secret are used for authn/authz on 
+-- administrative APIs only; tms_user_id's are actual users of TMS. 
 CREATE TABLE IF NOT EXISTS admin
 (
     id                INTEGER PRIMARY KEY NOT NULL,
     tenant            TEXT NOT NULL,
-    tms_user_id       TEXT NOT NULL,
+    admin_user        TEXT NOT NULL,
+    admin_secret      TEXT NOT NULL,
     privilege         TEXT NOT NULL,
     created           TEXT NOT NULL,
     updated           TEXT NOT NULL,
-    FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
-    FOREIGN KEY(tenant, tms_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE
+    FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT
 ) STRICT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS adm_user_priv_idx ON admin (tenant, tms_user_id, privilege);
+CREATE UNIQUE INDEX IF NOT EXISTS adm_user_priv_idx ON admin (tenant, admin_user);
 CREATE INDEX IF NOT EXISTS adm_updated_idx ON admin (updated);
 
 -- ---------------------------------------
@@ -246,11 +250,12 @@ CREATE INDEX IF NOT EXISTS adm_updated_idx ON admin (updated);
 CREATE TABLE IF NOT EXISTS hosts
 (
     id                INTEGER PRIMARY KEY NOT NULL,
+    tenant            TEXT NOT NULL,
     host              TEXT NOT NULL,
     addr              TEXT NOT NULL,
     created           TEXT NOT NULL,
     updated           TEXT NOT NULL
 ) STRICT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS host_host_addr_idx ON hosts (host, addr);
+CREATE UNIQUE INDEX IF NOT EXISTS host_host_addr_idx ON hosts (tenant, host, addr);
 CREATE INDEX IF NOT EXISTS host_updated_idx ON hosts (updated);
