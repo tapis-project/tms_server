@@ -14,7 +14,7 @@
 -- client application, such a when a user links one of their identities to a
 -- host, establishes their MFA expiry or is registered as an administrator.
 --
--- The client_user_id field is when clients issue calls to TMS on behalf of 
+-- The client_user_id field is used when clients issue calls to TMS on behalf of 
 -- their users.  These calls include requesting a new SSH key pair, delegating
 -- access and making a reservation. 
 --
@@ -29,7 +29,7 @@
 -- Another way of thinking about tms_user_id and client_user_id is that they
 -- are identities validated by some IDP.  For two identities to match--to 
 -- represent the same user--they must have been validated by the same IDP.
--- The "tms_" and "client_" prefix on "user_id" simple indicates the component
+-- The "tms_" and "client_" prefix on "user_id" simply indicates the component
 -- that initiated the IDP authentication action.  
 -- 
 -- Hosts identify users by their host_accounts, which is the login account a 
@@ -237,7 +237,7 @@ CREATE TABLE IF NOT EXISTS admin
     FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT
 ) STRICT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS adm_user_priv_idx ON admin (tenant, admin_user);
+CREATE UNIQUE INDEX IF NOT EXISTS adm_user_idx ON admin (tenant, admin_user);
 CREATE INDEX IF NOT EXISTS adm_updated_idx ON admin (updated);
 
 -- ---------------------------------------
