@@ -42,16 +42,16 @@ WORKDIR /opt/tms
 COPY --from=build /tms_server/target/release/tms_server .
 COPY --from=build /tms_server/resources ./resources
 
-# Become the user we will run as and create the tms directory
+# Become the user we will run as
 USER tms
-RUN mkdir -p /home/tms/.tms
-RUN chmod 700 /home/tms/.tms
+
+# Initial TMS setup done by running with --install option
+RUN /opt/tms/tms_server --install > /home/tms/tms_init_log
+
+RUN mv /home/tms/tms_init_log /home/tms/.tms/init_log
+RUN chmod 400 /home/tms/.tms/init_log
 
 # Switch to directory where the server is installed
 WORKDIR /opt/tms
-
-# Initial TMS setup will be done by running the image with separate commands
-#RUN /opt/tms/tms_server --create-dirs-only
-#RUN cd /opt/tms/tms_server/resources; ./install-resources.sh ~/.tms
 
 CMD ["./tms_server"]
