@@ -122,6 +122,7 @@ fn tms_init() -> bool {
     print_version_info();
 
     // Insert default records into database if they don't already exist.
+    // This call is a no-op except when the --install option is set.
     let inserts = block_on(db::create_std_tenants())
         .expect("Unable to create or access standard tenant records.");
     info!("Number of standard tenants created: {}.", inserts);

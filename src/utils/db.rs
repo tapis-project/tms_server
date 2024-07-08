@@ -11,7 +11,7 @@ use std::io::{self, Write};
 use futures::executor::block_on;
 use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str};
 use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_STD_TENANTS, INSERT_USER_HOSTS, INSERT_USER_MFA};
-use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, SQLITE_TRUE, DEFAULT_ADMIN_ID, PERM_ADMIN};
+use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, SQLITE_TRUE, DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_ARGS};
 
 use crate::RUNTIME_CTX;
 
@@ -20,7 +20,15 @@ use super::db_statements::{INSERT_ADMIN, INSERT_CLIENTS};
 // ---------------------------------------------------------------------------
 // create_std_tenants:
 // ---------------------------------------------------------------------------
+/** This method should only be called when the --install option is specified.  
+ * It's a no-op if called during regular execution.
+ */
 pub async fn create_std_tenants() -> Result<u64> {
+    // Guard against repeated initialization of standard tenants and admins.
+    if !TMS_ARGS.install {
+        return Ok(0);
+    }
+
     // Get the timestamp string.
     let now = timestamp_utc();
     let current_ts = timestamp_utc_secs_to_str(now);
@@ -48,7 +56,7 @@ pub async fn create_std_tenants() -> Result<u64> {
     // Create admin user ids.
     let dft_key_str = create_hex_secret();
     let dft_key_hash = hash_hex_secret(&dft_key_str);
-    let dft_admin_result = sqlx::query(INSERT_ADMIN)
+    let _dft_admin_result = sqlx::query(INSERT_ADMIN)
         .bind(DEFAULT_TENANT)
         .bind(DEFAULT_ADMIN_ID)
         .bind(&dft_key_hash)
@@ -60,7 +68,7 @@ pub async fn create_std_tenants() -> Result<u64> {
 
     let tst_key_str = create_hex_secret();
     let tst_key_hash = hash_hex_secret(&tst_key_str);
-    let tst_admin_result = sqlx::query(INSERT_ADMIN)
+    let _tst_admin_result = sqlx::query(INSERT_ADMIN)
         .bind(TEST_TENANT)
         .bind(DEFAULT_ADMIN_ID)
         .bind(&tst_key_hash)
@@ -78,7 +86,7 @@ pub async fn create_std_tenants() -> Result<u64> {
     print_admin_secret_message(&dft_key_str, &tst_key_str)?; 
 
     // Return the number of tenant insertions that took place.
-    Ok(dft_result.rows_affected() + tst_result.rows_affected() + dft_admin_result.rows_affected() + tst_admin_result.rows_affected())
+    Ok(dft_result.rows_affected() + tst_result.rows_affected())
 }
 
 // ---------------------------------------------------------------------------
