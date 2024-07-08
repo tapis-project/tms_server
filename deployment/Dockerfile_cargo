@@ -22,6 +22,7 @@ COPY ./.git ./.git
 COPY ./build.rs ./build.rs
 COPY ./src ./src
 COPY ./resources ./resources
+COPY ./test ./test
 
 # Build release
 RUN rm -fr ./target/release/deps/tms_server*
@@ -41,6 +42,8 @@ WORKDIR /opt/tms
 # Final copy of artifacts from build image
 COPY --from=build /tms_server/target/release/tms_server .
 COPY --from=build /tms_server/resources ./resources
+COPY --from=build /tms_server/test /home/tms/test
+RUN chown -R tms:tms /home/tms/test
 
 # Become the user we will run as
 USER tms
@@ -50,6 +53,7 @@ RUN /opt/tms/tms_server --install > /home/tms/tms_init_log
 
 RUN mv /home/tms/tms_init_log /home/tms/.tms/init_log
 RUN chmod 400 /home/tms/.tms/init_log
+
 
 # Switch to directory where the server is installed
 WORKDIR /opt/tms
