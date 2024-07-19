@@ -4,6 +4,7 @@ use anyhow::{Result, anyhow};
 use log::{info, error};
 use serde::Deserialize;
 use std::{env, fs::{self, Permissions}, path::Path};
+use std::collections::HashMap;
 use toml;
 use fs_mistrust::Mistrust;
 use std::os::unix::fs::PermissionsExt;
@@ -19,6 +20,8 @@ use futures::executor::block_on;
 
 // TMS Utilities
 use crate::utils::{tms_utils, db_init, errors::Errors};
+use super::db_statements::{GET_CLIENT_SECRET, GET_ADMIN_SECRET};
+use super::authz::{AuthzTypes, X_TMS_ADMIN_ID, X_TMS_ADMIN_SECRET, X_TMS_CLIENT_ID, X_TMS_CLIENT_SECRET};
 
 use super::tms_utils::get_absolute_path;
 
@@ -52,8 +55,8 @@ pub const TEST_TENANT      : &str = "test";
 
 // Admin table constants.
 #[allow(dead_code)]
-pub const ADMIN_ID_PREFIX  : &str = "$!"; // literal value repeated in next line
-pub const DEFAULT_ADMIN_ID : &str = concat!("$!", "admin"); // admin ids always start with prefix
+pub const ADMIN_ID_PREFIX  : &str = "~~"; // literal value repeated in next line
+pub const DEFAULT_ADMIN_ID : &str = concat!("~~", "admin"); // admin ids always start with prefix
 pub const PERM_ADMIN       : &str = "PERM_ADMIN";
 
 // Database constants.
@@ -72,6 +75,11 @@ lazy_static! {
 // Calculate the data directories BEFORE RUNTIME_CTX is initialized in main.
 lazy_static! {
     pub static ref TMS_DIRS: TmsDirs = init_tms_dirs();
+}
+
+// Initialize the authz parameter sets.
+lazy_static! {
+    pub static ref AUTHZ_ARGS: AuthzArgs = init_authz_args();
 }
 
 // ***************************************************************************
@@ -132,6 +140,24 @@ pub struct Parms {
 }
 
 // ---------------------------------------------------------------------------
+// AuthzArgs:
+// ---------------------------------------------------------------------------
+// Define the parameter specs used for the different types of authz validation.
+// See authz.rs for details.
+#[derive(Debug)]
+pub struct AuthzSpec<'a>{
+    pub id: &'a str,           // HTTP header for subject being authorized
+    pub secret: &'a str,       // HTTP header for secret used to authorize
+    pub display_name: &'a str, // User friendly name of subject being authorized
+    pub sql_query: &'a str,    // SQL query with required signature for secret retrieval 
+}
+
+#[derive(Debug)]
+pub struct AuthzArgs {
+    pub specs: HashMap<AuthzTypes, AuthzSpec<'static>>,
+}
+
+// ---------------------------------------------------------------------------
 // RuntimeCtx:
 // ---------------------------------------------------------------------------
 #[derive(Debug)]
@@ -139,6 +165,7 @@ pub struct Parms {
 pub struct RuntimeCtx {
     pub parms: Parms,
     pub db: Pool<Sqlite>,
+    pub authz: &'static AuthzArgs,
     pub tms_args: &'static TmsArgs,
     pub tms_dirs: &'static TmsDirs,
 }
@@ -572,6 +599,31 @@ fn get_parms() -> Result<Parms> {
     Ok(Parms { config_file: config_file_abs, config })
 }
 
+// ---------------------------------------------------------------------------
+// init_authz_args:
+// ---------------------------------------------------------------------------
+fn init_authz_args() -> AuthzArgs {
+    // Create the authz specs for each authz validation type.
+    let client_spec = AuthzSpec {
+        id: X_TMS_CLIENT_ID, 
+        secret: X_TMS_CLIENT_SECRET, 
+        display_name: "client",
+        sql_query: GET_CLIENT_SECRET,
+    };
+    let admin_spec = AuthzSpec {
+        id: X_TMS_ADMIN_ID, 
+        secret: X_TMS_ADMIN_SECRET, 
+        display_name: "admin",
+        sql_query: GET_ADMIN_SECRET,
+    };
+
+    // Create and fill in the hashmap of authz specs.
+    let mut args = AuthzArgs {specs: HashMap::new()};
+    args.specs.insert(AuthzTypes::ClientOwn, client_spec);
+    args.specs.insert(AuthzTypes::TenantAdmin, admin_spec);
+    args
+}
+
 // ***************************************************************************
 //                             Config Functions
 // ***************************************************************************
@@ -585,7 +637,8 @@ pub fn init_runtime_context() -> RuntimeCtx {
     // If either of these fail the application aborts.
     let parms = get_parms().expect("FAILED to read configuration file.");
     let db = block_on(db_init::init_db());
-    RuntimeCtx {parms, db, tms_args: &TMS_ARGS, tms_dirs: &TMS_DIRS}
+    //let authz_args = get_authz_args();
+    RuntimeCtx {parms, db, authz: &AUTHZ_ARGS, tms_args: &TMS_ARGS, tms_dirs: &TMS_DIRS}
 }
 
 // ***************************************************************************

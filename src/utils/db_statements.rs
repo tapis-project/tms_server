@@ -13,6 +13,18 @@ pub const INSERT_CLIENTS: &str = concat!(
     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 );
 
+pub const GET_CLIENT: &str = concat!(
+    "SELECT id, tenant, app_name, app_version, client_id, client_secret, enabled, created, updated ",
+    "FROM clients ",
+    "WHERE client_id = ? AND tenant = ?",
+);
+
+// Conforms to the signature required for secret retrieval queries as defined by 
+// get_authz_secret() in authz.rs.
+pub const GET_CLIENT_SECRET: &str = concat!(
+    "SELECT client_secret FROM clients WHERE client_id = ? AND tenant = ?",
+);
+
 // ========================= user_mfa table ========================
 pub const INSERT_USER_MFA: &str = concat!(
     "INSERT INTO user_mfa (tenant, tms_user_id, expires_at, enabled, created, updated) ",
@@ -49,4 +61,9 @@ pub const INSERT_ADMIN: &str = concat!(
     "VALUES (?, ?, ?, ?, ?, ?)",
 );
 
+// Conforms to the signature required for secret retrieval queries as defined by 
+// get_authz_secret() in authz.rs.
+pub const GET_ADMIN_SECRET: &str = concat!(
+    "SELECT admin_secret FROM admin WHERE admin_user = ? AND tenant = ?",
+);
 

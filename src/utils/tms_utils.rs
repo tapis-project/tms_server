@@ -11,6 +11,10 @@ use chrono::{Utc, DateTime, SecondsFormat, FixedOffset, ParseError};
 
 use poem::Request;
 
+use rand_core::{RngCore, OsRng};
+use hex;
+use sha2::{Sha512, Digest};
+
 use anyhow::{Result, anyhow};
 use log::{error, debug, LevelFilter};
 
@@ -224,10 +228,11 @@ pub fn debug_request(http_req: &Request, req: &impl RequestDebug) {
     let uri = http_req.uri();
     s += format!("  URI: {:?}\n", uri).as_str();
 
-    // Accumulate the headers
+    // Accumulate the headers except for those that have substring "SECRET" in name.
     let it = http_req.headers().iter();
     for v in it {
-         s += format!("  Header: {} = {:?} \n", v.0, v.1).as_str();
+        if v.0.as_str().contains("SECRET") {continue};
+        s += format!("  Header: {} = {:?} \n", v.0, v.1).as_str();
     };
 
     // List query parameters.
@@ -242,6 +247,29 @@ pub fn debug_request(http_req: &Request, req: &impl RequestDebug) {
 
     // Write the single log record.
     debug!("{}", s);
+}
+
+// ---------------------------------------------------------------------------
+// create_hex_secret:
+// ---------------------------------------------------------------------------
+/** Get 24 bytes of random bits and convert them to a hex string. */
+pub fn create_hex_secret() -> String {
+    let mut dft_key = [0u8; 24];
+    OsRng.fill_bytes(&mut dft_key);
+    hex::encode(dft_key)
+}
+
+// ---------------------------------------------------------------------------
+// hash_hex_secret:
+// ---------------------------------------------------------------------------
+/** Take a hex secret as provided to the user and hash it for storage in the
+ * database.
+ */
+pub fn hash_hex_secret(hex_str: &String) -> String {
+    let mut hasher = Sha512::new();
+    hasher.update(hex_str);
+    let raw = hasher.finalize();
+    hex::encode(raw)
 }
 
 // ***************************************************************************

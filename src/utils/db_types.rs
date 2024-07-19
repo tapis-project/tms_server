@@ -120,3 +120,70 @@ impl PubkeyRetrieval {
     }
 }
 
+// ---------------------------------------------------------------------------
+// clients:
+// ---------------------------------------------------------------------------
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct Client {
+    pub id: i32,
+    pub tenant: String,
+    pub app_name: String,
+    pub app_version: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub enabled: i32,
+    pub created: String,
+    pub updated: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ClientInput {
+    pub tenant: String,
+    pub app_name: String,
+    pub app_version: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub enabled: i32,
+    pub created: String,
+    pub updated: String,
+}
+
+impl Client {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    pub fn new(
+        id: i32,
+        tenant: String,
+        app_name: String,
+        app_version: String,
+        client_id: String,
+        client_secret: String,
+        enabled: i32,
+        created: String,
+        updated: String,
+    ) 
+    -> Client {
+        Client {
+            id, tenant, app_name, app_version, client_id, client_secret, enabled, created, updated
+        }
+    }
+}
+
+impl ClientInput {
+        #[allow(dead_code, clippy::too_many_arguments)]
+        pub fn new(
+            tenant: String,
+            app_name: String,
+            app_version: String,
+            client_id: String,
+            client_secret: String,
+            enabled: i32,
+            created: String,
+            updated: String,
+        ) 
+        -> ClientInput {
+            ClientInput {
+                tenant, app_name, app_version, client_id, client_secret, enabled, created, updated
+            }
+        }
+}

@@ -3,13 +3,10 @@
 use anyhow::Result;
 use log::{info, warn};
 use chrono::{Utc, DateTime};
-use rand_core::{RngCore, OsRng};
-use hex;
-use sha2::{Sha512, Digest};
 use std::io::{self, Write};
 
 use futures::executor::block_on;
-use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str};
+use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, create_hex_secret, hash_hex_secret};
 use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_STD_TENANTS, INSERT_USER_HOSTS, INSERT_USER_MFA};
 use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, SQLITE_TRUE, DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_ARGS};
 
@@ -90,29 +87,6 @@ pub async fn create_std_tenants() -> Result<u64> {
 }
 
 // ---------------------------------------------------------------------------
-// create_hex_secret:
-// ---------------------------------------------------------------------------
-/** Get 24 bytes of random bits and convert them to a hex string. */
-fn create_hex_secret() -> String {
-    let mut dft_key = [0u8; 24];
-    OsRng.fill_bytes(&mut dft_key);
-    hex::encode(dft_key)
-}
-
-// ---------------------------------------------------------------------------
-// hash_hex_secret:
-// ---------------------------------------------------------------------------
-/** Take a hex secret as provided to the user and hash it for storage in the
- * database.
- */
-fn hash_hex_secret(hex_str: &String) -> String {
-    let mut hasher = Sha512::new();
-    hasher.update(hex_str);
-    let raw = hasher.finalize();
-    hex::encode(raw)
-}
-
-// ---------------------------------------------------------------------------
 // print_admin_secret_message:
 // ---------------------------------------------------------------------------
 /** Print one-time message to stdout that contains the admin_user and admin_secret
@@ -180,7 +154,7 @@ async fn create_test_data() -> Result<bool> {
     const TEST_APP: &str = "testapp1";
     const TEST_APP_VERS: &str = "1.0";
     const TEST_CLIENT: &str = "testclient1";
-    const TEST_SECRET: &str = "secret1";
+    let   test_secret: String = hash_hex_secret(&"secret1".to_string());
     const TEST_USER: &str = "testuser1";
     const TEST_HOST: &str = "testhost1";
     const TEST_HOST_ACCOUNT: &str = "testhostaccount1";
@@ -199,7 +173,7 @@ async fn create_test_data() -> Result<bool> {
         .bind(TEST_APP)
         .bind(TEST_APP_VERS)
         .bind(TEST_CLIENT)
-        .bind(TEST_SECRET)
+        .bind(test_secret)
         .bind(SQLITE_TRUE)
         .bind(&current_ts)
         .bind(&current_ts)
