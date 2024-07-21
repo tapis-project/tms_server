@@ -67,10 +67,11 @@ impl GetClientApi {
     async fn get_client(&self, http_req: &Request, ptenant: Path<String>, pclient_id: Path<String>) -> Json<RespGetClient> {
         // Package the path parameters.        
         let req = ReqGetClient {client_id: pclient_id.to_string(), tenant: ptenant.to_string()};
+        let req_id = Option::Some(&req.client_id);
         
         // Only the client and tenant admin can query a client record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
-        if !authorize(http_req, req.tenant.as_str(), &allowed) {
+        if !authorize(http_req, req.tenant.as_str(), req_id, &allowed) {
             let msg = format!("NOT AUTHORIZED to view client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
             let resp = RespGetClient::new("1", msg.as_str(), 0, req.tenant.clone(), "".to_string(), 

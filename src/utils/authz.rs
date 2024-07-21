@@ -32,14 +32,14 @@ pub enum AuthzTypes {ClientOwn, TenantAdmin, TmsctlHost, UserOwn}
 // ---------------------------------------------------------------------------
 // authorize:
 // ---------------------------------------------------------------------------
-pub fn authorize(http_req: &Request, tenant: &str, allowed: &[AuthzTypes]) -> bool {
+pub fn authorize(http_req: &Request, tenant: &str, req_id: Option<&String>, allowed: &[AuthzTypes]) -> bool {
     // For each authz type, validate the required headers.
     for authz_type in allowed {
         let allow = match authz_type {
-            AuthzTypes::ClientOwn => authorize_by_type(http_req, tenant, AuthzTypes::ClientOwn),
-            AuthzTypes::TenantAdmin => authorize_by_type(http_req, tenant, AuthzTypes::TenantAdmin),
-            AuthzTypes::TmsctlHost => authorize_by_type(http_req, tenant, AuthzTypes::TmsctlHost),
-            AuthzTypes::UserOwn => authorize_by_type(http_req, tenant, AuthzTypes::UserOwn),
+            AuthzTypes::ClientOwn => authorize_by_type(http_req, tenant, req_id, AuthzTypes::ClientOwn),
+            AuthzTypes::TenantAdmin => authorize_by_type(http_req, tenant, req_id, AuthzTypes::TenantAdmin),
+            AuthzTypes::TmsctlHost => authorize_by_type(http_req, tenant, req_id, AuthzTypes::TmsctlHost),
+            AuthzTypes::UserOwn => authorize_by_type(http_req, tenant, req_id, AuthzTypes::UserOwn),
         };
 
         // The first successful authorization terminates checking.
@@ -56,7 +56,7 @@ pub fn authorize(http_req: &Request, tenant: &str, allowed: &[AuthzTypes]) -> bo
 // ---------------------------------------------------------------------------
 // authorize_by_type:
 // ---------------------------------------------------------------------------
-fn authorize_by_type(http_req: &Request, tenant: &str, authz_type: AuthzTypes) -> bool {
+fn authorize_by_type(http_req: &Request, tenant: &str, req_id: Option<&String>, authz_type: AuthzTypes) -> bool {
     // Get the runtime parameters for this authz type.  If the spec isn't found in the 
     // RUNTIME environment, then a compile time initialization value is missing.
     let spec = match RUNTIME_CTX.authz.specs.get(&authz_type) {
@@ -71,7 +71,7 @@ fn authorize_by_type(http_req: &Request, tenant: &str, authz_type: AuthzTypes) -
     let mut hdr_id     = "";
     let mut hdr_secret = "";
 
-    // Look for the client id and secret headers.
+    // Look for the id and secret headers.
     let it = http_req.headers().iter();
     for v in it {
         if v.0 == spec.id {
@@ -97,6 +97,19 @@ fn authorize_by_type(http_req: &Request, tenant: &str, authz_type: AuthzTypes) -
 
     // Did we find an id and secret?
     if hdr_id.is_empty() || hdr_secret.is_empty() {return false;}
+
+    // Do we have to enforce consistency between the id passed as a header value
+    // and an id passed in a url as either path parameter or query parameter?  If
+    // both are present, then they must have the same value.
+    match req_id {
+        Some(id) => {
+            if id != hdr_id {
+                error!("Incompatible IDs encountered: Header ID = {}, Request ID = {}", hdr_id, id);
+                return false;
+            }
+        },
+        None => (),
+    }
 
     // Query the database for the client secret.
     let db_secret_hash = match block_on(get_authz_secret(hdr_id, tenant, spec.sql_query)) {
