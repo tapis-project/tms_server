@@ -1,5 +1,5 @@
-pub mod new_ssh_keys;
-pub mod public_key;
+pub mod creds_new_ssh_keys;
+pub mod creds_public_key;
 pub mod version;
-pub mod create_client;
-pub mod get_client;
+pub mod client_create;
+pub mod client_get;

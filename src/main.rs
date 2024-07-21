@@ -10,11 +10,11 @@ use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 use futures::executor::block_on;
 
 // TMS Utilities
-use crate::v1::tms::new_ssh_keys::NewSshKeysApi;
-use crate::v1::tms::public_key::PublicKeyApi;
+use crate::v1::tms::creds_new_ssh_keys::NewSshKeysApi;
+use crate::v1::tms::creds_public_key::PublicKeyApi;
 use crate::v1::tms::version::VersionApi;
-use crate::v1::tms::create_client::CreateClientApi;
-use crate::v1::tms::get_client::GetClientApi;
+use crate::v1::tms::client_create::CreateClientApi;
+use crate::v1::tms::client_get::GetClientApi;
 use crate::utils::config::{TMS_ARGS, TMS_DIRS, init_log, init_runtime_context, check_prior_installation, RuntimeCtx};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
