@@ -547,7 +547,7 @@ AFTER DELETE ON
 FOR EACH ROW 
 BEGIN
     INSERT INTO delegations_audit (refid, refcol, change, oldvalue)
-        VALUES (OLD.id, 'row', 'D', json_array(OLD.id, OLD.tenant, NEOLDW.client_id, OLD.client_user_id,
+        VALUES (OLD.id, 'row', 'D', json_array(OLD.id, OLD.tenant, OLD.client_id, OLD.client_user_id,
                 OLD.expires_at, OLD.created, OLD.updated));
 END;
 

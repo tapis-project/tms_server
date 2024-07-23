@@ -26,11 +26,15 @@ pub const GET_CLIENT_SECRET: &str = concat!(
 );
 
 pub const UPDATE_CLIENT_APP_VERSION: &str = concat!(
-    "UPDATE clients SET app_version = ? WHERE client_id = ?"
+    "UPDATE clients SET app_version = ? WHERE client_id = ? AND tenant = ?"
 );
 
 pub const UPDATE_CLIENT_ENABLED: &str = concat!(
-    "UPDATE clients SET enabled = ? WHERE client_id = ?"
+    "UPDATE clients SET enabled = ? WHERE client_id = ? AND tenant = ?"
+);
+
+pub const DELETE_CLIENT: &str = concat!(
+    "DELETE FROM clients WHERE client_id = ? AND tenant = ?"
 );
 
 // ========================= user_mfa table ========================
