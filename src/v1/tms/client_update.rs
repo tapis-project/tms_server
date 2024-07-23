@@ -6,7 +6,7 @@ use anyhow::Result;
 use futures::executor::block_on;
 
 use crate::utils::db_statements::{UPDATE_CLIENT_APP_VERSION, UPDATE_CLIENT_ENABLED};
-use crate::utils::tms_utils::{self, RequestDebug};
+use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str};
 use crate::utils::authz::{authorize, AuthzTypes};
 use log::{error, info};
 
@@ -137,6 +137,10 @@ impl RespUpdateClient {
 // update_client:
 // ---------------------------------------------------------------------------
 async fn update_client(req: &ReqUpdateClient) -> Result<u64> {
+    // Get timestamp.
+    let now = timestamp_utc();
+    let current_ts = timestamp_utc_to_str(now);
+
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
 
@@ -148,6 +152,7 @@ async fn update_client(req: &ReqUpdateClient) -> Result<u64> {
         // Issue the db update call.
         let result = sqlx::query(UPDATE_CLIENT_APP_VERSION)
             .bind(app_version)
+            .bind(&current_ts)
             .bind(&req.client_id)
             .bind(&req.tenant)
             .execute(&mut *tx)
@@ -160,6 +165,7 @@ async fn update_client(req: &ReqUpdateClient) -> Result<u64> {
         // Issue the db update call.
         let result = sqlx::query(UPDATE_CLIENT_ENABLED)
             .bind(enabled)
+            .bind(&current_ts)
             .bind(&req.client_id)
             .bind(&req.tenant)
             .execute(&mut *tx)

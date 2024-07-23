@@ -5,9 +5,9 @@ use poem_openapi::{ OpenApi, payload::Json, Object };
 use anyhow::Result;
 use futures::executor::block_on;
 
-use crate::utils::db_statements::INSERT_CLIENTS;
-use crate::utils::db_types::ClientInput; 
-use crate::utils::tms_utils::{self, create_hex_secret, hash_hex_secret, timestamp_utc, timestamp_utc_to_str, RequestDebug};
+use crate::utils::db_statements::UPDATE_CLIENT_SECRET;
+use crate::utils::tms_utils::{self, RequestDebug, create_hex_secret, hash_hex_secret, timestamp_utc, timestamp_utc_to_str};
+use crate::utils::authz::{authorize, AuthzTypes};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -15,22 +15,20 @@ use crate::RUNTIME_CTX;
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
-pub struct CreateClientApi;
+pub struct UpdateClientSecretApi;
 
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
 #[derive(Object)]
-pub struct ReqCreateClient
+pub struct ReqUpdateClientSecret
 {
     client_id: String,
     tenant: String,
-    app_name: String,
-    app_version: String,
 }
 
 #[derive(Object)]
-pub struct RespCreateClient
+pub struct RespUpdateClientSecret
 {
     result_code: String,
     result_msg: String,
@@ -39,8 +37,8 @@ pub struct RespCreateClient
 }
 
 // Implement the debug record trait for logging.
-impl RequestDebug for ReqCreateClient {   
-    type Req = ReqCreateClient;
+impl RequestDebug for ReqUpdateClientSecret {   
+    type Req = ReqUpdateClientSecret;
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
@@ -48,11 +46,7 @@ impl RequestDebug for ReqCreateClient {
         s.push_str(&self.client_id);
         s.push_str("\n    tenant: ");
         s.push_str(&self.tenant);
-        s.push_str("\n    app_name: ");
-        s.push_str(&self.app_name);
-        s.push_str("\n    app_version: ");
-        s.push_str(&self.app_version);
-        s
+       s
     }
 }
 
@@ -60,15 +54,35 @@ impl RequestDebug for ReqCreateClient {
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
-impl CreateClientApi {
-    #[oai(path = "/tms/client", method = "post")]
-    async fn create_client(&self, http_req: &Request, req: Json<ReqCreateClient>) -> Json<RespCreateClient> {
-        let resp = match RespCreateClient::process(http_req, &req) {
+impl UpdateClientSecretApi {
+    #[oai(path = "/tms/client/secret", method = "patch")]
+    async fn update_client(&self, http_req: &Request, req: Json<ReqUpdateClientSecret>) -> Json<RespUpdateClientSecret> {
+        // Only the client and tenant admin can query a client record.
+        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
+        let authz_result = authorize(http_req, &allowed);
+        if !authz_result.is_authorized() {
+            let msg = format!("NOT AUTHORIZED to update client {} in tenant {}.", req.client_id, req.tenant);
+            error!("{}", msg);
+            let resp = RespUpdateClientSecret::new("1", msg.as_str(), req.client_id.clone(), "".to_string());
+            return Json(resp);
+        }
+
+        // Make sure the request parms conform to the header values used for authorization.
+        if !authz_result.check_request_parms(&req.client_id, &req.tenant) {
+            let msg = format!("NOT AUTHORIZED: Payload parameters ({}@{}) differ from those in the request header.", 
+                                      req.client_id, req.tenant);
+            error!("{}", msg);
+            let resp = RespUpdateClientSecret::new("1", msg.as_str(), req.client_id.clone(), "".to_string());
+            return Json(resp);
+        }
+
+        // Process the request.
+        let resp = match RespUpdateClientSecret::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespCreateClient::new("1", msg.as_str(), req.client_id.clone(), "NO SECRET CREATED".to_string() )},
+                RespUpdateClientSecret::new("1", msg.as_str(),  req.client_id.clone(), "".to_string())},
         };
 
         Json(resp)
@@ -78,7 +92,7 @@ impl CreateClientApi {
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-impl RespCreateClient {
+impl RespUpdateClientSecret {
     /// Create a new response.
     fn new(result_code: &str, result_msg: &str, client_id: String, client_secret: String,) -> Self {
         Self {result_code: result_code.to_string(), 
@@ -89,7 +103,7 @@ impl RespCreateClient {
     }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqCreateClient) -> Result<RespCreateClient, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqUpdateClientSecret) -> Result<RespUpdateClientSecret, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -97,30 +111,13 @@ impl RespCreateClient {
         let client_secret_str  = create_hex_secret();
         let client_secret_hash = hash_hex_secret(&client_secret_str);
 
-        // ------------------------ Update Database --------------------
-        let now = timestamp_utc();
-        let current_ts = timestamp_utc_to_str(now);
-
-        // Create the input record.  Note that we save the hash of
-        // the hex secret, but never the secret itself.  
-        let input_record = ClientInput::new(
-            req.tenant.clone(),
-            req.app_name.clone(),
-            req.app_version.clone(),
-            req.client_id.clone(),
-            client_secret_hash, 
-            1,
-            current_ts.clone(), 
-            current_ts,
-        );
-
         // Insert the new key record.
-        block_on(insert_new_client(input_record))?;
-        info!("Client '{}' created for application '{}:{}' in tenant '{}'.", 
-              req.client_id, req.app_name, req.app_version, req.tenant);
+        block_on(update_client_secret(req, client_secret_hash))?;
         
-        // Return the secret represented in hex.
-        Ok(Self::new("0", "success", req.client_id.clone(), client_secret_str))
+        // Log result and return response.
+        let msg = format!("Secret updated for client {}", req.client_id);
+        info!("{}", msg);
+        Ok(RespUpdateClientSecret::new("0", msg.as_str(), req.client_id.clone(), client_secret_str))
     }
 }
 
@@ -128,27 +125,30 @@ impl RespCreateClient {
 //                          Private Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// insert_new_client:
+// update_client_secret:
 // ---------------------------------------------------------------------------
-async fn insert_new_client(rec: ClientInput) -> Result<u64> {
+async fn update_client_secret(req: &ReqUpdateClientSecret, client_secret_hash: String) -> Result<u64> {
+    // Get timestamp.
+    let now = timestamp_utc();
+    let current_ts = timestamp_utc_to_str(now);
+
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
-    
-    // Create the insert statement.
-    let result = sqlx::query(INSERT_CLIENTS)
-        .bind(rec.tenant)
-        .bind(rec.app_name)
-        .bind(rec.app_version)
-        .bind(rec.client_id)
-        .bind(rec.client_secret)
-        .bind(rec.enabled)
-        .bind(rec.created)
-        .bind(rec.updated)
+
+    // Update count.
+    let mut updates: u64 = 0;
+
+    // Issue the db update call.
+    let result = sqlx::query(UPDATE_CLIENT_SECRET)
+        .bind(client_secret_hash)
+        .bind(current_ts)
+        .bind(&req.client_id)
+        .bind(&req.tenant)
         .execute(&mut *tx)
         .await?;
+    updates += result.rows_affected();
 
     // Commit the transaction.
     tx.commit().await?;
-
-    Ok(result.rows_affected())
+    Ok(updates)
 }

@@ -17,6 +17,7 @@ use crate::v1::tms::creds_public_key::PublicKeyApi;
 use crate::v1::tms::version::VersionApi;
 use crate::v1::tms::client_create::CreateClientApi;
 use crate::v1::tms::client_get::GetClientApi;
+use crate::v1::tms::client_update_secret::UpdateClientSecretApi;
 use crate::utils::config::{TMS_ARGS, TMS_DIRS, init_log, init_runtime_context, check_prior_installation, RuntimeCtx};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
@@ -59,7 +60,8 @@ async fn main() -> Result<(), std::io::Error> {
     // --------------- Main Loop Set Up ---------------
     // Create a tuple with all the endpoints, create the service and add the server urls to it.
     let endpoints = 
-        (HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, CreateClientApi, GetClientApi, UpdateClientApi, DeleteClientApi);
+        (HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, CreateClientApi, GetClientApi, UpdateClientApi, DeleteClientApi,
+         UpdateClientSecretApi);
     let mut api_service = 
         OpenApiService::new(endpoints, "TMS Server", "0.0.1");
     let urls = &RUNTIME_CTX.parms.config.server_urls;

@@ -26,11 +26,15 @@ pub const GET_CLIENT_SECRET: &str = concat!(
 );
 
 pub const UPDATE_CLIENT_APP_VERSION: &str = concat!(
-    "UPDATE clients SET app_version = ? WHERE client_id = ? AND tenant = ?"
+    "UPDATE clients SET app_version = ?, updated = ? WHERE client_id = ? AND tenant = ?"
 );
 
 pub const UPDATE_CLIENT_ENABLED: &str = concat!(
-    "UPDATE clients SET enabled = ? WHERE client_id = ? AND tenant = ?"
+    "UPDATE clients SET enabled = ?, updated = ? WHERE client_id = ? AND tenant = ?"
+);
+
+pub const UPDATE_CLIENT_SECRET: &str = concat!(
+    "UPDATE clients SET client_secret = ?, updated = ? WHERE client_id = ? AND tenant = ?"
 );
 
 pub const DELETE_CLIENT: &str = concat!(

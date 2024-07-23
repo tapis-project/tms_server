@@ -5,3 +5,4 @@ pub mod client_create;
 pub mod client_get;
 pub mod client_update;
 pub mod client_delete;
+pub mod client_update_secret;
