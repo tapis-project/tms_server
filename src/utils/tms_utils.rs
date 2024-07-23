@@ -8,6 +8,7 @@ use std::process::{Command, ExitStatus, Output, Stdio};
 use std::os::unix::fs::MetadataExt;
 use execute::Execute;
 use chrono::{Utc, DateTime, SecondsFormat, FixedOffset, ParseError};
+use semver::VersionReq;
 
 use poem::Request;
 
@@ -272,6 +273,20 @@ pub fn hash_hex_secret(hex_str: &String) -> String {
     hex::encode(raw)
 }
 
+// ---------------------------------------------------------------------------
+// validate_semver:
+// ---------------------------------------------------------------------------
+/** Use the semver library to enforce cargo's implementation of semantic 
+ * versioning.  Either the candidate string parses and true is returned or
+ * an error is returned.
+ */
+pub fn validate_semver(semver: &str) -> Result<bool> {
+    match VersionReq::parse(semver) {
+        Ok(_) => Ok(true),
+        Err(e) => Err(anyhow!(e)),
+    }
+}
+
 // ***************************************************************************
 // PRIVATE FUNCTIONS
 // ***************************************************************************
@@ -285,3 +300,5 @@ fn run_command_emsg(command: Command, status: ExitStatus) -> String {
     command.get_program().to_str().unwrap_or("unknown") +
     " with exit status: " + &status.to_string()
 }
+
+

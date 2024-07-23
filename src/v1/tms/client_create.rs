@@ -2,12 +2,13 @@
 
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object };
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use futures::executor::block_on;
 
 use crate::utils::db_statements::INSERT_CLIENTS;
 use crate::utils::db_types::ClientInput; 
-use crate::utils::tms_utils::{self, create_hex_secret, hash_hex_secret, timestamp_utc, timestamp_utc_to_str, RequestDebug};
+use crate::utils::tms_utils::{self, create_hex_secret, hash_hex_secret, timestamp_utc, timestamp_utc_to_str, 
+                              RequestDebug, validate_semver};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -92,6 +93,17 @@ impl RespCreateClient {
     fn process(http_req: &Request, req: &ReqCreateClient) -> Result<RespCreateClient, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
+
+        // ------------------------ Validate Version -------------------
+        // Only valid semantic versions are accepted.
+        match validate_semver(req.app_version.as_str()) {
+            Ok(_) => (),
+            Err(e) => {
+                let msg = format!("Invalid app_version value ({}): {}", req.app_version, e);
+                error!("{}", msg);
+                return Err(anyhow!(msg));
+            }
+        };
 
         // ------------------------ Generate Secret --------------------  
         let client_secret_str  = create_hex_secret();

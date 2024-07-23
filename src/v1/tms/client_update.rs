@@ -6,7 +6,7 @@ use anyhow::Result;
 use futures::executor::block_on;
 
 use crate::utils::db_statements::{UPDATE_CLIENT_APP_VERSION, UPDATE_CLIENT_ENABLED};
-use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str};
+use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, validate_semver};
 use crate::utils::authz::{authorize, AuthzTypes};
 use log::{error, info};
 
@@ -149,6 +149,9 @@ async fn update_client(req: &ReqUpdateClient) -> Result<u64> {
 
     // Conditionally update the app version.
     if let Some(app_version) = &req.app_version {
+        // Validate that the app version conforms cargo's implemenation of semantic versioning.
+        validate_semver(app_version)?;
+
         // Issue the db update call.
         let result = sqlx::query(UPDATE_CLIENT_APP_VERSION)
             .bind(app_version)
