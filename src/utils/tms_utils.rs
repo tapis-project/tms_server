@@ -231,7 +231,7 @@ pub fn debug_request(http_req: &Request, req: &impl RequestDebug) {
     // Accumulate the headers except for those that have substring "SECRET" in name.
     let it = http_req.headers().iter();
     for v in it {
-        if v.0.as_str().contains("SECRET") {continue};
+        if v.0.as_str().to_lowercase().contains("secret") {continue};
         s += format!("  Header: {} = {:?} \n", v.0, v.1).as_str();
     };
 

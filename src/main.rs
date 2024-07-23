@@ -6,18 +6,20 @@ use log::info;
 use poem::listener::{Listener, RustlsCertificate, RustlsConfig};
 use poem::{listener::TcpListener, Route};
 use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
-
 use futures::executor::block_on;
-use v1::tms::client_delete::DeleteClientApi;
-use v1::tms::client_update::UpdateClientApi;
 
-// TMS Utilities
+// TMS APIs
+use crate::v1::tms::client_create::CreateClientApi;
+use crate::v1::tms::client_delete::DeleteClientApi;
+use crate::v1::tms::client_get::GetClientApi;
+use crate::v1::tms::client_list::ListClientApi;
+use crate::v1::tms::client_update_secret::UpdateClientSecretApi;
+use crate::v1::tms::client_update::UpdateClientApi;
 use crate::v1::tms::creds_new_ssh_keys::NewSshKeysApi;
 use crate::v1::tms::creds_public_key::PublicKeyApi;
 use crate::v1::tms::version::VersionApi;
-use crate::v1::tms::client_create::CreateClientApi;
-use crate::v1::tms::client_get::GetClientApi;
-use crate::v1::tms::client_update_secret::UpdateClientSecretApi;
+
+// TMS Utilities
 use crate::utils::config::{TMS_ARGS, TMS_DIRS, init_log, init_runtime_context, check_prior_installation, RuntimeCtx};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
@@ -61,7 +63,7 @@ async fn main() -> Result<(), std::io::Error> {
     // Create a tuple with all the endpoints, create the service and add the server urls to it.
     let endpoints = 
         (HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, CreateClientApi, GetClientApi, UpdateClientApi, DeleteClientApi,
-         UpdateClientSecretApi);
+         UpdateClientSecretApi, ListClientApi);
     let mut api_service = 
         OpenApiService::new(endpoints, "TMS Server", "0.0.1");
     let urls = &RUNTIME_CTX.parms.config.server_urls;

@@ -15,8 +15,13 @@ pub const INSERT_CLIENTS: &str = concat!(
 
 pub const GET_CLIENT: &str = concat!(
     "SELECT id, tenant, app_name, app_version, client_id, client_secret, enabled, created, updated ",
-    "FROM clients ",
-    "WHERE client_id = ? AND tenant = ?",
+    "FROM clients WHERE client_id = ? AND tenant = ?",
+);
+
+// Secret elided.
+pub const LIST_CLIENTS: &str = concat!(
+    "SELECT id, tenant, app_name, app_version, client_id, enabled, created, updated ",
+    "FROM clients WHERE tenant = ?",
 );
 
 // Conforms to the signature required for secret retrieval queries as defined by 

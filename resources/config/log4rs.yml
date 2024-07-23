@@ -12,7 +12,7 @@
 # a new rootdir after installation, manual adjustment of the paths 
 # configured in this file will be necessary. 
 
-refresh_rate: 60 seconds
+refresh_rate: 30 seconds
 
 appenders:
   stdout:
