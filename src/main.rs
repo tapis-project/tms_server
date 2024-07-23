@@ -8,6 +8,7 @@ use poem::{listener::TcpListener, Route};
 use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 
 use futures::executor::block_on;
+use v1::tms::client_update::UpdateClientApi;
 
 // TMS Utilities
 use crate::v1::tms::creds_new_ssh_keys::NewSshKeysApi;
@@ -57,7 +58,7 @@ async fn main() -> Result<(), std::io::Error> {
     // --------------- Main Loop Set Up ---------------
     // Create a tuple with all the endpoints, create the service and add the server urls to it.
     let endpoints = 
-        (HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, CreateClientApi, GetClientApi);
+        (HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, CreateClientApi, GetClientApi, UpdateClientApi);
     let mut api_service = 
         OpenApiService::new(endpoints, "TMS Server", "0.0.1");
     let urls = &RUNTIME_CTX.parms.config.server_urls;

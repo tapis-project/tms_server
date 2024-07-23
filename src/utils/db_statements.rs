@@ -25,6 +25,14 @@ pub const GET_CLIENT_SECRET: &str = concat!(
     "SELECT client_secret FROM clients WHERE client_id = ? AND tenant = ?",
 );
 
+pub const UPDATE_CLIENT_APP_VERSION: &str = concat!(
+    "UPDATE clients SET app_version = ? WHERE client_id = ?"
+);
+
+pub const UPDATE_CLIENT_ENABLED: &str = concat!(
+    "UPDATE clients SET enabled = ? WHERE client_id = ?"
+);
+
 // ========================= user_mfa table ========================
 pub const INSERT_USER_MFA: &str = concat!(
     "INSERT INTO user_mfa (tenant, tms_user_id, expires_at, enabled, created, updated) ",

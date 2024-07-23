@@ -67,12 +67,22 @@ impl GetClientApi {
     async fn get_client(&self, http_req: &Request, ptenant: Path<String>, pclient_id: Path<String>) -> Json<RespGetClient> {
         // Package the path parameters.        
         let req = ReqGetClient {client_id: pclient_id.to_string(), tenant: ptenant.to_string()};
-        let req_id = Option::Some(&req.client_id);
         
         // Only the client and tenant admin can query a client record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
-        if !authorize(http_req, req.tenant.as_str(), req_id, &allowed) {
+        let authz_result = authorize(http_req, &allowed);
+        if !authz_result.is_authorized() {
             let msg = format!("NOT AUTHORIZED to view client {} in tenant {}.", req.client_id, req.tenant);
+            error!("{}", msg);
+            let resp = RespGetClient::new("1", msg.as_str(), 0, req.tenant.clone(), "".to_string(), 
+                                        "".to_string(), req.client_id.clone(), 0,  "".to_string(), "".to_string());
+            return Json(resp);
+        }
+
+        // Make sure the path parms conform to the header values used for authorization.
+        if !authz_result.check_request_parms(&req.client_id, &req.tenant) {
+            let msg = format!("NOT AUTHORIZED: Path parameters ({}@{}) differ from those in the request header.", 
+                                      req.client_id, req.tenant);
             error!("{}", msg);
             let resp = RespGetClient::new("1", msg.as_str(), 0, req.tenant.clone(), "".to_string(), 
                                         "".to_string(), req.client_id.clone(), 0,  "".to_string(), "".to_string());

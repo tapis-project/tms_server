@@ -604,6 +604,7 @@ fn get_parms() -> Result<Parms> {
 // ---------------------------------------------------------------------------
 fn init_authz_args() -> AuthzArgs {
     // Create the authz specs for each authz validation type.
+    // Note that only two of the four types are currently implemented.
     let client_spec = AuthzSpec {
         id: X_TMS_CLIENT_ID, 
         secret: X_TMS_CLIENT_SECRET, 
