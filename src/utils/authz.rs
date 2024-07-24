@@ -177,37 +177,37 @@ fn authorize_by_type(http_req: &Request, hdr_tenant: &str, authz_type: AuthzType
         },
     };
 
-    // Initialize the header variables.
-    let mut hdr_id     = "";
-    let mut hdr_secret = "";
-
-    // Look for the id and secret headers.
-    let it = http_req.headers().iter();
-    for v in it {
-        if v.0 == spec.id {
-            if !hdr_id.is_empty() {continue;} // only assign once
-            hdr_id = match v.1.to_str() {
-                Ok(v) => v,
+    // Get the ID header for this authz type.  Use the empty string
+    // to indicate header-not-found or an invalid header value. 
+    let hdr_id = match http_req.headers().get(spec.id) {
+        Some(hdr_val) => {
+            match hdr_val.to_str() {
+                Ok(str_val) => str_val,
                 Err(e) => {
                     error!("Invalid string assigned to header {}: {}", spec.id, e);
-                    return AuthzResult::new_unauthorized();
-                },
-            };
-            continue;
-        }
-        if v.0 == spec.secret {
-            if !hdr_secret.is_empty() {continue;} // only assign once
-            hdr_secret = match v.1.to_str() {
-                Ok(v) => v,
-                Err(e) => {
-                    error!("Invalid string assigned to header {}: {}", spec.secret, e);
-                    return AuthzResult::new_unauthorized();
-                },
-            };
-        }
+                    ""
+                }
+            } 
+        },
+        None => "",
     };
 
-    // Did we find an id and secret?
+    // Get the secret header for this authz type.  Use the empty string
+    // to indicate header-not-found or an invalid header value.  
+    let hdr_secret = match http_req.headers().get(spec.secret) {
+        Some(hdr_val) => {
+            match hdr_val.to_str() {
+                Ok(str_val) => str_val,
+                Err(e) => {
+                    error!("Invalid string assigned to header {}: {}", spec.secret, e);
+                    ""
+                }
+            } 
+        },
+        None => "",
+    };
+
+    // Do we have the complete set of tenant, id and secret?
     if hdr_tenant.is_empty() || hdr_id.is_empty() || hdr_secret.is_empty() {
         debug!("Missing header information for {} id {}", spec.display_name, hdr_id);
         return AuthzResult::new_unauthorized();
