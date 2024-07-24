@@ -7,3 +7,4 @@ pub mod client_update;
 pub mod client_delete;
 pub mod client_update_secret;
 pub mod client_list;
+pub mod user_mfa_create;

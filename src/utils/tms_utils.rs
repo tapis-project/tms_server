@@ -7,7 +7,7 @@ use glob::glob;
 use std::process::{Command, ExitStatus, Output, Stdio};
 use std::os::unix::fs::MetadataExt;
 use execute::Execute;
-use chrono::{Utc, DateTime, SecondsFormat, FixedOffset, ParseError};
+use chrono::{Utc, DateTime, SecondsFormat, FixedOffset, ParseError, Duration};
 use semver::VersionReq;
 
 use poem::Request;
@@ -96,6 +96,17 @@ pub fn get_files_in_dir(dir: &str) -> Result<Vec<PathBuf>> {
 
     //let v = vec!();
     Ok(v)
+}
+
+// ---------------------------------------------------------------------------
+// calc_expires_at:
+// ---------------------------------------------------------------------------
+pub fn calc_expires_at(now : DateTime<Utc>, ttl_minutes : i32) -> String {
+    if ttl_minutes <= 0 {
+        timestamp_utc_secs_to_str(DateTime::<Utc>::MAX_UTC)
+    } else {
+        timestamp_utc_secs_to_str(now + Duration::minutes(ttl_minutes as i64))
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -278,7 +289,10 @@ pub fn hash_hex_secret(hex_str: &String) -> String {
 // ---------------------------------------------------------------------------
 /** Use the semver library to enforce cargo's implementation of semantic 
  * versioning.  Either the candidate string parses and true is returned or
- * an error is returned.
+ * an error is returned.  
+ * 
+ * See https://docs.rs/semver/latest/semver/enum.Op.html for an discussion
+ * on versioning operators and their meanings. 
  */
 pub fn validate_semver(semver: &str) -> Result<bool> {
     match VersionReq::parse(semver) {

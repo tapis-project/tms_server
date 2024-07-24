@@ -6,12 +6,11 @@ use anyhow::{Result, anyhow};
 
 use std::convert::TryInto;
 use futures::executor::block_on;
-use chrono::{Utc, DateTime, Duration};
 
 use crate::utils::keygen::{self, KeyType};
 use crate::utils::db_types::PubkeyInput;
 use crate::utils::db_statements::INSERT_PUBKEYS;
-use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_secs_to_str, timestamp_utc_to_str, RequestDebug};
+use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -231,17 +230,6 @@ async fn insert_new_key(rec: PubkeyInput) -> Result<u64> {
     tx.commit().await?;
 
     Ok(result.rows_affected())
-}
-
-// ---------------------------------------------------------------------------
-// calc_expires_at:
-// ---------------------------------------------------------------------------
-fn calc_expires_at(now : DateTime<Utc>, ttl_minutes : i32) -> String {
-    if ttl_minutes <= 0 {
-        timestamp_utc_secs_to_str(DateTime::<Utc>::MAX_UTC)
-    } else {
-        timestamp_utc_secs_to_str(now + Duration::minutes(ttl_minutes as i64))
-    }
 }
 
 // ---------------------------------------------------------------------------

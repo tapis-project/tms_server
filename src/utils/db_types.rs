@@ -187,3 +187,63 @@ impl ClientInput {
             }
         }
 }
+
+// ---------------------------------------------------------------------------
+// user_mfa:
+// ---------------------------------------------------------------------------
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct UserMfa {
+    pub id: i32,
+    pub tenant: String,
+    pub tms_user_id: String,
+    pub expires_at: String,
+    pub enabled: i32,
+    pub created: String,
+    pub updated: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UserMfaInput {
+    pub tenant: String,
+    pub tms_user_id: String,
+    pub expires_at: String,
+    pub enabled: i32,
+    pub created: String,
+    pub updated: String,
+}
+
+impl UserMfa {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    pub fn new(
+        id: i32,
+        tenant: String,
+        tms_user_id: String,
+        expires_at: String,
+        enabled: i32,
+        created: String,
+        updated: String,
+    ) 
+    -> UserMfa {
+        UserMfa {
+            id, tenant, tms_user_id, expires_at, enabled, created, updated
+        }
+    }
+}
+
+impl UserMfaInput {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    pub fn new(
+        tenant: String,
+        tms_user_id: String,
+        expires_at: String,
+        enabled: i32,
+        created: String,
+        updated: String,
+    ) 
+    -> UserMfaInput {
+        UserMfaInput {
+            tenant, tms_user_id, expires_at, enabled, created, updated
+        }
+    }
+}
