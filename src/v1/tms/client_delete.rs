@@ -7,7 +7,7 @@ use futures::executor::block_on;
 
 use crate::utils::db_statements::DELETE_CLIENT;
 use crate::utils::tms_utils::{self, RequestDebug};
-use crate::utils::authz::{authorize, AuthzTypes};
+use crate::utils::authz::{authorize, get_tenant_header, AuthzTypes};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -53,37 +53,44 @@ impl RequestDebug for ReqDeleteClient {
 // ***************************************************************************
 #[OpenApi]
 impl DeleteClientApi {
-    #[oai(path = "/tms/client/:ptenant/:pclient_id", method = "delete")]
-    async fn delete_client(&self, http_req: &Request, ptenant: Path<String>, pclient_id: Path<String>) -> Json<RespDeleteClient> {
-        // Package the path parameters.
-        let req = ReqDeleteClient {client_id: pclient_id.to_string(), tenant: ptenant.to_string()};
+    #[oai(path = "/tms/client/:pclient_id", method = "delete")]
+    async fn delete_client(&self, http_req: &Request, pclient_id: Path<String>) -> Json<RespDeleteClient> {
+        // -------------------- Get Tenant Header --------------------
+        // Get the required tenant header value.
+        let hdr_tenant = match get_tenant_header(http_req) {
+            Ok(t) => t,
+            Err(e) => return Json(RespDeleteClient::new("1", e.to_string())),
+        };
+        
+        // Package the request parameters.
+        let req = ReqDeleteClient {client_id: pclient_id.to_string(), tenant: hdr_tenant};
 
+        // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
             let msg = format!("NOT AUTHORIZED to delete client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
-            let resp = RespDeleteClient::new("1", msg.as_str());
-            return Json(resp);
+            return Json(RespDeleteClient::new("1", msg));
         }
 
         // Make sure the request parms conform to the header values used for authorization.
-        if !authz_result.check_request_parms(&req.client_id, &req.tenant) {
+        if !authz_result.check_hdr_id(&req.client_id) {
             let msg = format!("NOT AUTHORIZED: Payload parameters ({}@{}) differ from those in the request header.", 
                                       req.client_id, req.tenant);
             error!("{}", msg);
-            let resp = RespDeleteClient::new("1", msg.as_str());
-            return Json(resp);
+            return Json(RespDeleteClient::new("1", msg));
         }
 
+        // -------------------- Process Request ----------------------
         // Process the request.
         let resp = match RespDeleteClient::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespDeleteClient::new("1", msg.as_str())},
+                RespDeleteClient::new("1", msg)},
         };
 
         Json(resp)
@@ -95,11 +102,8 @@ impl DeleteClientApi {
 // ***************************************************************************
 impl RespDeleteClient {
     /// Create a new response.
-    fn new(result_code: &str, result_msg: &str) -> Self {
-        Self {result_code: result_code.to_string(), 
-              result_msg: result_msg.to_string(), 
-            }
-    }
+    fn new(result_code: &str, result_msg: String) -> Self {
+        Self {result_code: result_code.to_string(), result_msg,}}
 
     /// Process the request.
     fn process(http_req: &Request, req: &ReqDeleteClient) -> Result<RespDeleteClient, anyhow::Error> {
@@ -114,7 +118,7 @@ impl RespDeleteClient {
             if deletes < 1 {format!("Client {} NOT deleted", req.client_id)}
             else {format!("Client {} deleted", req.client_id)};
         info!("{}", msg);
-        Ok(RespDeleteClient::new("0", msg.as_str()))
+        Ok(RespDeleteClient::new("0", msg))
     }
 }
 

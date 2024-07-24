@@ -7,7 +7,7 @@ use futures::executor::block_on;
 
 use crate::utils::db_statements::{UPDATE_CLIENT_APP_VERSION, UPDATE_CLIENT_ENABLED};
 use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, validate_semver};
-use crate::utils::authz::{authorize, AuthzTypes};
+use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -66,32 +66,47 @@ impl RequestDebug for ReqUpdateClient {
 impl UpdateClientApi {
     #[oai(path = "/tms/client", method = "patch")]
     async fn update_client(&self, http_req: &Request, req: Json<ReqUpdateClient>) -> Json<RespUpdateClient> {
+        // -------------------- Get Tenant Header --------------------
+        // Get the required tenant header value.
+        let hdr_tenant = match get_tenant_header(http_req) {
+            Ok(t) => t,
+            Err(e) => return Json(RespUpdateClient::new("1", e.to_string(), 0)),
+        };
+
+        // Check that the tenant specified in the header is the same as the one in the request body.
+        if hdr_tenant != req.tenant {
+            let msg = format!("The tenant in the {} header ({}) does not match the tenent in the request body ({})", 
+                                        X_TMS_TENANT, hdr_tenant, req.tenant);
+            error!("{}", msg);
+            return Json(RespUpdateClient::new("1", msg, 0));
+        }
+
+        // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
             let msg = format!("NOT AUTHORIZED to update client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
-            let resp = RespUpdateClient::new("1", msg.as_str(), 0);
-            return Json(resp);
+            return Json(RespUpdateClient::new("1", msg, 0));
         }
 
         // Make sure the request parms conform to the header values used for authorization.
-        if !authz_result.check_request_parms(&req.client_id, &req.tenant) {
+        if !authz_result.check_hdr_id(&req.client_id) {
             let msg = format!("NOT AUTHORIZED: Payload parameters ({}@{}) differ from those in the request header.", 
                                       req.client_id, req.tenant);
             error!("{}", msg);
-            let resp = RespUpdateClient::new("1", msg.as_str(), 0);
-            return Json(resp);
+            return Json(RespUpdateClient::new("1", msg, 0));
         }
 
+        // -------------------- Process Request ----------------------
         // Process the request.
         let resp = match RespUpdateClient::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespUpdateClient::new("1", msg.as_str(), 0)},
+                RespUpdateClient::new("1", msg, 0)},
         };
 
         Json(resp)
@@ -103,12 +118,8 @@ impl UpdateClientApi {
 // ***************************************************************************
 impl RespUpdateClient {
     /// Create a new response.
-    fn new(result_code: &str, result_msg: &str, num_updates: i32,) -> Self {
-        Self {result_code: result_code.to_string(), 
-              result_msg: result_msg.to_string(), 
-              fields_updated: num_updates,
-            }
-    }
+    fn new(result_code: &str, result_msg: String, num_updates: i32,) -> Self {
+        Self {result_code: result_code.to_string(), result_msg, fields_updated: num_updates}}
 
     /// Process the request.
     fn process(http_req: &Request, req: &ReqUpdateClient) -> Result<RespUpdateClient, anyhow::Error> {
@@ -117,7 +128,7 @@ impl RespUpdateClient {
 
         // Determine if any updates are required.
         if req.app_version.is_none() && req.enabled.is_none() {
-            return Ok(RespUpdateClient::new("0", "No updates specified", 0));
+            return Ok(RespUpdateClient::new("0", "No updates specified".to_string(), 0));
         } 
 
         // Insert the new key record.
@@ -126,7 +137,7 @@ impl RespUpdateClient {
         // Log result and return response.
         let msg = format!("{} update(s) to client {} completed", updates, req.client_id);
         info!("{}", msg);
-        Ok(RespUpdateClient::new("0", msg.as_str(), updates as i32))
+        Ok(RespUpdateClient::new("0", msg, updates as i32))
     }
 }
 

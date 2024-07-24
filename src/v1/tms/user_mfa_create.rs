@@ -7,7 +7,7 @@ use futures::executor::block_on;
 
 use crate::utils::db_statements::INSERT_USER_MFA;
 use crate::utils::db_types::UserMfaInput;
-use crate::utils::authz::{authorize, AuthzTypes}; 
+use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT}; 
 use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug};
 use log::{error, info};
 
@@ -62,34 +62,40 @@ impl RequestDebug for ReqCreateUserMfa {
 impl CreateUserMfaApi {
     #[oai(path = "/tms/usermfa", method = "post")]
     async fn create_client(&self, http_req: &Request, req: Json<ReqCreateUserMfa>) -> Json<RespCreateUserMfa> {
+        // -------------------- Get Tenant Header --------------------
+        // Get the required tenant header value.
+        let hdr_tenant = match get_tenant_header(http_req) {
+            Ok(t) => t,
+            Err(e) => return Json(RespCreateUserMfa::new("1", e.to_string(), req.tms_user_id.clone(), "".to_string(), false)),
+        };
+
+        // Check that the tenant specified in the header is the same as the one in the request body.
+        if hdr_tenant != req.tenant {
+            let msg = format!("The tenant in the {} header ({}) does not match the tenent in the request body ({})", 
+                                        X_TMS_TENANT, hdr_tenant, req.tenant);
+            error!("{}", msg);
+            return Json(RespCreateUserMfa::new("1", msg, req.tms_user_id.clone(), "".to_string(), false));
+        }
+
+        // -------------------- Authorize ----------------------------
         // Currently, only the tenant admin can create a user mfa record.
-        // When user authentication is implemented, we'll add user-own authorization.
+        // When user authentication is implemented, we'll add user-own 
+        // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
             let msg = format!("NOT AUTHORIZED to add a user MFA record in tenant {}.", req.tenant);
             error!("{}", msg);
-            let resp = RespCreateUserMfa::new("1", msg.as_str(), req.tms_user_id.clone(), "".to_string(), false);
-            return Json(resp);
+            return Json(RespCreateUserMfa::new("1", msg, req.tms_user_id.clone(), "".to_string(), false));
         }
 
-        // Make sure the path parms conform to the header values used for authorization.
-        // Since we only all TenantAdmins to issue this call, we know the first parameter
-        // is ignored by the following check function.
-        if !authz_result.check_request_parms(&req.tenant, &req.tenant) {
-            let msg = format!("NOT AUTHORIZED: The tenant path parameter ({}) differs from the tenant in the request header.", 
-                                      req.tenant);
-            error!("{}", msg);
-            let resp = RespCreateUserMfa::new("1", msg.as_str(), req.tms_user_id.clone(), "".to_string(), false);
-            return Json(resp);
-        }
-
+        // -------------------- Process Request ----------------------
         let resp = match RespCreateUserMfa::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespCreateUserMfa::new("1", msg.as_str(), req.tms_user_id.clone(), "".to_string(), false)},
+                RespCreateUserMfa::new("1", msg, req.tms_user_id.clone(), "".to_string(), false)},
         };
 
         Json(resp)
@@ -101,14 +107,8 @@ impl CreateUserMfaApi {
 // ***************************************************************************
 impl RespCreateUserMfa {
     /// Create a new response.
-    fn new(result_code: &str, result_msg: &str, tms_user_id: String, expires_at: String, enabled: bool,) -> Self {
-        Self {result_code: result_code.to_string(), 
-              result_msg: result_msg.to_string(),
-              tms_user_id, 
-              expires_at,
-              enabled,
-            }
-    }
+    fn new(result_code: &str, result_msg: String, tms_user_id: String, expires_at: String, enabled: bool,) -> Self {
+        Self {result_code: result_code.to_string(), result_msg, tms_user_id, expires_at, enabled,}}
 
     /// Process the request.
     fn process(http_req: &Request, req: &ReqCreateUserMfa) -> Result<RespCreateUserMfa, anyhow::Error> {
@@ -143,7 +143,7 @@ impl RespCreateUserMfa {
               req.tms_user_id, req.tenant, expires_at.clone());
         
         // Return the secret represented in hex.
-        Ok(Self::new("0", "success", req.tms_user_id.clone(), expires_at, true))
+        Ok(Self::new("0", "success".to_string(), req.tms_user_id.clone(), expires_at, true))
     }
 }
 

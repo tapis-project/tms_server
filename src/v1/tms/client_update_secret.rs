@@ -1,13 +1,13 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object };
+use poem_openapi::{ OpenApi, payload::Json, Object, param::Path };
 use anyhow::Result;
 use futures::executor::block_on;
 
 use crate::utils::db_statements::UPDATE_CLIENT_SECRET;
 use crate::utils::tms_utils::{self, RequestDebug, create_hex_secret, hash_hex_secret, timestamp_utc, timestamp_utc_to_str};
-use crate::utils::authz::{authorize, AuthzTypes};
+use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -33,6 +33,7 @@ pub struct RespUpdateClientSecret
     result_code: String,
     result_msg: String,
     client_id: String,
+    tenant: String,
     client_secret: String,
 }
 
@@ -55,34 +56,45 @@ impl RequestDebug for ReqUpdateClientSecret {
 // ***************************************************************************
 #[OpenApi]
 impl UpdateClientSecretApi {
-    #[oai(path = "/tms/client/secret", method = "patch")]
-    async fn update_client(&self, http_req: &Request, req: Json<ReqUpdateClientSecret>) -> Json<RespUpdateClientSecret> {
+    #[oai(path = "/tms/client/secret/:pclient_id", method = "patch")]
+    async fn update_client(&self, http_req: &Request, pclient_id: Path<String>) -> Json<RespUpdateClientSecret> {
+        // -------------------- Get Tenant Header --------------------
+        // Get the required tenant header value.
+        let hdr_tenant = match get_tenant_header(http_req) {
+            Ok(t) => t,
+            Err(e) => return Json(RespUpdateClientSecret::new("1", e.to_string(), pclient_id.to_string(), 
+                                                                     "".to_string(), "".to_string())),
+        };
+
+        // Package the request parameters.
+        let req = ReqUpdateClientSecret {client_id: pclient_id.to_string(), tenant: hdr_tenant};
+
+        // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
             let msg = format!("NOT AUTHORIZED to update client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
-            let resp = RespUpdateClientSecret::new("1", msg.as_str(), req.client_id.clone(), "".to_string());
-            return Json(resp);
+            return Json(RespUpdateClientSecret::new("1", msg, req.client_id, req.tenant, "".to_string()));
         }
 
         // Make sure the request parms conform to the header values used for authorization.
-        if !authz_result.check_request_parms(&req.client_id, &req.tenant) {
+        if !authz_result.check_hdr_id(&req.client_id) {
             let msg = format!("NOT AUTHORIZED: Payload parameters ({}@{}) differ from those in the request header.", 
                                       req.client_id, req.tenant);
             error!("{}", msg);
-            let resp = RespUpdateClientSecret::new("1", msg.as_str(), req.client_id.clone(), "".to_string());
-            return Json(resp);
+            return Json(RespUpdateClientSecret::new("1", msg, req.client_id, req.tenant, "".to_string()));
         }
 
+        // -------------------- Process Request ----------------------
         // Process the request.
         let resp = match RespUpdateClientSecret::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespUpdateClientSecret::new("1", msg.as_str(),  req.client_id.clone(), "".to_string())},
+                RespUpdateClientSecret::new("1", msg, req.client_id, req.tenant, "".to_string())},
         };
 
         Json(resp)
@@ -94,12 +106,8 @@ impl UpdateClientSecretApi {
 // ***************************************************************************
 impl RespUpdateClientSecret {
     /// Create a new response.
-    fn new(result_code: &str, result_msg: &str, client_id: String, client_secret: String,) -> Self {
-        Self {result_code: result_code.to_string(), 
-              result_msg: result_msg.to_string(), 
-              client_id,
-              client_secret,
-            }
+    fn new(result_code: &str, result_msg: String, client_id: String, tenant: String, client_secret: String,) -> Self {
+        Self {result_code: result_code.to_string(), result_msg, client_id, tenant, client_secret,}
     }
 
     /// Process the request.
@@ -117,7 +125,8 @@ impl RespUpdateClientSecret {
         // Log result and return response.
         let msg = format!("Secret updated for client {}", req.client_id);
         info!("{}", msg);
-        Ok(RespUpdateClientSecret::new("0", msg.as_str(), req.client_id.clone(), client_secret_str))
+        Ok(RespUpdateClientSecret::new("0", msg, req.client_id.clone(), 
+                                       req.tenant.clone(), client_secret_str))
     }
 }
 

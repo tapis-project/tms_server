@@ -6,7 +6,7 @@ use anyhow::{Result, anyhow};
 use futures::executor::block_on;
 use sqlx::Row;
 
-use crate::utils::authz::{authorize, AuthzTypes};
+use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
 use crate::utils::db_statements::GET_CLIENT;
 use crate::utils::tms_utils::{self, RequestDebug};
 use crate::utils::db_types::Client;
@@ -63,39 +63,50 @@ impl RequestDebug for ReqGetClient {
 // ***************************************************************************
 #[OpenApi]
 impl GetClientApi {
-    #[oai(path = "/tms/client/:ptenant/:pclient_id", method = "get")]
-    async fn get_client(&self, http_req: &Request, ptenant: Path<String>, pclient_id: Path<String>) -> Json<RespGetClient> {
-        // Package the path parameters.        
-        let req = ReqGetClient {client_id: pclient_id.to_string(), tenant: ptenant.to_string()};
+    #[oai(path = "/tms/client/:pclient_id", method = "get")]
+    async fn get_client(&self, http_req: &Request, pclient_id: Path<String>) -> Json<RespGetClient> {
+        // -------------------- Get Tenant Header --------------------
+        // Get the required tenant header value.
+        let hdr_tenant = match get_tenant_header(http_req) {
+            Ok(t) => t,
+            Err(e) => return Json(RespGetClient::new("1", e.to_string(), 0, "".to_string(), 
+                                         "".to_string(), "".to_string(), pclient_id.to_string(), 0,  
+                                         "".to_string(), "".to_string())),
+        };
         
+        // Package the request parameters.        
+        let req = ReqGetClient {client_id: pclient_id.to_string(), tenant: hdr_tenant};
+        
+        // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
             let msg = format!("NOT AUTHORIZED to view client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
-            let resp = RespGetClient::new("1", msg.as_str(), 0, req.tenant.clone(), "".to_string(), 
+            let resp = RespGetClient::new("1", msg, 0, req.tenant.clone(), "".to_string(), 
                                         "".to_string(), req.client_id.clone(), 0,  "".to_string(), "".to_string());
             return Json(resp);
         }
 
         // Make sure the path parms conform to the header values used for authorization.
-        if !authz_result.check_request_parms(&req.client_id, &req.tenant) {
+        if !authz_result.check_hdr_id(&req.client_id) {
             let msg = format!("NOT AUTHORIZED: Path parameters ({}@{}) differ from those in the request header.", 
                                       req.client_id, req.tenant);
             error!("{}", msg);
-            let resp = RespGetClient::new("1", msg.as_str(), 0, req.tenant.clone(), "".to_string(), 
+            let resp = RespGetClient::new("1", msg, 0, req.tenant.clone(), "".to_string(), 
                                         "".to_string(), req.client_id.clone(), 0,  "".to_string(), "".to_string());
             return Json(resp);
         }
 
+        // -------------------- Process Request ----------------------
         // Process the request.
         let resp = match RespGetClient::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespGetClient::new("1", msg.as_str(), 0, req.tenant.clone(), "".to_string(), "".to_string(),
+                RespGetClient::new("1", msg, 0, req.tenant.clone(), "".to_string(), "".to_string(),
                                    req.client_id.clone(), 0,  "".to_string(), "".to_string())},
         };
 
@@ -109,10 +120,10 @@ impl GetClientApi {
 impl RespGetClient {
     /// Create a new response.
     #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: &str, id: i32, tenant: String, app_name: String, 
+    fn new(result_code: &str, result_msg: String, id: i32, tenant: String, app_name: String, 
             app_version: String, client_id: String, enabled: i32, created: String, updated: String) 
     -> Self {
-        Self {result_code: result_code.to_string(), result_msg: result_msg.to_string(), 
+            Self {result_code: result_code.to_string(), result_msg, 
               id, tenant, app_name, app_version, client_id, enabled, created, updated}
         }
 
@@ -124,7 +135,7 @@ impl RespGetClient {
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
         let client = block_on(get_client(req))?;
-        Ok(Self::new("0", "success", client.id, client.tenant, client.app_name, 
+        Ok(Self::new("0", "success".to_string(), client.id, client.tenant, client.app_name, 
                      client.app_version, client.client_id, client.enabled, client.created, client.updated))
     }
 }

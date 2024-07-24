@@ -1,12 +1,12 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object, param::Path };
+use poem_openapi::{ OpenApi, payload::Json, Object };
 use anyhow::Result;
 use futures::executor::block_on;
 use sqlx::Row;
 
-use crate::utils::authz::{authorize, AuthzTypes};
+use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
 use crate::utils::db_statements::LIST_CLIENTS;
 use crate::utils::tms_utils::{self, RequestDebug};
 use log::error;
@@ -66,39 +66,36 @@ impl RequestDebug for ReqListClient {
 // ***************************************************************************
 #[OpenApi]
 impl ListClientApi {
-    #[oai(path = "/tms/client/list/:ptenant", method = "get")]
-    async fn get_client(&self, http_req: &Request, ptenant: Path<String>) -> Json<RespListClient> {
-        // Package the path parameters.        
-        let req = ReqListClient {tenant: ptenant.to_string()};
+    #[oai(path = "/tms/client/list", method = "get")]
+    async fn get_client(&self, http_req: &Request) -> Json<RespListClient> {
+        // -------------------- Get Tenant Header --------------------
+        // Get the required tenant header value.
+        let hdr_tenant = match get_tenant_header(http_req) {
+            Ok(t) => t,
+            Err(e) => return Json(RespListClient::new("1", e.to_string(), 0, vec!())),
+        };
         
-        // Only the client and tenant admin can query a client record.
+        // Package the request parameters.        
+        let req = ReqListClient {tenant: hdr_tenant};
+        
+        // -------------------- Authorize ----------------------------
+        // Only the tenant admin can query a client record.
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
             let msg = format!("NOT AUTHORIZED to list clients in tenant {}.", req.tenant);
             error!("{}", msg);
-            let resp = RespListClient::new("1", msg.as_str(), 0, vec!());
-            return Json(resp);
+            return Json(RespListClient::new("1", msg, 0, vec!()));
         }
 
-        // Make sure the path parms conform to the header values used for authorization.
-        // Since we only all TenantAdmins to issue this call, we know the first parameter
-        // is ignored by the following check function.
-        if !authz_result.check_request_parms(&req.tenant, &req.tenant) {
-            let msg = format!("NOT AUTHORIZED: The tenant path parameter ({}) differs from the tenant in the request header.", 
-                                      req.tenant);
-            error!("{}", msg);
-            let resp = RespListClient::new("1", msg.as_str(), 0, vec!());
-            return Json(resp);
-        }
-
+        // -------------------- Process Request ----------------------
         // Process the request.
         let resp = match RespListClient::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespListClient::new("1", msg.as_str(), 0, vec!())},
+                RespListClient::new("1", msg, 0, vec!())},
         };
 
         Json(resp)
@@ -120,10 +117,9 @@ impl ClientListElement {
 impl RespListClient {
     /// Create a new response.
     #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: &str, num_clients: i32, clients: Vec<ClientListElement>) 
+    fn new(result_code: &str, result_msg: String, num_clients: i32, clients: Vec<ClientListElement>) 
     -> Self {
-        Self {result_code: result_code.to_string(), result_msg: result_msg.to_string(), 
-              num_clients, clients}
+        Self {result_code: result_code.to_string(), result_msg, num_clients, clients}
         }
 
     /// Process the request.
@@ -134,7 +130,7 @@ impl RespListClient {
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
         let clients = block_on(list_clients(req))?;
-        Ok(Self::new("0", "success", clients.len() as i32, clients))
+        Ok(Self::new("0", "success".to_string(), clients.len() as i32, clients))
     }
 }
 
@@ -168,20 +164,4 @@ async fn list_clients(req: &ReqListClient) -> Result<Vec<ClientListElement>> {
     }
 
     Ok(element_list)
-
-    // "SELECT id, tenant, app_name, app_version, client_id, enabled, created, updated ",
-    // "FROM clients WHERE tenant = ?",
-
-
-    // We found the client! Index 5 is the hashed secret, which the caller will never return.
-    // Index 4 is the client_id, which gets set to NOT_FOUND if not client record was returned.
-    // match result {
-    //     Some(row) => {
-    //         Ok(Client::new(row.get(0), row.get(1), row.get(2), row.get(3), row.get(4),
-    //                        row.get(5), row.get(6), row.get(7), row.get(8)))
-    //     },
-    //     None => {
-    //         Err(anyhow!("NOT_FOUND"))
-    //     },
-    // }
 }

@@ -59,34 +59,24 @@ impl AuthzResult {
         self.authorized
     }
 
-    /** Check that if client credentials were used to authorize a request that the client id 
-     * used in the credentials is the same as that provided in the request.  This consistency
-     * check guarentees that client id and tenant provided in the http request header are the
-     * same as those provided in the request's path parameters or payload parameters.
+    /** Check that the authorized ID passed via header matches the ID passed in the path or 
+     * body of a request.  For example, this consistency check can be used to guarentee that 
+     * client ID  provided in the http request header is the same as that provided in the 
+     * request's path parameters or payload parameter.  Processing is authz type specific. 
      *  
-     * Return FALSE if the original authorization failed, is not well-defined, or the 
-     * tenant/client_id pairs don't match.  Return TRUE only if authorization did not use client
-     * credentials or if the tenant/client_id pairs match.
+     * Return FALSE if the original authorization failed or the request ID is different from
+     * the header ID.  Return TRUE only if the authorization type depends on non-administrative
+     * IDs and the header and request IDs match.
      */
-    pub fn check_request_parms(&self, req_id: &String, req_tenant: &String) -> bool {
+    pub fn check_hdr_id(&self, req_id: &String) -> bool {
         // Guard for unauthorized calls, which should never happen.
         if !self.authorized {return false;} 
-
-        // ----------- Tenant Check
-        // Get the tenant passed in as a header and make sure it 
-        // matches the request tenant.  This check is applied to 
-        // all authz types.
-        let hdr_tenant = match &self.hdr_tenant {
-            Some(tenant) => tenant,
-            None => return false,
-        };
-        if req_tenant != hdr_tenant {return false;} // tenant mismatch
 
         // ----------- AuthzTypes-specific checks
         match &self.authz_type {
             Some(atype) => {
                 match atype {
-                    AuthzTypes::ClientOwn => self.check_client_parms(req_id),
+                    AuthzTypes::ClientOwn => self.check_client_own(req_id),
                     _ => true
                 }
             },
@@ -96,12 +86,12 @@ impl AuthzResult {
 
     /** Check that if client credentials were used to authorize a request that the client id 
      * used in the credentials is the same as that provided in the request.  This consistency
-     * check guarentees that client id and tenant (checked above) provided in the http request 
-     * header are the same as those provided in the request's path parameters or payload parameters.
+     * check guarentees that client id provided in the http request header are the same as 
+     * that provided in the request's path parameters or payload.
      *  
      * Return FALSE if the client_ids don't match, return TRUE otherwise.
      */
-    fn check_client_parms(&self, req_client_id: &String) -> bool {
+    fn check_client_own(&self, req_client_id: &String) -> bool {
         // Get the authz id passed in as a header.
         let hdr_id = match &self.hdr_id {
             Some(id) => id,
@@ -118,16 +108,48 @@ impl AuthzResult {
 //                          Public Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
+// get_tenant_header:
+// ---------------------------------------------------------------------------
+/** Get the TMS tenant value from its http header. This function logs its errors
+ * so the caller does not have to.
+ */
+pub fn get_tenant_header(http_req: &Request) -> Result<String> {
+    match http_req.headers().get(X_TMS_TENANT) {
+        Some(v) => {
+            match v.to_str() {
+                Ok(s) => Ok(s.to_string()),
+                Err(e) => {
+                    let e2 = anyhow!("Invalid string assigned to header {}: {}", X_TMS_TENANT, e);
+                    error!("{}", e2);
+                    Err(e2)
+                }
+            }
+        },
+        None => {
+            let e = anyhow!("Required '{}' HTTP header not found", X_TMS_TENANT);
+            error!("{}", e);
+            Err(e)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // authorize:
 // ---------------------------------------------------------------------------
 pub fn authorize(http_req: &Request, allowed: &[AuthzTypes]) -> AuthzResult {
+    // Get the required tenant header once.
+    let hdr_tenant = match get_tenant_header_str(http_req) {
+        Ok(t) => t,
+        Err(_) => return AuthzResult::new_unauthorized(),
+    };
+
     // For each authz type, validate the required headers.
     for authz_type in allowed {
         let result = match authz_type {
-            AuthzTypes::ClientOwn => authorize_by_type(http_req, AuthzTypes::ClientOwn),
-            AuthzTypes::TenantAdmin => authorize_by_type(http_req, AuthzTypes::TenantAdmin),
-            AuthzTypes::TmsctlHost => authorize_by_type(http_req, AuthzTypes::TmsctlHost),
-            AuthzTypes::UserOwn => authorize_by_type(http_req, AuthzTypes::UserOwn),
+            AuthzTypes::ClientOwn => authorize_by_type(http_req, hdr_tenant, AuthzTypes::ClientOwn),
+            AuthzTypes::TenantAdmin => authorize_by_type(http_req, hdr_tenant, AuthzTypes::TenantAdmin),
+            AuthzTypes::TmsctlHost => authorize_by_type(http_req, hdr_tenant, AuthzTypes::TmsctlHost),
+            AuthzTypes::UserOwn => authorize_by_type(http_req, hdr_tenant, AuthzTypes::UserOwn),
         };
 
         // The first successful authorization terminates checking.
@@ -144,7 +166,7 @@ pub fn authorize(http_req: &Request, allowed: &[AuthzTypes]) -> AuthzResult {
 // ---------------------------------------------------------------------------
 // authorize_by_type:
 // ---------------------------------------------------------------------------
-fn authorize_by_type(http_req: &Request, authz_type: AuthzTypes) -> AuthzResult {
+fn authorize_by_type(http_req: &Request, hdr_tenant: &str, authz_type: AuthzTypes) -> AuthzResult {
     // Get the runtime parameters for this authz type.  If the spec isn't found in the 
     // RUNTIME environment, then a compile time initialization value is missing.
     let spec = match RUNTIME_CTX.authz.specs.get(&authz_type) {
@@ -158,22 +180,10 @@ fn authorize_by_type(http_req: &Request, authz_type: AuthzTypes) -> AuthzResult 
     // Initialize the header variables.
     let mut hdr_id     = "";
     let mut hdr_secret = "";
-    let mut hdr_tenant = "";
 
     // Look for the id and secret headers.
     let it = http_req.headers().iter();
     for v in it {
-        if v.0 == X_TMS_TENANT {
-            if !hdr_tenant.is_empty() {continue;} // only assign once
-            hdr_tenant = match v.1.to_str() {
-                Ok(v) => v,
-                Err(e) => {
-                    error!("Invalid string assigned to header {}: {}", X_TMS_TENANT, e);
-                    return AuthzResult::new_unauthorized();
-                },
-            };
-            continue;
-        }
         if v.0 == spec.id {
             if !hdr_id.is_empty() {continue;} // only assign once
             hdr_id = match v.1.to_str() {
@@ -222,6 +232,32 @@ fn authorize_by_type(http_req: &Request, authz_type: AuthzTypes) -> AuthzResult 
     }
 }
 
+// ---------------------------------------------------------------------------
+// get_tenant_header_str:
+// ---------------------------------------------------------------------------
+/** Get the TMS tenant value from its http header.  This function logs its errors
+ * so the caller does not have to.   
+ */
+fn get_tenant_header_str(http_req: &Request) -> Result<&str> {
+    match http_req.headers().get(X_TMS_TENANT) {
+        Some(v) => {
+            match v.to_str() {
+                Ok(s) => Ok(s),
+                Err(e) => {
+                    let msg = format!("Invalid string assigned to header {}: {}", X_TMS_TENANT, e);
+                    error!("{}", msg);
+                    Err(anyhow!(msg))
+                }
+            }
+        },
+        None => {
+            let msg = format!("Required '{}' HTTP header not found", X_TMS_TENANT);
+            error!("{}", msg);
+            Err(anyhow!(msg))
+        }
+    }
+}
+
 // ***************************************************************************
 //                          Database Functions
 // ***************************************************************************
@@ -256,4 +292,5 @@ async fn get_authz_secret(id: &str, tenant: &str, sql_query: &str) -> Result<Str
         },
     }
 }
+
 
