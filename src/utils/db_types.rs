@@ -11,6 +11,7 @@ use serde::Deserialize;
 pub struct Pubkey {
     pub id: i32,
     pub tenant: String,
+    pub client_id: String,
     pub client_user_id: String,
     pub host: String,
     pub host_account: String,
@@ -58,6 +59,7 @@ impl Pubkey {
     pub fn new(
         id: i32,
         tenant: String,
+        client_id: String,
         client_user_id: String,
         host: String,
         host_account: String,
@@ -74,8 +76,9 @@ impl Pubkey {
     ) 
     -> Pubkey {
         Pubkey {
-            id, tenant, client_user_id, host, host_account, public_key_fingerprint, public_key, key_type, key_bits, max_uses, 
-            remaining_uses, initial_ttl_minutes, expires_at, created, updated
+            id, tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, 
+            public_key, key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, 
+            expires_at, created, updated
         }
     }
 }

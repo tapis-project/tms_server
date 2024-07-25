@@ -134,6 +134,28 @@ pub fn get_tenant_header(http_req: &Request) -> Result<String> {
 }
 
 // ---------------------------------------------------------------------------
+// get_client_id_header_string:
+// ---------------------------------------------------------------------------
+/** Get the value of the X_TMS_CLIENT_ID as a string.  Return the empty string
+ * if the value is not set or cannot be converted to a string.
+ */
+#[allow(dead_code)]
+pub fn get_client_id_header_string(http_req: &Request) -> String {
+    match http_req.headers().get(X_TMS_CLIENT_ID) {
+        Some(v) => {
+            match v.to_str() {
+                Ok(s) => s.to_string(),
+                Err(e) => {
+                    error!("Invalid string assigned to header {}: {}", X_TMS_CLIENT_ID, e);
+                    "".to_string()
+                }
+            }
+        },
+        None => "".to_string(),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // authorize:
 // ---------------------------------------------------------------------------
 pub fn authorize(http_req: &Request, allowed: &[AuthzTypes]) -> AuthzResult {

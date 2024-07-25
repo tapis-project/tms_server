@@ -95,6 +95,12 @@ pub const SELECT_PUBKEY: &str = concat!(
     "WHERE host_account = ? AND host = ? AND public_key_fingerprint = ?",
 );
 
+pub const GET_PUBKEY_TEMPLATE: &str = concat!(
+    "SELECT id, tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",
+    "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated ",
+    "FROM pubkeys WHERE id = ? AND tenant = ? ${PLACEHOLDER}",
+);
+
 // ========================= admin table ===========================
 pub const INSERT_ADMIN: &str = concat!(
     "INSERT INTO admin (tenant, admin_user, admin_secret, privilege, created, updated) ",
