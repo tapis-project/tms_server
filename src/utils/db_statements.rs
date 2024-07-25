@@ -61,6 +61,10 @@ pub const UPDATE_USER_MFA_ENABLED: &str = concat!(
     "UPDATE user_mfa SET enabled = ?, updated = ? WHERE tms_user_id = ? AND tenant = ?"
 );
 
+pub const DELETE_USER_MFA: &str = concat!(
+    "DELETE FROM user_mfa WHERE tms_user_id = ? AND tenant = ?"
+);
+
 // ========================= user_hosts table =======================
 pub const INSERT_USER_HOSTS: &str = concat!(
     "INSERT INTO user_hosts (tenant, tms_user_id, host, host_account, expires_at, created, updated) ",

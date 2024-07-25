@@ -10,3 +10,4 @@ pub mod client_list;
 pub mod user_mfa_create;
 pub mod user_mfa_get;
 pub mod user_mfa_update;
+pub mod user_mfa_delete;

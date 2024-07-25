@@ -18,6 +18,7 @@ use crate::v1::tms::client_update::UpdateClientApi;
 use crate::v1::tms::creds_new_ssh_keys::NewSshKeysApi;
 use crate::v1::tms::creds_public_key::PublicKeyApi;
 use crate::v1::tms::user_mfa_create::CreateUserMfaApi;
+use crate::v1::tms::user_mfa_delete::DeleteUserMfaApi;
 use crate::v1::tms::user_mfa_get::GetUserMfaApi;
 use crate::v1::tms::user_mfa_update::UpdateUserMfaApi;
 use crate::v1::tms::version::VersionApi;
@@ -67,7 +68,7 @@ async fn main() -> Result<(), std::io::Error> {
     let endpoints = 
         (HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, 
          CreateClientApi, GetClientApi, UpdateClientApi, DeleteClientApi, UpdateClientSecretApi, ListClientApi, 
-         CreateUserMfaApi, GetUserMfaApi, UpdateUserMfaApi);
+         CreateUserMfaApi, GetUserMfaApi, UpdateUserMfaApi, DeleteUserMfaApi);
     let mut api_service = 
         OpenApiService::new(endpoints, "TMS Server", "0.0.1");
     let urls = &RUNTIME_CTX.parms.config.server_urls;
