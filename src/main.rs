@@ -65,8 +65,9 @@ async fn main() -> Result<(), std::io::Error> {
     // --------------- Main Loop Set Up ---------------
     // Create a tuple with all the endpoints, create the service and add the server urls to it.
     let endpoints = 
-        (HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, CreateClientApi, GetClientApi, UpdateClientApi, DeleteClientApi,
-         UpdateClientSecretApi, ListClientApi, CreateUserMfaApi, GetUserMfaApi, UpdateUserMfaApi);
+        (HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, 
+         CreateClientApi, GetClientApi, UpdateClientApi, DeleteClientApi, UpdateClientSecretApi, ListClientApi, 
+         CreateUserMfaApi, GetUserMfaApi, UpdateUserMfaApi);
     let mut api_service = 
         OpenApiService::new(endpoints, "TMS Server", "0.0.1");
     let urls = &RUNTIME_CTX.parms.config.server_urls;

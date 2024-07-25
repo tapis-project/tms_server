@@ -1,13 +1,13 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object };
+use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, param::Query };
 use anyhow::Result;
 use futures::executor::block_on;
 
 use crate::utils::db_statements::{UPDATE_CLIENT_APP_VERSION, UPDATE_CLIENT_ENABLED};
 use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, validate_semver};
-use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT};
+use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -64,8 +64,10 @@ impl RequestDebug for ReqUpdateClient {
 // ***************************************************************************
 #[OpenApi]
 impl UpdateClientApi {
-    #[oai(path = "/tms/client", method = "patch")]
-    async fn update_client(&self, http_req: &Request, req: Json<ReqUpdateClient>) -> Json<RespUpdateClient> {
+    #[oai(path = "/tms/client/:pclient_id", method = "patch")]
+    async fn update_client(&self, http_req: &Request, pclient_id: Path<String>, 
+                           app_version: Query<Option<String>>, enabled: Query<Option<bool>>) 
+            -> Json<RespUpdateClient> {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
@@ -73,13 +75,11 @@ impl UpdateClientApi {
             Err(e) => return Json(RespUpdateClient::new("1", e.to_string(), 0)),
         };
 
-        // Check that the tenant specified in the header is the same as the one in the request body.
-        if hdr_tenant != req.tenant {
-            let msg = format!("The tenant in the {} header ({}) does not match the tenent in the request body ({})", 
-                                        X_TMS_TENANT, hdr_tenant, req.tenant);
-            error!("{}", msg);
-            return Json(RespUpdateClient::new("1", msg, 0));
-        }
+        // Package the request parameters. The difference in query parameter processing 
+        // is because Option<String> does not implement the copy trait, but Option<bool> does.
+        let req = 
+            ReqUpdateClient {client_id: pclient_id.to_string(), tenant: hdr_tenant, 
+                             app_version: app_version.clone(), enabled: *enabled};
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
