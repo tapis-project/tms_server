@@ -63,19 +63,19 @@ impl RequestDebug for ReqGetClient {
 // ***************************************************************************
 #[OpenApi]
 impl GetClientApi {
-    #[oai(path = "/tms/client/:pclient_id", method = "get")]
-    async fn get_client(&self, http_req: &Request, pclient_id: Path<String>) -> Json<RespGetClient> {
+    #[oai(path = "/tms/client/:client_id", method = "get")]
+    async fn get_client(&self, http_req: &Request, client_id: Path<String>) -> Json<RespGetClient> {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
             Err(e) => return Json(RespGetClient::new("1", e.to_string(), 0, "".to_string(), 
-                                         "".to_string(), "".to_string(), pclient_id.to_string(), 0,  
+                                         "".to_string(), "".to_string(), client_id.to_string(), 0,  
                                          "".to_string(), "".to_string())),
         };
         
         // Package the request parameters.        
-        let req = ReqGetClient {client_id: pclient_id.to_string(), tenant: hdr_tenant};
+        let req = ReqGetClient {client_id: client_id.to_string(), tenant: hdr_tenant};
         
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.

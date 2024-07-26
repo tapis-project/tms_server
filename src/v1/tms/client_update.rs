@@ -64,8 +64,8 @@ impl RequestDebug for ReqUpdateClient {
 // ***************************************************************************
 #[OpenApi]
 impl UpdateClientApi {
-    #[oai(path = "/tms/client/:pclient_id", method = "patch")]
-    async fn update_client(&self, http_req: &Request, pclient_id: Path<String>, 
+    #[oai(path = "/tms/client/:client_id", method = "patch")]
+    async fn update_client(&self, http_req: &Request, client_id: Path<String>, 
                            app_version: Query<Option<String>>, enabled: Query<Option<bool>>) 
             -> Json<RespUpdateClient> {
         // -------------------- Get Tenant Header --------------------
@@ -78,7 +78,7 @@ impl UpdateClientApi {
         // Package the request parameters. The difference in query parameter processing 
         // is because Option<String> does not implement the copy trait, but Option<bool> does.
         let req = 
-            ReqUpdateClient {client_id: pclient_id.to_string(), tenant: hdr_tenant, 
+            ReqUpdateClient {client_id: client_id.to_string(), tenant: hdr_tenant, 
                              app_version: app_version.clone(), enabled: *enabled};
 
         // -------------------- Authorize ----------------------------

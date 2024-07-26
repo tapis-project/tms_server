@@ -56,18 +56,18 @@ impl RequestDebug for ReqUpdateClientSecret {
 // ***************************************************************************
 #[OpenApi]
 impl UpdateClientSecretApi {
-    #[oai(path = "/tms/client/secret/:pclient_id", method = "patch")]
-    async fn update_client(&self, http_req: &Request, pclient_id: Path<String>) -> Json<RespUpdateClientSecret> {
+    #[oai(path = "/tms/client/secret/:client_id", method = "patch")]
+    async fn update_client(&self, http_req: &Request, client_id: Path<String>) -> Json<RespUpdateClientSecret> {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
-            Err(e) => return Json(RespUpdateClientSecret::new("1", e.to_string(), pclient_id.to_string(), 
+            Err(e) => return Json(RespUpdateClientSecret::new("1", e.to_string(), client_id.to_string(), 
                                                                      "".to_string(), "".to_string())),
         };
 
         // Package the request parameters.
-        let req = ReqUpdateClientSecret {client_id: pclient_id.to_string(), tenant: hdr_tenant};
+        let req = ReqUpdateClientSecret {client_id: client_id.to_string(), tenant: hdr_tenant};
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.

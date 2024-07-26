@@ -60,8 +60,8 @@ impl RequestDebug for ReqUpdateUserMfa {
 // ***************************************************************************
 #[OpenApi]
 impl UpdateUserMfaApi {
-    #[oai(path = "/tms/usermfa/:ptms_user_id", method = "patch")]
-async fn update_client(&self, http_req: &Request, ptms_user_id: Path<String>, enabled: Query<bool>) -> Json<RespUpdateUserMfa> {
+    #[oai(path = "/tms/usermfa/:tms_user_id", method = "patch")]
+async fn update_client(&self, http_req: &Request, tms_user_id: Path<String>, enabled: Query<bool>) -> Json<RespUpdateUserMfa> {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
@@ -71,7 +71,7 @@ async fn update_client(&self, http_req: &Request, ptms_user_id: Path<String>, en
 
         // Package the request parameters.        
         let req = 
-            ReqUpdateUserMfa {tms_user_id: ptms_user_id.to_string(), tenant: hdr_tenant, enabled: *enabled};
+            ReqUpdateUserMfa {tms_user_id: tms_user_id.to_string(), tenant: hdr_tenant, enabled: *enabled};
 
         // -------------------- Authorize ----------------------------
         // Currently, only the tenant admin can create a user mfa record.
@@ -80,7 +80,7 @@ async fn update_client(&self, http_req: &Request, ptms_user_id: Path<String>, en
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("NOT AUTHORIZED to update MFA for {} in tenant {}.", req.tms_user_id, req.tenant);
+            let msg = format!("NOT AUTHORIZED to update MFA for user {} in tenant {}.", req.tms_user_id, req.tenant);
             error!("{}", msg);
             return Json(RespUpdateUserMfa::new("1", msg, 0));
         }

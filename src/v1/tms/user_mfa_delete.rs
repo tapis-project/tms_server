@@ -53,8 +53,8 @@ impl RequestDebug for ReqDeleteUserMfa {
 // ***************************************************************************
 #[OpenApi]
 impl DeleteUserMfaApi {
-    #[oai(path = "/tms/usermfa/:ptms_user_id", method = "delete")]
-    async fn delete_client(&self, http_req: &Request, ptms_user_id: Path<String>) -> Json<RespDeleteUserMfa> {
+    #[oai(path = "/tms/usermfa/:tms_user_id", method = "delete")]
+    async fn delete_client(&self, http_req: &Request, tms_user_id: Path<String>) -> Json<RespDeleteUserMfa> {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
@@ -63,7 +63,7 @@ impl DeleteUserMfaApi {
         };
         
         // Package the request parameters.
-        let req = ReqDeleteUserMfa {tms_user_id: ptms_user_id.to_string(), tenant: hdr_tenant};
+        let req = ReqDeleteUserMfa {tms_user_id: tms_user_id.to_string(), tenant: hdr_tenant};
 
         // -------------------- Authorize ----------------------------
         // Currently, only the tenant admin can create a user mfa record.

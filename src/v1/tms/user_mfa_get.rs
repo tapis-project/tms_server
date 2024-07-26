@@ -62,18 +62,18 @@ impl RequestDebug for ReqGetUserMfa {
 // ***************************************************************************
 #[OpenApi]
 impl GetUserMfaApi {
-    #[oai(path = "/tms/usermfa/:ptms_user_id", method = "get")]
-    async fn get_client(&self, http_req: &Request, ptms_user_id: Path<String>) -> Json<RespGetUserMfa> {
+    #[oai(path = "/tms/usermfa/:tms_user_id", method = "get")]
+    async fn get_client(&self, http_req: &Request, tms_user_id: Path<String>) -> Json<RespGetUserMfa> {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
             Err(e) => return Json(RespGetUserMfa::new("1", e.to_string(), 0, "".to_string(), 
-                                         ptms_user_id.to_string(), "".to_string(), 0, "".to_string(), "".to_string())),
+                                         tms_user_id.to_string(), "".to_string(), 0, "".to_string(), "".to_string())),
         };
         
         // Package the request parameters.        
-        let req = ReqGetUserMfa {tms_user_id: ptms_user_id.to_string(), tenant: hdr_tenant};
+        let req = ReqGetUserMfa {tms_user_id: tms_user_id.to_string(), tenant: hdr_tenant};
         
         // -------------------- Authorize ----------------------------
         // Currently, only the tenant admin can create a user mfa record.

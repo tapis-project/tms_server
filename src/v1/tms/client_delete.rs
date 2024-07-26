@@ -53,8 +53,8 @@ impl RequestDebug for ReqDeleteClient {
 // ***************************************************************************
 #[OpenApi]
 impl DeleteClientApi {
-    #[oai(path = "/tms/client/:pclient_id", method = "delete")]
-    async fn delete_client(&self, http_req: &Request, pclient_id: Path<String>) -> Json<RespDeleteClient> {
+    #[oai(path = "/tms/client/:client_id", method = "delete")]
+    async fn delete_client(&self, http_req: &Request, client_id: Path<String>) -> Json<RespDeleteClient> {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
@@ -63,7 +63,7 @@ impl DeleteClientApi {
         };
         
         // Package the request parameters.
-        let req = ReqDeleteClient {client_id: pclient_id.to_string(), tenant: hdr_tenant};
+        let req = ReqDeleteClient {client_id: client_id.to_string(), tenant: hdr_tenant};
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
