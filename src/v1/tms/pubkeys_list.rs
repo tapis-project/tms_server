@@ -142,7 +142,7 @@ impl RespListPubkeys {
 
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
-        let clients = block_on(list_clients(req))?;
+        let clients = block_on(list_pubkeys(req))?;
         Ok(Self::new("0", "success".to_string(), clients.len() as i32, clients))
     }
 }
@@ -151,9 +151,9 @@ impl RespListPubkeys {
 //                          Private Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// list_clients:
+// list_pubkeys:
 // ---------------------------------------------------------------------------
-async fn list_clients(req: &ReqListPubkeys) -> Result<Vec<PubkeysListElement>> {
+async fn list_pubkeys(req: &ReqListPubkeys) -> Result<Vec<PubkeysListElement>> {
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
@@ -171,11 +171,11 @@ async fn list_clients(req: &ReqListPubkeys) -> Result<Vec<PubkeysListElement>> {
     for row in rows {
         let elem = PubkeysListElement::new(
             row.get(0), row.get(1), row.get(2), 
-row.get(3), row.get(4), row.get(5),
-row.get(6), row.get(7), 
-    row.get(8), row.get(9),
-    row.get(10), row.get(11), row.get(12), row.get(13),
-        row.get(14), row.get(15));
+            row.get(3), row.get(4), row.get(5),
+            row.get(6), row.get(7), 
+            row.get(8), row.get(9),
+            row.get(10), row.get(11), row.get(12), 
+            row.get(13), row.get(14), row.get(15));
         element_list.push(elem);
     }
 
