@@ -7,7 +7,7 @@ use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
-use crate::utils::db_statements::LIST_CLIENTS;
+use crate::utils::db_statements::LIST_PUBKEYS;
 use crate::utils::tms_utils::{self, RequestDebug};
 use log::error;
 
@@ -16,42 +16,50 @@ use crate::RUNTIME_CTX;
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
-pub struct ListClientApi;
+pub struct ListPubkeysApi;
 
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
 #[derive(Object)]
-struct ReqListClient
+struct ReqListPubkeys
 {
     tenant: String,
 }
 
 #[derive(Object)]
-pub struct RespListClient
+pub struct RespListPubkeys
 {
     result_code: String,
     result_msg: String,
-    num_clients: i32,
-    clients: Vec<ClientListElement>,
+    num_pubkeys: i32,
+    pubkeys: Vec<PubkeysListElement>,
 }
 
 #[derive(Object)]
-pub struct ClientListElement
+pub struct PubkeysListElement
 {
     id: i32,
     tenant: String,
-    app_name: String,
-    app_version: String,
     client_id: String,
-    enabled: i32,
+    client_user_id: String,
+    host: String,
+    host_account: String,
+    public_key_fingerprint: String,
+    public_key: String,
+    key_type: String,
+    key_bits: i32,
+    max_uses: i32,
+    remaining_uses: i32,
+    initial_ttl_minutes: i32,
+    expires_at: String,
     created: String,
     updated: String,
 }
 
 // Implement the debug record trait for logging.
-impl RequestDebug for ReqListClient {   
-    type Req = ReqListClient;
+impl RequestDebug for ReqListPubkeys {   
+    type Req = ReqListPubkeys;
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
@@ -65,18 +73,18 @@ impl RequestDebug for ReqListClient {
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
-impl ListClientApi {
-    #[oai(path = "/tms/client/list", method = "get")]
-    async fn get_clients(&self, http_req: &Request) -> Json<RespListClient> {
+impl ListPubkeysApi {
+    #[oai(path = "/tms/pubkeys/list", method = "get")]
+    async fn get_pubkeys(&self, http_req: &Request) -> Json<RespListPubkeys> {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
-            Err(e) => return Json(RespListClient::new("1", e.to_string(), 0, vec!())),
+            Err(e) => return Json(RespListPubkeys::new("1", e.to_string(), 0, vec!())),
         };
         
         // Package the request parameters.        
-        let req = ReqListClient {tenant: hdr_tenant};
+        let req = ReqListPubkeys {tenant: hdr_tenant};
         
         // -------------------- Authorize ----------------------------
         // Only the tenant admin can query a client record.
@@ -85,17 +93,17 @@ impl ListClientApi {
         if !authz_result.is_authorized() {
             let msg = format!("NOT AUTHORIZED to list clients in tenant {}.", req.tenant);
             error!("{}", msg);
-            return Json(RespListClient::new("1", msg, 0, vec!()));
+            return Json(RespListPubkeys::new("1", msg, 0, vec!()));
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        let resp = match RespListClient::process(http_req, &req) {
+        let resp = match RespListPubkeys::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespListClient::new("1", msg, 0, vec!())},
+                RespListPubkeys::new("1", msg, 0, vec!())},
         };
 
         Json(resp)
@@ -105,25 +113,30 @@ impl ListClientApi {
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-impl ClientListElement {
+impl PubkeysListElement {
     /// Create response elements.
     #[allow(clippy::too_many_arguments)]
-    fn new(id: i32, tenant: String, app_name: String, app_version: String, 
-           client_id: String, enabled: i32, created: String, updated: String) -> Self {
-        Self {id, tenant, app_name, app_version, client_id, enabled, created, updated}
+    fn new(id: i32, tenant: String, client_id: String, client_user_id: String, 
+           host: String, host_account: String, public_key_fingerprint: String, 
+           public_key: String, key_type: String, key_bits: i32, max_uses: i32,
+           remaining_uses: i32, initial_ttl_minutes: i32, expires_at: String, 
+           created: String, updated: String) -> Self {
+        Self {id, tenant, client_id, client_user_id, host, host_account, public_key_fingerprint,
+              public_key, key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes,
+              expires_at, created, updated}
     }
 }
 
-impl RespListClient {
+impl RespListPubkeys {
     /// Create a new response.
     #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: String, num_clients: i32, clients: Vec<ClientListElement>) 
+    fn new(result_code: &str, result_msg: String, num_clients: i32, clients: Vec<PubkeysListElement>) 
     -> Self {
-        Self {result_code: result_code.to_string(), result_msg, num_clients, clients}
+        Self {result_code: result_code.to_string(), result_msg, num_pubkeys: num_clients, pubkeys: clients}
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqListClient) -> Result<RespListClient, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqListPubkeys) -> Result<RespListPubkeys, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -140,12 +153,12 @@ impl RespListClient {
 // ---------------------------------------------------------------------------
 // list_clients:
 // ---------------------------------------------------------------------------
-async fn list_clients(req: &ReqListClient) -> Result<Vec<ClientListElement>> {
+async fn list_clients(req: &ReqListPubkeys) -> Result<Vec<PubkeysListElement>> {
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
     // Create the select statement.
-    let rows = sqlx::query(LIST_CLIENTS)
+    let rows = sqlx::query(LIST_PUBKEYS)
         .bind(req.tenant.clone())
         .fetch_all(&mut *tx)
         .await?;
@@ -154,12 +167,15 @@ async fn list_clients(req: &ReqListClient) -> Result<Vec<ClientListElement>> {
     tx.commit().await?;
 
     // Collect the row data into element objects.
-    let mut element_list: Vec<ClientListElement> = vec!();
+    let mut element_list: Vec<PubkeysListElement> = vec!();
     for row in rows {
-        let elem = ClientListElement::new(
-                 row.get(0), row.get(1), row.get(2), 
-        row.get(3), row.get(4), row.get(5), 
-            row.get(6), row.get(7));
+        let elem = PubkeysListElement::new(
+            row.get(0), row.get(1), row.get(2), 
+row.get(3), row.get(4), row.get(5),
+row.get(6), row.get(7), 
+    row.get(8), row.get(9),
+    row.get(10), row.get(11), row.get(12), row.get(13),
+        row.get(14), row.get(15));
         element_list.push(elem);
     }
 

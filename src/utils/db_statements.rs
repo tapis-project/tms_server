@@ -21,7 +21,7 @@ pub const GET_CLIENT: &str = concat!(
 // Secret elided.
 pub const LIST_CLIENTS: &str = concat!(
     "SELECT id, tenant, app_name, app_version, client_id, enabled, created, updated ",
-    "FROM clients WHERE tenant = ? ORDER BY client_id",
+    "FROM clients WHERE tenant = ? ORDER BY tenant, client_id",
 );
 
 // Conforms to the signature required for secret retrieval queries as defined by 
@@ -100,6 +100,13 @@ pub const GET_PUBKEY_TEMPLATE: &str = concat!(
     "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated ",
     "FROM pubkeys WHERE id = ? AND tenant = ? ${PLACEHOLDER}",
 );
+
+pub const LIST_PUBKEYS: &str = concat!(
+    "SELECT id, tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",
+    "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated ",
+    "FROM pubkeys WHERE tenant = ? ORDER BY tenant, client_user_id, host, host_account",
+);
+
 
 // ========================= admin table ===========================
 pub const INSERT_ADMIN: &str = concat!(

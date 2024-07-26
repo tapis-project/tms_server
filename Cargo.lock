@@ -1994,6 +1994,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "poem-extensions"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19533d98656a11f50fc674e57c31b483b2f0c5505846b5d28689b36f1d3392a4"
+dependencies = [
+ "poem",
+ "poem-extensions-macro",
+ "poem-openapi",
+]
+
+[[package]]
+name = "poem-extensions-macro"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9378b87303189e38b894a8b0b427a33bfc154684ec75a4bea20d3856de8c2c15"
+dependencies = [
+ "darling 0.20.10",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.72",
+ "thiserror",
+]
+
+[[package]]
 name = "poem-openapi"
 version = "5.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3153,6 +3177,7 @@ dependencies = [
  "log4rs",
  "path-absolutize",
  "poem",
+ "poem-extensions",
  "poem-openapi",
  "rand",
  "rand_core",

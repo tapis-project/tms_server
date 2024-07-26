@@ -6,6 +6,7 @@ use log::info;
 use poem::listener::{Listener, RustlsCertificate, RustlsConfig};
 use poem::{listener::TcpListener, Route};
 use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
+use poem_extensions::api;
 use futures::executor::block_on;
 
 // TMS APIs
@@ -23,6 +24,7 @@ use crate::v1::tms::user_mfa_get::GetUserMfaApi;
 use crate::v1::tms::user_mfa_list::ListUserMfaApi;
 use crate::v1::tms::user_mfa_update::UpdateUserMfaApi;
 use crate::v1::tms::pubkeys_get::GetPubkeysApi;
+use crate::v1::tms::pubkeys_list::ListPubkeysApi;
 use crate::v1::tms::version::VersionApi;
 
 // TMS Utilities
@@ -67,11 +69,13 @@ async fn main() -> Result<(), std::io::Error> {
 
     // --------------- Main Loop Set Up ---------------
     // Create a tuple with all the endpoints, create the service and add the server urls to it.
+    // Note the use of the poem-extensions api! macro, which works with non-generic endpoints.
+    // Consult the poem_extensions documentation if generic support is needed.
     let endpoints = 
-        (HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, 
+        api!(HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, 
          CreateClientApi, GetClientApi, UpdateClientApi, DeleteClientApi, UpdateClientSecretApi, ListClientApi, 
          CreateUserMfaApi, GetUserMfaApi, UpdateUserMfaApi, DeleteUserMfaApi, ListUserMfaApi,
-         GetPubkeysApi);
+         GetPubkeysApi, ListPubkeysApi);
     let mut api_service = 
         OpenApiService::new(endpoints, "TMS Server", "0.0.1");
     let urls = &RUNTIME_CTX.parms.config.server_urls;
