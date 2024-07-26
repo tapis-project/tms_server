@@ -69,8 +69,9 @@ async fn main() -> Result<(), std::io::Error> {
 
     // --------------- Main Loop Set Up ---------------
     // Create a tuple with all the endpoints, create the service and add the server urls to it.
-    // Note the use of the poem-extensions api! macro, which works with non-generic endpoints.
-    // Consult the poem_extensions documentation if generic support is needed.
+    // Note the use of the poem-extensions api! macro, which allows more than 16 non-generic 
+    // endpoints to be defined (!).  Consult the poem_extensions documentation if generic 
+    // endpoint support is needed.
     let endpoints = 
         api!(HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, 
          CreateClientApi, GetClientApi, UpdateClientApi, DeleteClientApi, UpdateClientSecretApi, ListClientApi, 
