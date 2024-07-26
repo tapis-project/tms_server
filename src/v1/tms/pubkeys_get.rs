@@ -243,20 +243,3 @@ fn sql_substitute(authz_result: &AuthzResult) -> String {
     // Return the template after substitution.
     GET_PUBKEY_TEMPLATE.replace("${PLACEHOLDER}", replacement.as_str())    
 }
-
-// fn sql_substitute(http_req: &Request) -> String {
-//     // Get the replacement text for the placeholder in the query. 
-//     // This text restricts the query to a specific client when 
-//     // the request was authorized using X_TMS_CLIENT_ID.  
-//     let client_id = get_client_id_header_string(http_req);
-
-//     // Construct the replacement text.
-//     let replacement: String;
-//     if client_id.is_empty() {replacement = client_id;}
-//         else {
-//             replacement = " AND client_id = '".to_string() + client_id.as_str() + "'";
-//         } 
-
-//     // Return the template after substitution.
-//     GET_PUBKEY_TEMPLATE.replace("${PLACEHOLDER}", replacement.as_str())    
-// }
