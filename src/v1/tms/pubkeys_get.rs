@@ -7,8 +7,8 @@ use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::authz::{authorize, get_tenant_header, AuthzResult, AuthzTypes};
+use crate::utils::tms_utils::{self, sql_substitute_client_constraint, RequestDebug};
 use crate::utils::db_statements::GET_PUBKEY_TEMPLATE;
-use crate::utils::tms_utils::{self, RequestDebug};
 use crate::utils::db_types::Pubkey;
 use log::error;
 
@@ -84,7 +84,8 @@ impl GetPubkeysApi {
         let req = ReqGetPubkeys {seqno: *seqno, tenant: hdr_tenant};
         
         // -------------------- Authorize ----------------------------
-        // Only the client and tenant admin can query a client record.
+        // Only the tenant admin can query all client records; 
+        // a client can query their own records.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
@@ -178,7 +179,7 @@ impl RespGetPubkeys {
 // ---------------------------------------------------------------------------
 async fn get_pubkey(authz_result: &AuthzResult, req: &ReqGetPubkeys) -> Result<Pubkey> {
     // Substitute the placeholder in the query template.
-    let sql_query = sql_substitute(authz_result); 
+    let sql_query = sql_substitute_client_constraint(GET_PUBKEY_TEMPLATE, authz_result); 
 
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
@@ -208,38 +209,4 @@ async fn get_pubkey(authz_result: &AuthzResult, req: &ReqGetPubkeys) -> Result<P
             Err(anyhow!("NOT_FOUND"))
         },
     }
-}
-
-// ---------------------------------------------------------------------------
-// sql_substitute:
-// ---------------------------------------------------------------------------
-/** Complete the sql select statement by substituting an appropriate value
- * for the placeholder text in the query template.  The substitution 
- * restricts the query to a specific client when the request was authorized 
- * using X_TMS_CLIENT_ID.  When authorized using a tenant admin, the record
- * created by any client in the tenant can be returned.
- */
-fn sql_substitute(authz_result: &AuthzResult) -> String {
-    // We can only get here if authorization succeeded, so we don't
-    // really have to worry about missing authz result data.  To be
-    // doubly safe, we return the unresolved template query which 
-    // will be rejected by the database.
-    let authz_type = match &authz_result.authz_type {
-        Some(a) => a,
-        None => return GET_PUBKEY_TEMPLATE.to_string(), // poison pill
-    };
-
-    // Construct the replacement text.
-    let replacement = if *authz_type == AuthzTypes::ClientOwn {
-        // Get the client ID that was used for authorization.
-        let client_id = match &authz_result.hdr_id {
-            Some(id) => id,
-            None => return GET_PUBKEY_TEMPLATE.to_string(), // another poison pill 
-        };
-        " AND client_id = '".to_string() + client_id + "'"
-    }
-    else {"".to_string()};
-
-    // Return the template after substitution.
-    GET_PUBKEY_TEMPLATE.replace("${PLACEHOLDER}", replacement.as_str())    
 }

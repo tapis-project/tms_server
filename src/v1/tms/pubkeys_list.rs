@@ -6,9 +6,9 @@ use anyhow::Result;
 use futures::executor::block_on;
 use sqlx::Row;
 
-use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
-use crate::utils::db_statements::LIST_PUBKEYS;
-use crate::utils::tms_utils::{self, RequestDebug};
+use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, AuthzResult};
+use crate::utils::db_statements::LIST_PUBKEYS_TEMPLATE;
+use crate::utils::tms_utils::{self, RequestDebug, sql_substitute_client_constraint};
 use log::error;
 
 use crate::RUNTIME_CTX;
@@ -87,8 +87,9 @@ impl ListPubkeysApi {
         let req = ReqListPubkeys {tenant: hdr_tenant};
         
         // -------------------- Authorize ----------------------------
-        // Only the tenant admin can query a client record.
-        let allowed = [AuthzTypes::TenantAdmin];
+        // Only the tenant admin can query all client records; 
+        // a client can query their own records.
+        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
             let msg = format!("NOT AUTHORIZED to list clients in tenant {}.", req.tenant);
@@ -98,7 +99,7 @@ impl ListPubkeysApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        let resp = match RespListPubkeys::process(http_req, &req) {
+        let resp = match RespListPubkeys::process(http_req, &req, &authz_result) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -136,13 +137,13 @@ impl RespListPubkeys {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqListPubkeys) -> Result<RespListPubkeys, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqListPubkeys, authz_result: &AuthzResult) -> Result<RespListPubkeys, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
-        let clients = block_on(list_pubkeys(req))?;
+        let clients = block_on(list_pubkeys(authz_result, req))?;
         Ok(Self::new("0", "success".to_string(), clients.len() as i32, clients))
     }
 }
@@ -153,12 +154,15 @@ impl RespListPubkeys {
 // ---------------------------------------------------------------------------
 // list_pubkeys:
 // ---------------------------------------------------------------------------
-async fn list_pubkeys(req: &ReqListPubkeys) -> Result<Vec<PubkeysListElement>> {
+async fn list_pubkeys(authz_result: &AuthzResult, req: &ReqListPubkeys) -> Result<Vec<PubkeysListElement>> {
+    // Substitute the placeholder in the query template.
+    let sql_query = sql_substitute_client_constraint(LIST_PUBKEYS_TEMPLATE, authz_result); 
+    
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
     // Create the select statement.
-    let rows = sqlx::query(LIST_PUBKEYS)
+    let rows = sqlx::query(&sql_query)
         .bind(req.tenant.clone())
         .fetch_all(&mut *tx)
         .await?;

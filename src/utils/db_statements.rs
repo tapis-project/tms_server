@@ -1,6 +1,8 @@
 // This file contains all SQL statements issued by TMS.
 #![forbid(unsafe_code)]
 
+pub const PLACEHOLDER: &str = "${PLACEHOLDER}";
+
 // ========================= tenants table =========================
 pub const INSERT_STD_TENANTS: &str = concat!(
     "INSERT OR IGNORE INTO tenants (tenant, enabled, created, updated) ",
@@ -19,9 +21,9 @@ pub const GET_CLIENT: &str = concat!(
 );
 
 // Secret elided.
-pub const LIST_CLIENTS: &str = concat!(
+pub const LIST_CLIENTS_TEMPLATE: &str = concat!(
     "SELECT id, tenant, app_name, app_version, client_id, enabled, created, updated ",
-    "FROM clients WHERE tenant = ? ORDER BY tenant, client_id",
+    "FROM clients WHERE tenant = ? ${PLACEHOLDER} ORDER BY tenant, client_id",
 );
 
 // Conforms to the signature required for secret retrieval queries as defined by 
@@ -101,10 +103,10 @@ pub const GET_PUBKEY_TEMPLATE: &str = concat!(
     "FROM pubkeys WHERE id = ? AND tenant = ? ${PLACEHOLDER}",
 );
 
-pub const LIST_PUBKEYS: &str = concat!(
+pub const LIST_PUBKEYS_TEMPLATE: &str = concat!(
     "SELECT id, tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",
     "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated ",
-    "FROM pubkeys WHERE tenant = ? ORDER BY tenant, client_user_id, host, host_account",
+    "FROM pubkeys WHERE tenant = ? ${PLACEHOLDER} ORDER BY tenant, client_user_id, host, host_account",
 );
 
 

@@ -19,6 +19,9 @@ use sha2::{Sha512, Digest};
 use anyhow::{Result, anyhow};
 use log::{error, debug, LevelFilter};
 
+use crate::utils::db_statements::PLACEHOLDER;
+use crate::utils::authz::{AuthzResult, AuthzTypes};
+
 // ***************************************************************************
 // GENERAL PUBLIC FUNCTIONS
 // ***************************************************************************
@@ -299,6 +302,44 @@ pub fn validate_semver(semver: &str) -> Result<bool> {
         Ok(_) => Ok(true),
         Err(e) => Err(anyhow!(e)),
     }
+}
+
+// ---------------------------------------------------------------------------
+// sql_substitute_client_constraint:
+// ---------------------------------------------------------------------------
+/** Complete the sql select statement by substituting an appropriate value
+ * for the placeholder text in the query template.  The substitution 
+ * restricts the query to a specific client when the request was authorized 
+ * using X_TMS_CLIENT_ID.  When authorized using a tenant admin, the record
+ * created by any client in the tenant can be returned.
+ * 
+ * The sql_query is the template text into which a value is substituted 
+ * for the placeholder.  The authz_result is the result of a prior authorize()
+ * call.
+ */
+pub fn sql_substitute_client_constraint(sql_query: &str, authz_result: &AuthzResult) -> String {
+    // We can only get here if authorization succeeded, so we don't
+    // really have to worry about missing authz result data.  To be
+    // doubly safe, we return the unresolved template query which 
+    // will be rejected by the database.
+    let authz_type = match &authz_result.authz_type {
+        Some(a) => a,
+        None => return sql_query.to_string(), // poison pill
+    };
+
+    // Construct the replacement text.
+    let replacement = if *authz_type == AuthzTypes::ClientOwn {
+        // Get the client ID that was used for authorization.
+        let client_id = match &authz_result.hdr_id {
+            Some(id) => id,
+            None => return sql_query.to_string(), // another poison pill 
+        };
+        " AND client_id = '".to_string() + client_id + "'"
+    }
+    else {"".to_string()};
+
+    // Return the template after substitution.
+    sql_query.replace(PLACEHOLDER, replacement.as_str())    
 }
 
 // ***************************************************************************
