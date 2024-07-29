@@ -109,6 +109,9 @@ pub const LIST_PUBKEYS_TEMPLATE: &str = concat!(
     "FROM pubkeys WHERE tenant = ? ${PLACEHOLDER} ORDER BY tenant, client_user_id, host, host_account",
 );
 
+pub const DELETE_PUBKEY: &str = concat!(
+    "DELETE FROM pubkeys WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?"
+);
 
 // ========================= admin table ===========================
 pub const INSERT_ADMIN: &str = concat!(

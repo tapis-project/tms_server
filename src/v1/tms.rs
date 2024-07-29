@@ -14,3 +14,4 @@ pub mod user_mfa_delete;
 pub mod user_mfa_list;
 pub mod pubkeys_get;
 pub mod pubkeys_list;
+pub mod pubkeys_delete;

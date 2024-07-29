@@ -32,6 +32,7 @@ pub struct RespDeleteClient
 {
     result_code: String,
     result_msg: String,
+    num_deleted: u32,
 }
 
 // Implement the debug record trait for logging.
@@ -59,7 +60,7 @@ impl DeleteClientApi {
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
-            Err(e) => return Json(RespDeleteClient::new("1", e.to_string())),
+            Err(e) => return Json(RespDeleteClient::new("1", e.to_string(), 0)),
         };
         
         // Package the request parameters.
@@ -72,7 +73,7 @@ impl DeleteClientApi {
         if !authz_result.is_authorized() {
             let msg = format!("NOT AUTHORIZED to delete client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
-            return Json(RespDeleteClient::new("1", msg));
+            return Json(RespDeleteClient::new("1", msg, 0));
         }
 
         // Make sure the request parms conform to the header values used for authorization.
@@ -80,7 +81,7 @@ impl DeleteClientApi {
             let msg = format!("NOT AUTHORIZED: Payload parameters ({}@{}) differ from those in the request header.", 
                                       req.client_id, req.tenant);
             error!("{}", msg);
-            return Json(RespDeleteClient::new("1", msg));
+            return Json(RespDeleteClient::new("1", msg, 0));
         }
 
         // -------------------- Process Request ----------------------
@@ -90,7 +91,7 @@ impl DeleteClientApi {
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespDeleteClient::new("1", msg)},
+                RespDeleteClient::new("1", msg, 0)},
         };
 
         Json(resp)
@@ -102,8 +103,8 @@ impl DeleteClientApi {
 // ***************************************************************************
 impl RespDeleteClient {
     /// Create a new response.
-    fn new(result_code: &str, result_msg: String) -> Self {
-        Self {result_code: result_code.to_string(), result_msg,}}
+    fn new(result_code: &str, result_msg: String, num_deleted: u32) -> Self {
+        Self {result_code: result_code.to_string(), result_msg, num_deleted,}}
 
     /// Process the request.
     fn process(http_req: &Request, req: &ReqDeleteClient) -> Result<RespDeleteClient, anyhow::Error> {
@@ -118,7 +119,7 @@ impl RespDeleteClient {
             if deletes < 1 {format!("Client {} NOT FOUND - Nothing deleted", req.client_id)}
             else {format!("Client {} deleted", req.client_id)};
         info!("{}", msg);
-        Ok(RespDeleteClient::new("0", msg))
+        Ok(RespDeleteClient::new("0", msg, deletes as u32))
     }
 }
 

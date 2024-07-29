@@ -59,6 +59,20 @@ impl AuthzResult {
         self.authorized
     }
 
+    /** Check that the tenant value in the request is the same as the 
+     * header tenant value.
+     */
+    pub fn check_hdr_tenant(&self, req_tenant: &String) -> bool {
+        // Guard for unauthorized calls, which should never happen.
+        if !self.authorized {return false;} 
+
+        // Test whether the header and request tenants are the same.
+        match &self.hdr_tenant {
+            Some(hdr_tenant) => hdr_tenant == req_tenant,
+            None => false
+        }
+    }
+
     /** Check that the authorized ID passed via header matches the ID passed in the path or 
      * body of a request.  For example, this consistency check can be used to guarentee that 
      * client ID  provided in the http request header is the same as that provided in the 
