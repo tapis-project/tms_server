@@ -133,7 +133,9 @@ async fn update_client(req: &ReqUpdateUserMfa) -> Result<u64> {
     let now = timestamp_utc();
     let current_ts = timestamp_utc_to_str(now);
 
-    // Get a connection to the db and start a transaction.
+    // Get a connection to the db and start a transaction.  Uncommited transactions 
+    // are automatically rolled back when they go out of scope. 
+    // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
 
     // Update count.

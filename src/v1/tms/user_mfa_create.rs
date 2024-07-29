@@ -154,12 +154,11 @@ impl RespCreateUserMfa {
 // insert_new_client:
 // ---------------------------------------------------------------------------
 async fn insert_new_client(rec: UserMfaInput) -> Result<u64> {
-    // Get a connection to the db and start a transaction.
+    // Get a connection to the db and start a transaction.  Uncommited transactions 
+    // are automatically rolled back when they go out of scope. 
+    // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
-    // "INSERT INTO user_mfa (tenant, tms_user_id, expires_at, enabled, created, updated) ",
-    // "VALUES (?, ?, ?, ?, ?, ?)",
-
     // Create the insert statement.
     let result = sqlx::query(INSERT_USER_MFA)
         .bind(rec.tenant)

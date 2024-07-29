@@ -140,7 +140,9 @@ impl RespListUserMfa {
 // list_mfa_users:
 // ---------------------------------------------------------------------------
 async fn list_mfa_users(req: &ReqListUserMfa) -> Result<Vec<UserMfaListElement>> {
-    // Get a connection to the db and start a transaction.
+    // Get a connection to the db and start a transaction.  Uncommited transactions 
+    // are automatically rolled back when they go out of scope. 
+    // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
     // Create the select statement.

@@ -143,7 +143,9 @@ impl RespCreateClient {
 // insert_new_client:
 // ---------------------------------------------------------------------------
 async fn insert_new_client(rec: ClientInput) -> Result<u64> {
-    // Get a connection to the db and start a transaction.
+    // Get a connection to the db and start a transaction.  Uncommited transactions 
+    // are automatically rolled back when they go out of scope. 
+    // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
     // Create the insert statement.

@@ -77,7 +77,7 @@ impl ListPubkeysApi {
     #[oai(path = "/tms/pubkeys/list", method = "get")]
     async fn get_pubkeys(&self, http_req: &Request) -> Json<RespListPubkeys> {
         // -------------------- Get Tenant Header --------------------
-        // Get the required tenant header value.
+        // Get the required tenant header value.  
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
             Err(e) => return Json(RespListPubkeys::new("1", e.to_string(), 0, vec!())),
@@ -158,7 +158,9 @@ async fn list_pubkeys(authz_result: &AuthzResult, req: &ReqListPubkeys) -> Resul
     // Substitute the placeholder in the query template.
     let sql_query = sql_substitute_client_constraint(LIST_PUBKEYS_TEMPLATE, authz_result); 
     
-    // Get a connection to the db and start a transaction.
+    // Get a connection to the db and start a transaction.  Uncommited transactions 
+    // are automatically rolled back when they go out of scope. 
+    // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
     // Create the select statement.

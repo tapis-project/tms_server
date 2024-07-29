@@ -127,7 +127,9 @@ impl RespDeletePubkey {
 // delete_pubkey:
 // ---------------------------------------------------------------------------
 async fn delete_pubkey(req: &ReqDeletePubkey) -> Result<u64> {
-    // Get a connection to the db and start a transaction.
+    // Get a connection to the db and start a transaction.  Uncommited transactions 
+    // are automatically rolled back when they go out of scope. 
+    // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
 
     // Deletion count.

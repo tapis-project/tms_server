@@ -178,7 +178,9 @@ impl RespGetPubkeys {
 // get_pubkey:
 // ---------------------------------------------------------------------------
 async fn get_pubkey(authz_result: &AuthzResult, req: &ReqGetPubkeys) -> Result<Pubkey> {
-    // Substitute the placeholder in the query template.
+    // Substitute the placeholder in the query template.  Uncommited transactions 
+    // are automatically rolled back when they go out of scope. 
+    // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let sql_query = sql_substitute_client_constraint(GET_PUBKEY_TEMPLATE, authz_result); 
 
     // Get a connection to the db and start a transaction.
