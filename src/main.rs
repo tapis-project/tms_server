@@ -26,6 +26,7 @@ use crate::v1::tms::user_mfa_update::UpdateUserMfaApi;
 use crate::v1::tms::pubkeys_delete::DeletePubkeysApi;
 use crate::v1::tms::pubkeys_get::GetPubkeysApi;
 use crate::v1::tms::pubkeys_list::ListPubkeysApi;
+use crate::v1::tms::pubkeys_update::UpdatePubkeyApi;
 use crate::v1::tms::version::VersionApi;
 
 // TMS Utilities
@@ -77,7 +78,7 @@ async fn main() -> Result<(), std::io::Error> {
         api!(HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, 
          CreateClientApi, GetClientApi, UpdateClientApi, DeleteClientApi, UpdateClientSecretApi, ListClientApi, 
          CreateUserMfaApi, GetUserMfaApi, UpdateUserMfaApi, DeleteUserMfaApi, ListUserMfaApi,
-         GetPubkeysApi, ListPubkeysApi, DeletePubkeysApi);
+         GetPubkeysApi, ListPubkeysApi, DeletePubkeysApi, UpdatePubkeyApi);
     let mut api_service = 
         OpenApiService::new(endpoints, "TMS Server", "0.0.1");
     let urls = &RUNTIME_CTX.parms.config.server_urls;

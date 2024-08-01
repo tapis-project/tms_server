@@ -104,8 +104,9 @@ pub fn get_files_in_dir(dir: &str) -> Result<Vec<PathBuf>> {
 // ---------------------------------------------------------------------------
 // calc_expires_at:
 // ---------------------------------------------------------------------------
+/** The ttl should never be negative, but we handle it if it is. */
 pub fn calc_expires_at(now : DateTime<Utc>, ttl_minutes : i32) -> String {
-    if ttl_minutes <= 0 {
+    if ttl_minutes < 0 {
         timestamp_utc_secs_to_str(DateTime::<Utc>::MAX_UTC)
     } else {
         timestamp_utc_secs_to_str(now + Duration::minutes(ttl_minutes as i64))

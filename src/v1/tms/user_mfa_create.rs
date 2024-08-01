@@ -26,7 +26,7 @@ pub struct ReqCreateUserMfa
 {
     tenant: String,
     tms_user_id: String,
-    ttl_minutes: u32,  // 0 means unlimited
+    ttl_minutes: u32,  // 0 disables usage
 }
 
 #[derive(Object)]
@@ -115,10 +115,11 @@ impl RespCreateUserMfa {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
-        // ------------------------ Time Values ------------------------  
+        // ------------------------ Time Values ------------------------ 
+        // The ttl can be zero, which will set the expiration time to the current time.
         let ttl_minutes: i32 = match req.ttl_minutes.try_into(){
             Ok(num) => num,
-            Err(_) => i32::MAX,
+            Err(_) => i32::MAX, // u32->i32 overflow
         };
 
         // Use the same current UTC timestamp in all related time caculations..

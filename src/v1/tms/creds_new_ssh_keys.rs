@@ -29,8 +29,8 @@ pub struct ReqNewSshKeys
     client_user_id: String,
     host: String,
     host_account: String,
-    num_uses: u32,     // 0 means unlimited
-    ttl_minutes: u32,  // 0 means unlimited
+    num_uses: u32,     // 0 disables usage
+    ttl_minutes: u32,  // 0 disables usage
     key_type: Option<String>,  // RSA, ECDSA, ED25519, DEFAULT (=ED25519)   
 }
 
@@ -44,6 +44,7 @@ struct RespNewSshKeys
     public_key_fingerprint: String,
     key_type: String,
     key_bits: String,
+    max_uses: String,
     remaining_uses: String,
     expires_at: String,
 }
@@ -93,7 +94,7 @@ impl NewSshKeysApi {
                 error!("{}", msg);
                 RespNewSshKeys::new("1", msg.as_str(), "".to_string(), "".to_string(), 
                                     "".to_string(), "".to_string(), "".to_string(), 
-                                    "".to_string(), "".to_string() )},
+                                    "".to_string(), "".to_string() , "".to_string())},
         };
 
         Json(resp)
@@ -107,11 +108,11 @@ impl RespNewSshKeys {
     #[allow(clippy::too_many_arguments)]
     fn new(result_code: &str, result_msg: &str, private_key: String, public_key: String, 
            public_key_fingerprint: String, key_type: String, key_bits: String,
-           remaining_uses: String, expires_at: String) -> Self {
+           max_uses: String, remaining_uses: String, expires_at: String) -> Self {
         Self {result_code: result_code.to_string(), 
               result_msg: result_msg.to_string(), 
               private_key, public_key, public_key_fingerprint,
-              key_type, key_bits, remaining_uses, expires_at,
+              key_type, key_bits, max_uses, remaining_uses, expires_at,
             }
     }
 
@@ -144,21 +145,21 @@ impl RespNewSshKeys {
         };
         
         // ------------------------ Update Database --------------------
-        // Safely convert u32s to i32s.
+        // Safely convert u32s to i32s. Both results can be zero or greater.
         let max_uses: i32 = match req.num_uses.try_into(){
             Ok(num) => num,
-            Err(_) => i32::MAX,
+            Err(_) => i32::MAX, // u32->i32 overflow
         };
         let ttl_minutes: i32 = match req.ttl_minutes.try_into(){
             Ok(num) => num,
-            Err(_) => i32::MAX,
+            Err(_) => i32::MAX, // u32->i32 overflow
         };
 
         // Use the same current UTC timestamp in all related time caculations..
-        let now = timestamp_utc();
-        let current_ts = timestamp_utc_to_str(now);
-        let expires_at = calc_expires_at(now, ttl_minutes);
-        let remaining_uses = calc_remaining_uses(max_uses);
+        let now  = timestamp_utc();
+        let current_ts  = timestamp_utc_to_str(now);
+        let expires_at  = calc_expires_at(now, ttl_minutes); 
+        let remaining_uses = max_uses;
 
         // Create the input record.
         let input_record = PubkeyInput::new(
@@ -191,6 +192,7 @@ impl RespNewSshKeys {
                     keyinfo.public_key_fingerprint,
                     keyinfo.key_type,
                     keyinfo.key_bits.to_string(),
+                    max_uses.to_string(),
     remaining_uses.to_string(),
                     expires_at,))
     }
@@ -232,15 +234,4 @@ async fn insert_new_key(rec: PubkeyInput) -> Result<u64> {
     tx.commit().await?;
 
     Ok(result.rows_affected())
-}
-
-// ---------------------------------------------------------------------------
-// calc_remaining_uses:
-// ---------------------------------------------------------------------------
-fn calc_remaining_uses(max_uses : i32) -> i32 {
-    if max_uses <= 0 {
-        i32::MAX
-    } else {
-        max_uses
-    }
 }

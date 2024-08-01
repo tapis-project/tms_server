@@ -119,9 +119,9 @@ async fn get_public_key(req: &ReqPublicKey) -> Result<PubkeyRetrieval> {
     
     // Create the insert statement.
     let result = sqlx::query(SELECT_PUBKEY)
-        .bind(req.user.clone())
-        .bind(req.host.clone())
-        .bind(req.public_key_fingerprint.clone())
+        .bind(&req.user)
+        .bind(&req.host)
+        .bind(&req.public_key_fingerprint)
         .fetch_optional(&mut *tx)
         .await?;
 

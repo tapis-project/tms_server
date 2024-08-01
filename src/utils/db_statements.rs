@@ -97,6 +97,11 @@ pub const SELECT_PUBKEY: &str = concat!(
     "WHERE host_account = ? AND host = ? AND public_key_fingerprint = ?",
 );
 
+pub const SELECT_PUBKEY_FOR_UPDATE: &str = concat!(
+    "SELECT max_uses, remaining_uses FROM pubkeys ",
+    "WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?",
+);
+
 pub const GET_PUBKEY_TEMPLATE: &str = concat!(
     "SELECT id, tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",
     "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated ",
@@ -107,6 +112,16 @@ pub const LIST_PUBKEYS_TEMPLATE: &str = concat!(
     "SELECT id, tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",
     "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated ",
     "FROM pubkeys WHERE tenant = ? ${PLACEHOLDER} ORDER BY tenant, client_user_id, host, host_account",
+);
+
+pub const UPDATE_MAX_USES: &str = concat!(
+    "UPDATE pubkeys SET max_uses = ?, remaining_uses = ?, updated = ? ",
+    "WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?",
+);
+
+pub const UPDATE_EXPIRES_AT: &str = concat!(
+    "UPDATE pubkeys SET expires_at = ?, updated = ? ",
+    "WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?",
 );
 
 pub const DELETE_PUBKEY: &str = concat!(
