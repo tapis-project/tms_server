@@ -4,9 +4,9 @@ use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object };
 use anyhow::{Result, anyhow};
 
-use std::convert::TryInto;
 use futures::executor::block_on;
 
+use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, get_client_id_header};
 use crate::utils::keygen::{self, KeyType};
 use crate::utils::db_types::PubkeyInput;
 use crate::utils::db_statements::INSERT_PUBKEYS;
@@ -23,14 +23,11 @@ pub struct NewSshKeysApi;
 #[derive(Object)]
 pub struct ReqNewSshKeys
 {
-    client_id: String,
-    client_secret: String,
-    tenant: String,
     client_user_id: String,
     host: String,
     host_account: String,
-    num_uses: u32,     // 0 disables usage
-    ttl_minutes: u32,  // 0 disables usage
+    num_uses: i32,     // negative means i32::MAX
+    ttl_minutes: i32,  // negative means i32::MAX
     key_type: Option<String>,  // RSA, ECDSA, ED25519, DEFAULT (=ED25519)   
 }
 
@@ -55,10 +52,6 @@ impl RequestDebug for ReqNewSshKeys {
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
-        s.push_str("\n    client_id: ");
-        s.push_str(&self.client_id);
-        s.push_str("\n    tenant: ");
-        s.push_str(&self.tenant);
         s.push_str("\n    client_user_id: ");
         s.push_str(&self.client_user_id);
         s.push_str("\n    host: ");
@@ -78,6 +71,19 @@ impl RequestDebug for ReqNewSshKeys {
         s.push('\n');
         s
     }
+}
+
+// Extracted header values to complete request input
+#[derive(Debug)]
+struct NewSshKeysExtension
+{
+    client_id: String,
+    tenant: String,
+}
+
+impl NewSshKeysExtension {
+    fn new(client_id: String, tenant: String,) -> Self 
+    { Self {client_id, tenant} }  
 }
 
 // ***************************************************************************
@@ -116,9 +122,38 @@ impl RespNewSshKeys {
             }
     }
 
+    // Error response.
+    fn new_error(result_code: &str, result_msg: &str,) -> Self {
+        Self {result_code: result_code.to_string(), result_msg: result_msg.to_string(), 
+              private_key: "".to_string(), public_key: "".to_string(), public_key_fingerprint: "".to_string(), 
+              key_type: "".to_string(), key_bits: 0.to_string(), max_uses: 0.to_string(), 
+              remaining_uses: 0.to_string(), expires_at: "".to_string()
+        }
+    }
+
     fn process(http_req: &Request, req: &ReqNewSshKeys) -> Result<RespNewSshKeys, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
+
+        // -------------------- Extract Headers ----------------------
+        // Get the headers used in this function.
+        let req_ext = match get_header_values(http_req) {
+            Ok(h) => h,
+            Err(e) => {
+                return Ok(Self::new_error("1", &e.to_string()))
+            }
+        };
+
+        // -------------------- Authorize ----------------------------
+        // Only the client and tenant admin can query a client record.
+        let allowed = [AuthzTypes::ClientOwn];
+        let authz_result = authorize(http_req, &allowed);
+        if !authz_result.is_authorized() {
+            let msg = format!("ERROR: NOT AUTHORIZED client {} cannot create new keys in tenant {}.", 
+                                      req_ext.client_id, req_ext.tenant);
+            error!("{}", msg);
+            return Ok(Self::new_error("1", &msg)); 
+        }
 
         // ------------------------ Generate Keys ------------------------
         // Get the caller's key type or use default.
@@ -145,15 +180,9 @@ impl RespNewSshKeys {
         };
         
         // ------------------------ Update Database --------------------
-        // Safely convert u32s to i32s. Both results can be zero or greater.
-        let max_uses: i32 = match req.num_uses.try_into(){
-            Ok(num) => num,
-            Err(_) => i32::MAX, // u32->i32 overflow
-        };
-        let ttl_minutes: i32 = match req.ttl_minutes.try_into(){
-            Ok(num) => num,
-            Err(_) => i32::MAX, // u32->i32 overflow
-        };
+        // Interpret numeric input.
+        let max_uses = if req.num_uses < 0 {i32::MAX} else {req.num_uses};
+        let ttl_minutes = if req.ttl_minutes < 0 {i32::MAX} else {req.ttl_minutes};
 
         // Use the same current UTC timestamp in all related time caculations..
         let now  = timestamp_utc();
@@ -163,8 +192,8 @@ impl RespNewSshKeys {
 
         // Create the input record.
         let input_record = PubkeyInput::new(
-            req.tenant.clone(),
-            req.client_id.clone(),
+            req_ext.tenant.clone(),
+            req_ext.client_id.clone(),
             req.client_user_id.clone(), 
             req.host.clone(), 
             req.host_account.clone(),
@@ -183,7 +212,7 @@ impl RespNewSshKeys {
         // Insert the new key record.
         block_on(insert_new_key(input_record))?;
         info!("A key of type '{}' created for '{}@{}' for host '{}' expires at {} and has {} remaining uses.", 
-            keyinfo.key_type.clone(), req.client_user_id, req.tenant, req.host, expires_at, remaining_uses);
+            keyinfo.key_type.clone(), req.client_user_id, req_ext.tenant, req.host, expires_at, remaining_uses);
 
         // Success! Zero key bits means a fixed key length.
         Ok(Self::new("0", "success", 
@@ -234,4 +263,15 @@ async fn insert_new_key(rec: PubkeyInput) -> Result<u64> {
     tx.commit().await?;
 
     Ok(result.rows_affected())
+}
+
+// ---------------------------------------------------------------------------
+// get_header_values:
+// ---------------------------------------------------------------------------
+fn get_header_values(http_req: &Request) -> Result<NewSshKeysExtension> {
+    // Get the required header values.
+    let hdr_client_id = get_client_id_header(http_req)?;
+    let hdr_tenant = get_tenant_header(http_req)?;
+
+    Ok(NewSshKeysExtension::new(hdr_client_id, hdr_tenant))
 }

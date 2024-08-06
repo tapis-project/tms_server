@@ -82,7 +82,7 @@ impl ListUserMfaApi {
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("NOT AUTHORIZED to list user MFA information in tenant {}.", req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to list user MFA information in tenant {}.", req.tenant);
             error!("{}", msg);
             return Json(RespListUserMfa::new("1", msg, 0, vec!()));
         }

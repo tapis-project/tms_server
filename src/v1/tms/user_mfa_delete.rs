@@ -73,7 +73,7 @@ impl DeleteUserMfaApi {
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("NOT AUTHORIZED to delete MFA for user {} in tenant {}.", req.tms_user_id, req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to delete MFA for user {} in tenant {}.", req.tms_user_id, req.tenant);
             error!("{}", msg);
             return Json(RespDeleteUserMfa::new("1", msg, 0));
         }

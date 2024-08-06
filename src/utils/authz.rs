@@ -124,27 +124,15 @@ impl AuthzResult {
 // ---------------------------------------------------------------------------
 // get_tenant_header:
 // ---------------------------------------------------------------------------
-/** Get the TMS tenant value from its http header. This function logs its errors
- * so the caller does not have to.
- */
 pub fn get_tenant_header(http_req: &Request) -> Result<String> {
-    match http_req.headers().get(X_TMS_TENANT) {
-        Some(v) => {
-            match v.to_str() {
-                Ok(s) => Ok(s.to_string()),
-                Err(e) => {
-                    let e2 = anyhow!("Invalid string assigned to header {}: {}", X_TMS_TENANT, e);
-                    error!("{}", e2);
-                    Err(e2)
-                }
-            }
-        },
-        None => {
-            let e = anyhow!("Required '{}' HTTP header not found", X_TMS_TENANT);
-            error!("{}", e);
-            Err(e)
-        }
-    }
+    get_header(http_req, X_TMS_TENANT)
+}
+
+// ---------------------------------------------------------------------------
+// get_client_id_header:
+// ---------------------------------------------------------------------------
+pub fn get_client_id_header(http_req: &Request) -> Result<String> {
+    get_header(http_req, X_TMS_CLIENT_ID)
 }
 
 // ---------------------------------------------------------------------------
@@ -199,6 +187,32 @@ pub fn authorize(http_req: &Request, allowed: &[AuthzTypes]) -> AuthzResult {
 // ***************************************************************************
 //                          Private Functions
 // ***************************************************************************
+// ---------------------------------------------------------------------------
+// get_header:
+// ---------------------------------------------------------------------------
+/** Get the TMS value from its http header. This function logs its errors
+ * so the caller does not have to.
+ */
+fn get_header(http_req: &Request, header_key: &str) -> Result<String> {
+    match http_req.headers().get(header_key) {
+        Some(v) => {
+            match v.to_str() {
+                Ok(s) => Ok(s.to_string()),
+                Err(e) => {
+                    let e2 = anyhow!("Invalid string assigned to header {}: {}", header_key, e);
+                    error!("{}", e2);
+                    Err(e2)
+                }
+            }
+        },
+        None => {
+            let e = anyhow!("Required '{}' HTTP header not found", header_key);
+            error!("{}", e);
+            Err(e)
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // authorize_by_type:
 // ---------------------------------------------------------------------------

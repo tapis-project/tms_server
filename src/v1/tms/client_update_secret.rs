@@ -74,14 +74,14 @@ impl UpdateClientSecretApi {
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("NOT AUTHORIZED to update client {} in tenant {}.", req.client_id, req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to update client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
             return Json(RespUpdateClientSecret::new("1", msg, req.client_id, req.tenant, "".to_string()));
         }
 
         // Make sure the request parms conform to the header values used for authorization.
         if !authz_result.check_hdr_id(&req.client_id) {
-            let msg = format!("NOT AUTHORIZED: Payload parameters ({}@{}) differ from those in the request header.", 
+            let msg = format!("ERROR: NOT AUTHORIZED - Payload parameters ({}@{}) differ from those in the request header.", 
                                       req.client_id, req.tenant);
             error!("{}", msg);
             return Json(RespUpdateClientSecret::new("1", msg, req.client_id, req.tenant, "".to_string()));

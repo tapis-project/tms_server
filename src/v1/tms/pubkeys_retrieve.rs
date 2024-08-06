@@ -68,7 +68,7 @@ impl RequestDebug for ReqPublicKey {
 // ***************************************************************************
 #[OpenApi]
 impl PublicKeyApi {
-    #[oai(path = "/tms/creds/publickey", method = "post")]
+    #[oai(path = "/tms/pubkeys/creds/retrieve", method = "post")]
     async fn get_public_key(&self, http_req: &Request, req: Json<ReqPublicKey>) -> Json<RespPublicKey> {
         let resp = match RespPublicKey::process(http_req, &req) {
             Ok(r) => r,

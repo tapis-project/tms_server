@@ -26,7 +26,7 @@ pub struct ReqCreateUserMfa
 {
     tenant: String,
     tms_user_id: String,
-    ttl_minutes: u32,  // 0 disables usage
+    ttl_minutes: i32,  // negative means i32::MAX
 }
 
 #[derive(Object)]
@@ -84,7 +84,7 @@ impl CreateUserMfaApi {
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("NOT AUTHORIZED to add a user MFA record in tenant {}.", req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to add a user MFA record in tenant {}.", req.tenant);
             error!("{}", msg);
             return Json(RespCreateUserMfa::new("1", msg, req.tms_user_id.clone(), "".to_string(), false));
         }
@@ -116,11 +116,8 @@ impl RespCreateUserMfa {
         tms_utils::debug_request(http_req, req);
 
         // ------------------------ Time Values ------------------------ 
-        // The ttl can be zero, which will set the expiration time to the current time.
-        let ttl_minutes: i32 = match req.ttl_minutes.try_into(){
-            Ok(num) => num,
-            Err(_) => i32::MAX, // u32->i32 overflow
-        };
+        // The ttl can be negative, which means maximum ttl.
+        let ttl_minutes = if req.ttl_minutes < 0 {i32::MAX} else {req.ttl_minutes};
 
         // Use the same current UTC timestamp in all related time caculations..
         let now = timestamp_utc();

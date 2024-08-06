@@ -99,7 +99,7 @@ impl RespCreateClient {
         match validate_semver(req.app_version.as_str()) {
             Ok(_) => (),
             Err(e) => {
-                let msg = format!("Invalid app_version value ({}): {}", req.app_version, e);
+                let msg = format!("ERROR: Invalid app_version value ({}): {}", req.app_version, e);
                 error!("{}", msg);
                 return Err(anyhow!(msg));
             }

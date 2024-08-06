@@ -89,7 +89,7 @@ impl GetPubkeysApi {
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("NOT AUTHORIZED to view pubkey #{} in tenant {}.", req.seqno, req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to view pubkey #{} in tenant {}.", req.seqno, req.tenant);
             error!("{}", msg);
             return Json(RespGetPubkeys::new_error("1", msg, req.seqno, req.tenant));
         }

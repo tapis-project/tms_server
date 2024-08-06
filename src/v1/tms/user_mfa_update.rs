@@ -80,7 +80,7 @@ async fn update_client(&self, http_req: &Request, tms_user_id: Path<String>, ena
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("NOT AUTHORIZED to update MFA for user {} in tenant {}.", req.tms_user_id, req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to update MFA for user {} in tenant {}.", req.tms_user_id, req.tenant);
             error!("{}", msg);
             return Json(RespUpdateUserMfa::new("1", msg, 0));
         }

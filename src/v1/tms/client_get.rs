@@ -82,7 +82,7 @@ impl GetClientApi {
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("NOT AUTHORIZED to view client {} in tenant {}.", req.client_id, req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to view client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
             let resp = RespGetClient::new("1", msg, 0, req.tenant.clone(), "".to_string(), 
                                         "".to_string(), req.client_id.clone(), 0,  "".to_string(), "".to_string());
@@ -91,7 +91,7 @@ impl GetClientApi {
 
         // Make sure the path parms conform to the header values used for authorization.
         if !authz_result.check_hdr_id(&req.client_id) {
-            let msg = format!("NOT AUTHORIZED: Path parameters ({}@{}) differ from those in the request header.", 
+            let msg = format!("ERROR: NOT AUTHORIZED - Path parameters ({}@{}) differ from those in the request header.", 
                                       req.client_id, req.tenant);
             error!("{}", msg);
             let resp = RespGetClient::new("1", msg, 0, req.tenant.clone(), "".to_string(), 
