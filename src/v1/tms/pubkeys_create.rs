@@ -91,7 +91,7 @@ impl NewSshKeysExtension {
 // ***************************************************************************
 #[OpenApi]
 impl NewSshKeysApi {
-    #[oai(path = "/tms/creds/sshkeys", method = "post")]
+    #[oai(path = "/tms/pubkeys/creds", method = "post")]
     async fn get_new_ssh_keys(&self, http_req: &Request, req: Json<ReqNewSshKeys>) -> Json<RespNewSshKeys> {
         let resp = match RespNewSshKeys::process(http_req, &req) {
             Ok(r) => r,
