@@ -1,11 +1,12 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object };
+use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
 use futures::executor::block_on;
 use sqlx::Row;
 
+use crate::utils::errors::HttpResult;
 use crate::utils::authz::{authorize, get_tenant_header, AuthzResult, AuthzTypes};
 use crate::utils::db_statements::LIST_CLIENTS_TEMPLATE;
 use crate::utils::tms_utils::{self, RequestDebug, sql_substitute_client_constraint};
@@ -27,7 +28,7 @@ struct ReqListClient
     tenant: String,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct RespListClient
 {
     result_code: String,
@@ -36,7 +37,7 @@ pub struct RespListClient
     clients: Vec<ClientListElement>,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct ClientListElement
 {
     id: i32,
@@ -61,18 +62,44 @@ impl RequestDebug for ReqListClient {
     }
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 200)]
+    Http200(Json<RespListClient>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
+    #[oai(status = 401)]
+    Http401(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_200(resp: RespListClient) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
+}
+fn make_http_401(msg: String) -> TmsResponse {
+    TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
 impl ListClientApi {
     #[oai(path = "/tms/client/list", method = "get")]
-    async fn get_clients(&self, http_req: &Request) -> Json<RespListClient> {
+    async fn get_clients(&self, http_req: &Request) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
-            Err(e) => return Json(RespListClient::new("1", e.to_string(), 0, vec!())),
+            Err(e) => return make_http_400(e.to_string()),
         };
         
         // Package the request parameters.        
@@ -86,20 +113,19 @@ impl ListClientApi {
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to list clients in tenant {}.", req.tenant);
             error!("{}", msg);
-            return Json(RespListClient::new("1", msg, 0, vec!()));
+            return make_http_401(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        let resp = match RespListClient::process(http_req, &req, &authz_result) {
+        match RespListClient::process(http_req, &req, &authz_result) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespListClient::new("1", msg, 0, vec!())},
-        };
-
-        Json(resp)
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -124,14 +150,17 @@ impl RespListClient {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqListClient, authz_result: &AuthzResult) -> Result<RespListClient, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqListClient, authz_result: &AuthzResult) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
-        // Search for the tenant/client id in the database.  Not found was already 
+        // Search for the tenant/client ids in the database.  
         // The client_secret is never part of the response.
-        let clients = block_on(list_clients(authz_result, req))?;
-        Ok(Self::new("0", "success".to_string(), clients.len() as i32, clients))
+        match block_on(list_clients(authz_result, req)) {
+            Ok(clients) =>
+                Ok(make_http_200(Self::new("0", "success".to_string(), clients.len() as i32, clients))),
+            Err(e) => Err(e),
+        }
     }
 }
 

@@ -1,10 +1,11 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, param::Query };
+use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, param::Query, ApiResponse };
 use anyhow::Result;
 use futures::executor::block_on;
 
+use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{UPDATE_CLIENT_APP_VERSION, UPDATE_CLIENT_ENABLED};
 use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, validate_semver};
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
@@ -29,7 +30,7 @@ pub struct ReqUpdateClient
     enabled: Option<bool>,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct RespUpdateClient
 {
     result_code: String,
@@ -59,6 +60,37 @@ impl RequestDebug for ReqUpdateClient {
     }
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 200)]
+    Http200(Json<RespUpdateClient>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
+    #[oai(status = 401)]
+    Http401(Json<HttpResult>),
+    #[oai(status = 403)]
+    Http403(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_200(resp: RespUpdateClient) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
+}
+fn make_http_401(msg: String) -> TmsResponse {
+    TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_403(msg: String) -> TmsResponse {
+    TmsResponse::Http403(Json(HttpResult::new(403.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
@@ -67,12 +99,12 @@ impl UpdateClientApi {
     #[oai(path = "/tms/client/:client_id", method = "patch")]
     async fn update_client(&self, http_req: &Request, client_id: Path<String>, 
                            app_version: Query<Option<String>>, enabled: Query<Option<bool>>) 
-            -> Json<RespUpdateClient> {
+            -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
-            Err(e) => return Json(RespUpdateClient::new("1", e.to_string(), 0)),
+            Err(e) => return make_http_400(e.to_string()),
         };
 
         // Package the request parameters. The difference in query parameter processing 
@@ -88,28 +120,27 @@ impl UpdateClientApi {
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to update client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
-            return Json(RespUpdateClient::new("1", msg, 0));
+            return make_http_401(msg);
         }
 
         // Make sure the request parms conform to the header values used for authorization.
         if !authz_result.check_hdr_id(&req.client_id) {
-            let msg = format!("ERROR: NOT AUTHORIZED - Payload parameters ({}@{}) differ from those in the request header.", 
+            let msg = format!("ERROR: FORBIDDEN - Payload parameters ({}@{}) differ from those in the request header.", 
                                       req.client_id, req.tenant);
             error!("{}", msg);
-            return Json(RespUpdateClient::new("1", msg, 0));
+            return make_http_403(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        let resp = match RespUpdateClient::process(http_req, &req) {
+        match RespUpdateClient::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespUpdateClient::new("1", msg, 0)},
-        };
-
-        Json(resp)
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -122,13 +153,13 @@ impl RespUpdateClient {
         Self {result_code: result_code.to_string(), result_msg, fields_updated: num_updates}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqUpdateClient) -> Result<RespUpdateClient, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqUpdateClient) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Determine if any updates are required.
         if req.app_version.is_none() && req.enabled.is_none() {
-            return Ok(RespUpdateClient::new("0", "No updates specified".to_string(), 0));
+            return Ok(make_http_200(RespUpdateClient::new("0", "No updates specified".to_string(), 0)));
         } 
 
         // Insert the new key record.
@@ -137,7 +168,7 @@ impl RespUpdateClient {
         // Log result and return response.
         let msg = format!("{} update(s) to client {} completed", updates, req.client_id);
         info!("{}", msg);
-        Ok(RespUpdateClient::new("0", msg, updates as i32))
+        Ok(make_http_200(RespUpdateClient::new("0", msg, updates as i32)))
     }
 }
 

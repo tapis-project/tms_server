@@ -1,11 +1,12 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object, param::Path };
+use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::{Result, anyhow};
 use futures::executor::block_on;
 use sqlx::Row;
 
+use crate::utils::errors::HttpResult;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
 use crate::utils::db_statements::GET_CLIENT;
 use crate::utils::tms_utils::{self, RequestDebug};
@@ -29,7 +30,7 @@ struct ReqGetClient
     tenant: String,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct RespGetClient
 {
     result_code: String,
@@ -58,20 +59,54 @@ impl RequestDebug for ReqGetClient {
     }
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 200)]
+    Http200(Json<RespGetClient>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
+    #[oai(status = 401)]
+    Http401(Json<HttpResult>),
+    #[oai(status = 403)]
+    Http403(Json<HttpResult>),
+    #[oai(status = 404)]
+    Http404(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_200(resp: RespGetClient) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
+}
+fn make_http_401(msg: String) -> TmsResponse {
+    TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_403(msg: String) -> TmsResponse {
+    TmsResponse::Http403(Json(HttpResult::new(403.to_string(), msg)))
+}
+fn make_http_404(msg: String) -> TmsResponse {
+    TmsResponse::Http404(Json(HttpResult::new(404.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
 impl GetClientApi {
     #[oai(path = "/tms/client/:client_id", method = "get")]
-    async fn get_client(&self, http_req: &Request, client_id: Path<String>) -> Json<RespGetClient> {
+    async fn get_client(&self, http_req: &Request, client_id: Path<String>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
-            Err(e) => return Json(RespGetClient::new("1", e.to_string(), 0, "".to_string(), 
-                                         "".to_string(), "".to_string(), client_id.to_string(), 0,  
-                                         "".to_string(), "".to_string())),
+            Err(e) => return make_http_400(e.to_string()),
         };
         
         // Package the request parameters.        
@@ -84,33 +119,26 @@ impl GetClientApi {
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to view client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
-            let resp = RespGetClient::new("1", msg, 0, req.tenant.clone(), "".to_string(), 
-                                        "".to_string(), req.client_id.clone(), 0,  "".to_string(), "".to_string());
-            return Json(resp);
+            return make_http_401(msg);
         }
 
         // Make sure the path parms conform to the header values used for authorization.
         if !authz_result.check_hdr_id(&req.client_id) {
-            let msg = format!("ERROR: NOT AUTHORIZED - Path parameters ({}@{}) differ from those in the request header.", 
+            let msg = format!("ERROR: FORBIDDEN - Path parameters ({}@{}) differ from those in the request header.", 
                                       req.client_id, req.tenant);
             error!("{}", msg);
-            let resp = RespGetClient::new("1", msg, 0, req.tenant.clone(), "".to_string(), 
-                                        "".to_string(), req.client_id.clone(), 0,  "".to_string(), "".to_string());
-            return Json(resp);
-        }
+            return make_http_403(msg);        }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        let resp = match RespGetClient::process(http_req, &req) {
+        match RespGetClient::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespGetClient::new("1", msg, 0, req.tenant.clone(), "".to_string(), "".to_string(),
-                                   req.client_id.clone(), 0,  "".to_string(), "".to_string())},
-        };
-
-        Json(resp)
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -128,15 +156,24 @@ impl RespGetClient {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqGetClient) -> Result<RespGetClient, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqGetClient) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
-        let client = block_on(get_client(req))?;
-        Ok(Self::new("0", "success".to_string(), client.id, client.tenant, client.app_name, 
-                     client.app_version, client.client_id, client.enabled, client.created, client.updated))
+        let db_result = block_on(get_client(req));
+        match db_result {
+            Ok(client) => Ok(make_http_200(Self::new("0", "success".to_string(), 
+                                    client.id, client.tenant, client.app_name, client.app_version, 
+                                    client.client_id, client.enabled, client.created, client.updated))),
+            Err(e) => {
+                // Determine if this is a real db error or just record not found.
+                let msg = e.to_string();
+                if msg.contains("NOT_FOUND") {Ok(make_http_404(msg))} 
+                  else {Err(e)}
+            },
+        }
     }
 }
 

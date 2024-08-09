@@ -1,10 +1,11 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object, param::Path };
+use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::Result;
 use futures::executor::block_on;
 
+use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::UPDATE_CLIENT_SECRET;
 use crate::utils::tms_utils::{self, RequestDebug, create_hex_secret, hash_hex_secret, timestamp_utc, timestamp_utc_to_str};
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
@@ -27,7 +28,7 @@ pub struct ReqUpdateClientSecret
     tenant: String,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct RespUpdateClientSecret
 {
     result_code: String,
@@ -51,19 +52,49 @@ impl RequestDebug for ReqUpdateClientSecret {
     }
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 200)]
+    Http200(Json<RespUpdateClientSecret>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
+    #[oai(status = 401)]
+    Http401(Json<HttpResult>),
+    #[oai(status = 403)]
+    Http403(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_200(resp: RespUpdateClientSecret) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
+}
+fn make_http_401(msg: String) -> TmsResponse {
+    TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_403(msg: String) -> TmsResponse {
+    TmsResponse::Http403(Json(HttpResult::new(403.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
 impl UpdateClientSecretApi {
     #[oai(path = "/tms/client/secret/:client_id", method = "patch")]
-    async fn update_client(&self, http_req: &Request, client_id: Path<String>) -> Json<RespUpdateClientSecret> {
+    async fn update_client(&self, http_req: &Request, client_id: Path<String>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
-            Err(e) => return Json(RespUpdateClientSecret::new("1", e.to_string(), client_id.to_string(), 
-                                                                     "".to_string(), "".to_string())),
+            Err(e) => return make_http_400(e.to_string()),
         };
 
         // Package the request parameters.
@@ -76,28 +107,27 @@ impl UpdateClientSecretApi {
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to update client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
-            return Json(RespUpdateClientSecret::new("1", msg, req.client_id, req.tenant, "".to_string()));
+            return make_http_401(msg);
         }
 
         // Make sure the request parms conform to the header values used for authorization.
         if !authz_result.check_hdr_id(&req.client_id) {
-            let msg = format!("ERROR: NOT AUTHORIZED - Payload parameters ({}@{}) differ from those in the request header.", 
+            let msg = format!("ERROR: FORBIDDEN - Payload parameters ({}@{}) differ from those in the request header.", 
                                       req.client_id, req.tenant);
             error!("{}", msg);
-            return Json(RespUpdateClientSecret::new("1", msg, req.client_id, req.tenant, "".to_string()));
+            return make_http_403(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        let resp = match RespUpdateClientSecret::process(http_req, &req) {
+        match RespUpdateClientSecret::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespUpdateClientSecret::new("1", msg, req.client_id, req.tenant, "".to_string())},
-        };
-
-        Json(resp)
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -111,7 +141,7 @@ impl RespUpdateClientSecret {
     }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqUpdateClientSecret) -> Result<RespUpdateClientSecret, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqUpdateClientSecret) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -125,8 +155,8 @@ impl RespUpdateClientSecret {
         // Log result and return response.
         let msg = format!("Secret updated for client {}", req.client_id);
         info!("{}", msg);
-        Ok(RespUpdateClientSecret::new("0", msg, req.client_id.clone(), 
-                                       req.tenant.clone(), client_secret_str))
+        Ok(make_http_200(RespUpdateClientSecret::new("0", msg, req.client_id.clone(), 
+                                       req.tenant.clone(), client_secret_str)))
     }
 }
 

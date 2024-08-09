@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 use thiserror::Error;
+use poem_openapi::Object;
 
 /// Error enumerates the errors returned by this application.
 #[derive(Error, Debug)]
@@ -25,4 +26,15 @@ pub enum Errors {
 
     #[error("TMS Error: {}", .0)]
     TMSError(String),
+}
+
+#[derive(PartialEq, Clone, Debug, Object)]
+pub struct HttpResult {
+    pub result_code: String,
+    pub result_msg: String,
+}
+impl HttpResult {
+    pub fn new(result_code: String, result_msg: String) -> Self {
+        HttpResult {result_code, result_msg}
+    }
 }

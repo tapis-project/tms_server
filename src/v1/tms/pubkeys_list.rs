@@ -1,11 +1,12 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object };
+use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
 use futures::executor::block_on;
 use sqlx::Row;
 
+use crate::utils::errors::HttpResult;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, AuthzResult};
 use crate::utils::db_statements::LIST_PUBKEYS_TEMPLATE;
 use crate::utils::tms_utils::{self, RequestDebug, sql_substitute_client_constraint};
@@ -27,7 +28,7 @@ struct ReqListPubkeys
     tenant: String,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct RespListPubkeys
 {
     result_code: String,
@@ -36,7 +37,7 @@ pub struct RespListPubkeys
     pubkeys: Vec<PubkeysListElement>,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct PubkeysListElement
 {
     id: i32,
@@ -69,18 +70,44 @@ impl RequestDebug for ReqListPubkeys {
     }
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 200)]
+    Http200(Json<RespListPubkeys>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
+    #[oai(status = 401)]
+    Http401(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_200(resp: RespListPubkeys) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
+}
+fn make_http_401(msg: String) -> TmsResponse {
+    TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
 impl ListPubkeysApi {
     #[oai(path = "/tms/pubkeys/list", method = "get")]
-    async fn get_pubkeys(&self, http_req: &Request) -> Json<RespListPubkeys> {
+    async fn get_pubkeys(&self, http_req: &Request) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.  
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
-            Err(e) => return Json(RespListPubkeys::new("1", e.to_string(), 0, vec!())),
+            Err(e) => return make_http_400(e.to_string()),
         };
         
         // Package the request parameters.        
@@ -94,20 +121,19 @@ impl ListPubkeysApi {
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to list clients in tenant {}.", req.tenant);
             error!("{}", msg);
-            return Json(RespListPubkeys::new("1", msg, 0, vec!()));
+            return make_http_401(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        let resp = match RespListPubkeys::process(http_req, &req, &authz_result) {
+        match RespListPubkeys::process(http_req, &req, &authz_result) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespListPubkeys::new("1", msg, 0, vec!())},
-        };
-
-        Json(resp)
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -131,20 +157,19 @@ impl PubkeysListElement {
 impl RespListPubkeys {
     /// Create a new response.
     #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: String, num_clients: i32, clients: Vec<PubkeysListElement>) 
+    fn new(result_code: &str, result_msg: String, num_keys: i32, keys: Vec<PubkeysListElement>) 
     -> Self {
-        Self {result_code: result_code.to_string(), result_msg, num_pubkeys: num_clients, pubkeys: clients}
+        Self {result_code: result_code.to_string(), result_msg, num_pubkeys: num_keys, pubkeys: keys}
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqListPubkeys, authz_result: &AuthzResult) -> Result<RespListPubkeys, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqListPubkeys, authz_result: &AuthzResult) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
-        // Search for the tenant/client id in the database.  Not found was already 
-        // The client_secret is never part of the response.
-        let clients = block_on(list_pubkeys(authz_result, req))?;
-        Ok(Self::new("0", "success".to_string(), clients.len() as i32, clients))
+        // Search for the tenant/client ids in the database.  
+        let keys = block_on(list_pubkeys(authz_result, req))?;
+        Ok(make_http_200(Self::new("0", "success".to_string(), keys.len() as i32, keys)))
     }
 }
 

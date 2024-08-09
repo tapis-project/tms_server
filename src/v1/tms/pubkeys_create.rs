@@ -1,12 +1,13 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object };
+use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::{Result, anyhow};
 
 use futures::executor::block_on;
 
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, get_client_id_header};
+use crate::utils::errors::HttpResult;
 use crate::utils::keygen::{self, KeyType};
 use crate::utils::db_types::PubkeyInput;
 use crate::utils::db_statements::INSERT_PUBKEYS;
@@ -31,7 +32,7 @@ pub struct ReqNewSshKeys
     key_type: Option<String>,  // RSA, ECDSA, ED25519, DEFAULT (=ED25519)   
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 struct RespNewSshKeys
 {
     result_code: String,
@@ -86,24 +87,48 @@ impl NewSshKeysExtension {
     { Self {client_id, tenant} }  
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 201)]
+    Http201(Json<RespNewSshKeys>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
+    #[oai(status = 401)]
+    Http401(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_201(resp: RespNewSshKeys) -> TmsResponse {
+    TmsResponse::Http201(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
+}
+fn make_http_401(msg: String) -> TmsResponse {
+    TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
 impl NewSshKeysApi {
     #[oai(path = "/tms/pubkeys/creds", method = "post")]
-    async fn get_new_ssh_keys(&self, http_req: &Request, req: Json<ReqNewSshKeys>) -> Json<RespNewSshKeys> {
-        let resp = match RespNewSshKeys::process(http_req, &req) {
+    async fn get_new_ssh_keys(&self, http_req: &Request, req: Json<ReqNewSshKeys>) -> TmsResponse {
+        match RespNewSshKeys::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
+                // Assume a server fault if a raw error came through.
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespNewSshKeys::new("1", msg.as_str(), "".to_string(), "".to_string(), 
-                                    "".to_string(), "".to_string(), "".to_string(), 
-                                    "".to_string(), "".to_string() , "".to_string())},
-        };
-
-        Json(resp)
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -122,16 +147,7 @@ impl RespNewSshKeys {
             }
     }
 
-    // Error response.
-    fn new_error(result_code: &str, result_msg: &str,) -> Self {
-        Self {result_code: result_code.to_string(), result_msg: result_msg.to_string(), 
-              private_key: "".to_string(), public_key: "".to_string(), public_key_fingerprint: "".to_string(), 
-              key_type: "".to_string(), key_bits: 0.to_string(), max_uses: 0.to_string(), 
-              remaining_uses: 0.to_string(), expires_at: "".to_string()
-        }
-    }
-
-    fn process(http_req: &Request, req: &ReqNewSshKeys) -> Result<RespNewSshKeys, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqNewSshKeys) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -140,7 +156,7 @@ impl RespNewSshKeys {
         let req_ext = match get_header_values(http_req) {
             Ok(h) => h,
             Err(e) => {
-                return Ok(Self::new_error("1", &e.to_string()))
+                return Ok(make_http_400(e.to_string()));
             }
         };
 
@@ -149,10 +165,10 @@ impl RespNewSshKeys {
         let allowed = [AuthzTypes::ClientOwn];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED client {} cannot create new keys in tenant {}.", 
+            let msg = format!("ERROR: NOT AUTHORIZED Credential mismatch for client {} in tenant {}.", 
                                       req_ext.client_id, req_ext.tenant);
             error!("{}", msg);
-            return Ok(Self::new_error("1", &msg)); 
+            return Ok(make_http_401(msg));
         }
 
         // ------------------------ Generate Keys ------------------------
@@ -215,7 +231,7 @@ impl RespNewSshKeys {
             keyinfo.key_type.clone(), req.client_user_id, req_ext.tenant, req.host, expires_at, remaining_uses);
 
         // Success! Zero key bits means a fixed key length.
-        Ok(Self::new("0", "success", 
+        Ok(make_http_201(Self::new("0", "success", 
                     keyinfo.private_key, 
                     keyinfo.public_key, 
                     keyinfo.public_key_fingerprint,
@@ -223,7 +239,7 @@ impl RespNewSshKeys {
                     keyinfo.key_bits.to_string(),
                     max_uses.to_string(),
     remaining_uses.to_string(),
-                    expires_at,))
+                    expires_at,)))
     }
 }
 

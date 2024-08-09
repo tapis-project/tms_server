@@ -1,10 +1,11 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object, };
+use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
 use futures::executor::block_on;
 
+use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::DELETE_PUBKEY;
 use crate::utils::tms_utils::{self, RequestDebug};
 use crate::utils::authz::{authorize, AuthzTypes};
@@ -29,7 +30,7 @@ pub struct ReqDeletePubkey
     public_key_fingerprint: String,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct RespDeletePubkey
 {
     result_code: String,
@@ -55,13 +56,39 @@ impl RequestDebug for ReqDeletePubkey {
     }
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 200)]
+    Http200(Json<RespDeletePubkey>),
+    #[oai(status = 401)]
+    Http401(Json<HttpResult>),
+    #[oai(status = 403)]
+    Http403(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_200(resp: RespDeletePubkey) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
+}
+fn make_http_401(msg: String) -> TmsResponse {
+    TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_403(msg: String) -> TmsResponse {
+    TmsResponse::Http403(Json(HttpResult::new(403.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
 impl DeletePubkeysApi {
     #[oai(path = "/tms/pubkeys", method = "delete")]
-    async fn delete_client(&self, http_req: &Request, req: Json<ReqDeletePubkey>) -> Json<RespDeletePubkey> {
+    async fn delete_client(&self, http_req: &Request, req: Json<ReqDeletePubkey>) -> TmsResponse {
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can access a client record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
@@ -69,7 +96,7 @@ impl DeletePubkeysApi {
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to delete public key {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
-            return Json(RespDeletePubkey::new("1", msg, 0));
+            return make_http_401(msg);
         }
 
         // Make sure the request parms conform to the header values used for authorization.
@@ -77,20 +104,19 @@ impl DeletePubkeysApi {
             let msg = format!("ERROR: NOT AUTHORIZED - Payload parameters ({}@{}) differ from those in the request header.", 
                                       req.client_id, req.tenant);
             error!("{}", msg);
-            return Json(RespDeletePubkey::new("1", msg, 0));
+            return make_http_403(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        let resp = match RespDeletePubkey::process(http_req, &req) {
+        match RespDeletePubkey::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespDeletePubkey::new("1", msg, 0)},
-        };
-
-        Json(resp)
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -103,7 +129,7 @@ impl RespDeletePubkey {
         Self {result_code: result_code.to_string(), result_msg, num_deleted}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqDeletePubkey) -> Result<RespDeletePubkey, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqDeletePubkey) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -116,7 +142,7 @@ impl RespDeletePubkey {
                                     req.public_key_fingerprint, req.host, req.client_id)}
             else {format!("Pubkey {} for host {} deleted", req.public_key_fingerprint, req.host)};
         info!("{}", msg);
-        Ok(RespDeletePubkey::new("0", msg, deletes as u32))
+        Ok(make_http_200(RespDeletePubkey::new("0", msg, deletes as u32)))
     }
 }
 

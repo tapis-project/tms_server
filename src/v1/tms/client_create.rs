@@ -1,10 +1,11 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object };
-use anyhow::{anyhow, Result};
+use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
+use anyhow::Result;
 use futures::executor::block_on;
 
+use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::INSERT_CLIENTS;
 use crate::utils::db_types::ClientInput; 
 use crate::utils::tms_utils::{self, create_hex_secret, hash_hex_secret, timestamp_utc, timestamp_utc_to_str, 
@@ -30,7 +31,7 @@ pub struct ReqCreateClient
     app_version: String,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct RespCreateClient
 {
     result_code: String,
@@ -57,22 +58,43 @@ impl RequestDebug for ReqCreateClient {
     }
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 201)]
+    Http201(Json<RespCreateClient>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_201(resp: RespCreateClient) -> TmsResponse {
+    TmsResponse::Http201(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
 impl CreateClientApi {
     #[oai(path = "/tms/client", method = "post")]
-    async fn create_client(&self, http_req: &Request, req: Json<ReqCreateClient>) -> Json<RespCreateClient> {
-        let resp = match RespCreateClient::process(http_req, &req) {
+    async fn create_client(&self, http_req: &Request, req: Json<ReqCreateClient>) -> TmsResponse {
+        match RespCreateClient::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
+                // Assume a server fault if a raw error came through.
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespCreateClient::new("1", msg.as_str(), req.client_id.clone(), "NO SECRET CREATED".to_string() )},
-        };
-
-        Json(resp)
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -90,7 +112,7 @@ impl RespCreateClient {
     }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqCreateClient) -> Result<RespCreateClient, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqCreateClient) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -101,7 +123,7 @@ impl RespCreateClient {
             Err(e) => {
                 let msg = format!("ERROR: Invalid app_version value ({}): {}", req.app_version, e);
                 error!("{}", msg);
-                return Err(anyhow!(msg));
+                return Ok(make_http_400(e.to_string()));
             }
         };
 
@@ -132,7 +154,7 @@ impl RespCreateClient {
               req.client_id, req.app_name, req.app_version, req.tenant);
         
         // Return the secret represented in hex.
-        Ok(Self::new("0", "success", req.client_id.clone(), client_secret_str))
+        Ok(make_http_201(Self::new("0", "success", req.client_id.clone(), client_secret_str)))
     }
 }
 
