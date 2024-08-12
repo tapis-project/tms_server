@@ -3,14 +3,15 @@
 use std::cmp::max;
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object, };
+use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::{anyhow, Result};
 use futures::executor::block_on;
 use sqlx::Row;
 
+use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{SELECT_PUBKEY_FOR_UPDATE, UPDATE_MAX_USES, UPDATE_EXPIRES_AT};
 use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, calc_expires_at};
-use crate::utils::authz::{authorize, AuthzTypes};
+use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -34,7 +35,7 @@ pub struct ReqUpdatePubkey
     ttl_minutes: Option<u32>,  // 0 disables usage
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct RespUpdatePubkey
 {
     result_code: String,
@@ -79,6 +80,41 @@ impl SelectForUpdateResult {
     }
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 200)]
+    Http200(Json<RespUpdatePubkey>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
+    #[oai(status = 401)]
+    Http401(Json<HttpResult>),
+    #[oai(status = 403)]
+    Http403(Json<HttpResult>),
+    #[oai(status = 404)]
+    Http404(Json<HttpResult>),
+   #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_200(resp: RespUpdatePubkey) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
+}
+fn make_http_401(msg: String) -> TmsResponse {
+    TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_403(msg: String) -> TmsResponse {
+    TmsResponse::Http403(Json(HttpResult::new(403.to_string(), msg)))
+}fn make_http_404(msg: String) -> TmsResponse {
+    TmsResponse::Http404(Json(HttpResult::new(404.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
@@ -86,7 +122,13 @@ impl SelectForUpdateResult {
 impl UpdatePubkeyApi {
     #[oai(path = "/tms/pubkeys", method = "patch")]
     async fn update_client(&self, http_req: &Request, req: Json<ReqUpdatePubkey>) 
-        -> Json<RespUpdatePubkey> {
+        -> TmsResponse {
+        // Check the required tenant header value.
+        match get_tenant_header(http_req) {
+            Ok(t) => t,
+            Err(e) => return make_http_400(e.to_string()),
+        };
+        
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
@@ -94,28 +136,27 @@ impl UpdatePubkeyApi {
         if !authz_result.is_authorized() {
             let msg = format!("ERROR NOT AUTHORIZED to update client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
-            return Json(RespUpdatePubkey::new("1", msg, 0));
+            return make_http_401(msg);
         }
 
         // Make sure the request parms conform to the header values used for authorization.
         if !authz_result.check_hdr_id(&req.client_id) || !authz_result.check_hdr_tenant(&req.tenant) {
-            let msg = format!("ERROR: NOT AUTHORIZED - Payload parameters ({}@{}) differ from those in the request header.", 
+            let msg = format!("ERROR: FORBIDDEN - Payload parameters ({}@{}) differ from those in the request header.", 
                                       req.client_id, req.tenant);
             error!("{}", msg);
-            return Json(RespUpdatePubkey::new("1", msg, 0));
+            return make_http_403(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        let resp = match RespUpdatePubkey::process(http_req, &req) {
+        match RespUpdatePubkey::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespUpdatePubkey::new("1", msg, 0)},
-        };
-
-        Json(resp)
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -128,22 +169,31 @@ impl RespUpdatePubkey {
         Self {result_code: result_code.to_string(), result_msg, fields_updated: num_updates}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqUpdatePubkey) -> Result<RespUpdatePubkey, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqUpdatePubkey) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Determine if any updates are required.
         if req.max_uses.is_none() && req.ttl_minutes.is_none() {
-            return Ok(RespUpdatePubkey::new("0", "No updates specified".to_string(), 0));
+            return Ok(make_http_200(RespUpdatePubkey::new("0", 
+                                    "No updates specified".to_string(), 0)));
         } 
 
         // Insert the new key record.
-        let updates = block_on(update_pubkey(req))?;
+        let updates = match block_on(update_pubkey(req)) {
+            Ok(u) => u,
+            Err(e) => {
+                // Determine if this is a real db error or just record not found.
+                let msg = e.to_string();
+                if msg.contains("NOT_FOUND") {return Ok(make_http_404(msg));} 
+                  else {return Err(e);}
+            },
+        };
         
         // Log result and return response.
         let msg = format!("{} update(s) to client {} completed", updates, req.client_id);
         info!("{}", msg);
-        Ok(RespUpdatePubkey::new("0", msg, updates as i32))
+        Ok(make_http_200(RespUpdatePubkey::new("0", msg, updates as i32)))
     }
 }
 
@@ -199,22 +249,22 @@ async fn update_pubkey(req: &ReqUpdatePubkey) -> Result<u64> {
         .fetch_optional(&mut *tx)
         .await?;
 
+    // Retrieve the current db values.
+    let select_result = match result {
+        Some(row) => {
+            SelectForUpdateResult::new(row.get(0), row.get(1))
+        },
+        None => {
+            return Err(anyhow!("NOT_FOUND"))
+        },
+    };
+
     // Update count.
     let mut updates: u64 = 0;
 
     // ------------------------------- max_uses ----------------------------
     // Conditionally update the max uses and remaining uses.
     if max_uses > -1 {
-        // Retrieve the current db values.
-        let select_result = match result {
-            Some(row) => {
-                SelectForUpdateResult::new(row.get(0), row.get(1))
-            },
-            None => {
-                return Err(anyhow!("NOT_FOUND"))
-            },
-        };
-
         // Calculate the new number of remaining uses to never be less than 0.
         let already_used = select_result.max_uses - select_result.remaining_uses;
         let remaining_uses = max(max_uses - already_used, 0);

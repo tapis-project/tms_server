@@ -1,7 +1,10 @@
 #![forbid(unsafe_code)]
 
-use poem_openapi::{  OpenApi, payload::Json, Object };
+use poem_openapi::{  OpenApi, payload::Json, Object, ApiResponse };
 use poem::Error;
+
+use crate::utils::errors::HttpResult;
+use log::error;
 
 // From cargo.toml.
 const TMS_VERSION: Option<&str> = option_env!("CARGO_PKG_VERSION");
@@ -11,7 +14,7 @@ const TMS_VERSION: Option<&str> = option_env!("CARGO_PKG_VERSION");
 // ***************************************************************************
 pub struct VersionApi;
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 struct RespVersion
 {
     result_code: String,
@@ -24,21 +27,37 @@ struct RespVersion
     rustc_version: String,
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 200)]
+    Http200(Json<RespVersion>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_200(resp: RespVersion) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
 impl VersionApi {
     #[oai(path = "/tms/version", method = "get")]
-    async fn get_version(&self) -> Json<RespVersion> {
-        let resp = match RespVersion::process() {
+    async fn get_version(&self) -> TmsResponse {
+        match RespVersion::process() {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
-                RespVersion::new("1", msg.as_str(), "", "", "", "", "", "",)},
-        };
-
-        Json(resp)
+                error!("{}", msg);
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -60,15 +79,15 @@ impl RespVersion {
         }
     }
 
-    fn process() -> Result<RespVersion, Error> {
-        Ok(Self::new("0", 
+    fn process() -> Result<TmsResponse, Error> {
+        Ok(make_http_200(Self::new("0", 
                     "success",
                     TMS_VERSION.unwrap_or("unknown"),
                     env!("GIT_BRANCH"),
                     env!("GIT_COMMIT_SHORT"),
                     env!("GIT_DIRTY"),
                     env!("SOURCE_TIMESTAMP"),
-                    env!("RUSTC_VERSION")),
+                    env!("RUSTC_VERSION"))),
         )
     }
 }

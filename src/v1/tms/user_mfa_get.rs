@@ -1,11 +1,12 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object, param::Path };
+use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::{Result, anyhow};
 use futures::executor::block_on;
 use sqlx::Row;
 
+use crate::utils::errors::HttpResult;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
 use crate::utils::db_statements::GET_USER_MFA;
 use crate::utils::tms_utils::{self, RequestDebug};
@@ -29,7 +30,7 @@ struct ReqGetUserMfa
     tenant: String,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct RespGetUserMfa
 {
     result_code: String,
@@ -57,19 +58,49 @@ impl RequestDebug for ReqGetUserMfa {
     }
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 200)]
+    Http200(Json<RespGetUserMfa>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
+    #[oai(status = 401)]
+    Http401(Json<HttpResult>),
+    #[oai(status = 404)]
+    Http404(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_200(resp: RespGetUserMfa) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
+}
+fn make_http_401(msg: String) -> TmsResponse {
+    TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_404(msg: String) -> TmsResponse {
+    TmsResponse::Http404(Json(HttpResult::new(404.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
 impl GetUserMfaApi {
     #[oai(path = "/tms/usermfa/:tms_user_id", method = "get")]
-    async fn get_client(&self, http_req: &Request, tms_user_id: Path<String>) -> Json<RespGetUserMfa> {
+    async fn get_client(&self, http_req: &Request, tms_user_id: Path<String>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
-            Err(e) => return Json(RespGetUserMfa::new("1", e.to_string(), 0, "".to_string(), 
-                                         tms_user_id.to_string(), "".to_string(), 0, "".to_string(), "".to_string())),
+            Err(e) => return make_http_400(e.to_string()),
         };
         
         // Package the request parameters.        
@@ -85,22 +116,19 @@ impl GetUserMfaApi {
             let msg = format!("ERROR: NOT AUTHORIZED to view mfa information for user {} in tenant {}", 
                                       req.tms_user_id, req.tenant);
             error!("{}", msg);
-            return Json(RespGetUserMfa::new("1", msg, 0, req.tenant.clone(), req.tms_user_id.clone(), "".to_string(),
-                                             0, "".to_string(), "".to_string()));
+            return make_http_401(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        let resp = match RespGetUserMfa::process(http_req, &req) {
+        match RespGetUserMfa::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespGetUserMfa::new("1", msg, 0, req.tenant.clone(), req.tms_user_id.clone(), "".to_string(),
-                                    0, "".to_string(), "".to_string())},
-        };
-
-        Json(resp)
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -118,15 +146,23 @@ impl RespGetUserMfa {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqGetUserMfa) -> Result<RespGetUserMfa, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqGetUserMfa) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
-        let u = block_on(get_user_mfa(req))?;
-        Ok(Self::new("0", "success".to_string(), u.id, u.tenant, 
-                     u.tms_user_id, u.expires_at, u.enabled, u.created, u.updated))
+        let db_result = block_on(get_user_mfa(req));
+        match db_result {
+            Ok(u) => Ok(make_http_200(Self::new("0", "success".to_string(), u.id, u.tenant, 
+                                        u.tms_user_id, u.expires_at, u.enabled, u.created, u.updated))),
+            Err(e) => {
+                // Determine if this is a real db error or just record not found.
+                let msg = e.to_string();
+                if msg.contains("NOT_FOUND") {Ok(make_http_404(msg))} 
+                  else {Err(e)}
+            }
+        }
     }
 }
 

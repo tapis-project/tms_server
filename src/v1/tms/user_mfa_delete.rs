@@ -1,10 +1,11 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object, param::Path };
+use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::Result;
 use futures::executor::block_on;
 
+use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::DELETE_USER_MFA;
 use crate::utils::tms_utils::{self, RequestDebug};
 use crate::utils::authz::{authorize, get_tenant_header, AuthzTypes};
@@ -27,7 +28,7 @@ pub struct ReqDeleteUserMfa
     tenant: String,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct RespDeleteUserMfa
 {
     result_code: String,
@@ -49,18 +50,44 @@ impl RequestDebug for ReqDeleteUserMfa {
     }
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 200)]
+    Http200(Json<RespDeleteUserMfa>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
+    #[oai(status = 401)]
+    Http401(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_200(resp: RespDeleteUserMfa) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
+}
+fn make_http_401(msg: String) -> TmsResponse {
+    TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
 impl DeleteUserMfaApi {
     #[oai(path = "/tms/usermfa/:tms_user_id", method = "delete")]
-    async fn delete_client(&self, http_req: &Request, tms_user_id: Path<String>) -> Json<RespDeleteUserMfa> {
+    async fn delete_client(&self, http_req: &Request, tms_user_id: Path<String>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
-            Err(e) => return Json(RespDeleteUserMfa::new("1", e.to_string(), 0)),
+            Err(e) => return make_http_400(e.to_string()),
         };
         
         // Package the request parameters.
@@ -75,20 +102,19 @@ impl DeleteUserMfaApi {
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to delete MFA for user {} in tenant {}.", req.tms_user_id, req.tenant);
             error!("{}", msg);
-            return Json(RespDeleteUserMfa::new("1", msg, 0));
+            return make_http_401(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        let resp = match RespDeleteUserMfa::process(http_req, &req) {
+        match RespDeleteUserMfa::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespDeleteUserMfa::new("1", msg, 0)},
-        };
-
-        Json(resp)
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -101,7 +127,7 @@ impl RespDeleteUserMfa {
         Self {result_code: result_code.to_string(), result_msg, num_deleted}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqDeleteUserMfa) -> Result<RespDeleteUserMfa, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqDeleteUserMfa) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -113,7 +139,7 @@ impl RespDeleteUserMfa {
             if deletes < 1 {format!("MFA user {} NOT FOUND - Nothing deleted", req.tms_user_id)}
             else {format!("MFA user {} deleted", req.tms_user_id)};
         info!("{}", msg);
-        Ok(RespDeleteUserMfa::new("0", msg, deletes as u32))
+        Ok(make_http_200(RespDeleteUserMfa::new("0", msg, deletes as u32)))
     }
 }
 

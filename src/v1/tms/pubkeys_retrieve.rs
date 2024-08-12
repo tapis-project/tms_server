@@ -1,14 +1,16 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{  OpenApi, payload::Json, Object };
-use anyhow::Result;
+use poem_openapi::{  OpenApi, payload::Json, Object, ApiResponse };
+use anyhow::{anyhow, Result};
 use futures::executor::block_on;
 use sqlx::Row;
 
+use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::SELECT_PUBKEY;
 use crate::utils::db_types::PubkeyRetrieval;
 use crate::utils::{tms_utils, tms_utils::RequestDebug};
+use log::error;
 use crate::RUNTIME_CTX;
 
 // ***************************************************************************
@@ -26,7 +28,7 @@ struct ReqPublicKey
     key_type: Option<String>,       // RSA, ECDSA, ED25519
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 struct RespPublicKey
 {
     result_code: String,
@@ -63,21 +65,42 @@ impl RequestDebug for ReqPublicKey {
     }
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 200)]
+    Http200(Json<RespPublicKey>),
+    #[oai(status = 404)]
+    Http404(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_200(resp: RespPublicKey) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
+}
+fn make_http_404(msg: String) -> TmsResponse {
+    TmsResponse::Http404(Json(HttpResult::new(404.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
 impl PublicKeyApi {
     #[oai(path = "/tms/pubkeys/creds/retrieve", method = "post")]
-    async fn get_public_key(&self, http_req: &Request, req: Json<ReqPublicKey>) -> Json<RespPublicKey> {
-        let resp = match RespPublicKey::process(http_req, &req) {
+    async fn get_public_key(&self, http_req: &Request, req: Json<ReqPublicKey>) -> TmsResponse {
+        match RespPublicKey::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
-                RespPublicKey::new("1", msg.as_str(), "")},
-        };
-
-        Json(resp)
+                error!("{}", msg);
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -91,16 +114,22 @@ impl RespPublicKey {
               public_key: key.to_string()}
     }
 
-    fn process(http_req: &Request, req: &ReqPublicKey) -> Result<RespPublicKey> {
+    fn process(http_req: &Request, req: &ReqPublicKey) -> Result<TmsResponse> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Look for the key in the database.
-        let result = block_on(get_public_key(req))?;
-        if "NOT_FOUND" == result.public_key {
-            Ok(Self::new("1", "NOT_FOUND", ""))
-        } else {
-            Ok(Self::new("0", "success", result.public_key.as_str()))
+        let db_result = block_on(get_public_key(req));
+        match db_result {
+            Ok(result) => {
+                Ok(make_http_200(Self::new("0", "success", result.public_key.as_str())))
+            },
+            Err(e) => {
+                // Determine if this is a real db error or just record not found.
+                let msg = e.to_string();
+                if msg.contains("NOT_FOUND") {Ok(make_http_404(msg))} 
+                  else {Err(e)}
+            },
         }
     }
 }
@@ -134,7 +163,7 @@ async fn get_public_key(req: &ReqPublicKey) -> Result<PubkeyRetrieval> {
             Ok(PubkeyRetrieval::new(row.get(0), row.get(1), row.get(2)))
         },
         None => {
-            Ok(PubkeyRetrieval::new("NOT_FOUND".to_string(), 0, "".to_string()))
+            Err(anyhow!("NOT_FOUND"))
         },
     }
 }

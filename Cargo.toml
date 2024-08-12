@@ -40,3 +40,7 @@ uuid = { version = "1.8", features = ["v4", "serde"] }
 
 [build-dependencies]
 build-data = "0.1.5"
+
+[lints.clippy]
+# Allow the TmsResponse enum in pubkeys_retrieve.rs to avoid warnings.
+large_enum_variant = "allow"

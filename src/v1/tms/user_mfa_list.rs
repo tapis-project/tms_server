@@ -1,10 +1,12 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object };
+use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
 use futures::executor::block_on;
 use sqlx::Row;
+
+use crate::utils::errors::HttpResult;
 
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
 use crate::utils::db_statements::LIST_USER_MFA;
@@ -27,7 +29,7 @@ struct ReqListUserMfa
     tenant: String,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct RespListUserMfa
 {
     result_code: String,
@@ -36,7 +38,7 @@ pub struct RespListUserMfa
     users: Vec<UserMfaListElement>,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct UserMfaListElement
 {
     id: i32,
@@ -60,18 +62,44 @@ impl RequestDebug for ReqListUserMfa {
     }
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 200)]
+    Http200(Json<RespListUserMfa>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
+    #[oai(status = 401)]
+    Http401(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_200(resp: RespListUserMfa) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
+}
+fn make_http_401(msg: String) -> TmsResponse {
+    TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
 impl ListUserMfaApi {
     #[oai(path = "/tms/usermfa/list", method = "get")]
-    async fn get_client(&self, http_req: &Request) -> Json<RespListUserMfa> {
+    async fn get_client(&self, http_req: &Request) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
-            Err(e) => return Json(RespListUserMfa::new("1", e.to_string(), 0, vec!())),
+            Err(e) => return make_http_400(e.to_string()),
         };
         
         // Package the request parameters.        
@@ -84,20 +112,19 @@ impl ListUserMfaApi {
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to list user MFA information in tenant {}.", req.tenant);
             error!("{}", msg);
-            return Json(RespListUserMfa::new("1", msg, 0, vec!()));
+            return make_http_401(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        let resp = match RespListUserMfa::process(http_req, &req) {
+        match RespListUserMfa::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespListUserMfa::new("1", msg, 0, vec!())},
-        };
-
-        Json(resp)
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -122,14 +149,15 @@ impl RespListUserMfa {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqListUserMfa) -> Result<RespListUserMfa, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqListUserMfa) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
         let clients = block_on(list_mfa_users(req))?;
-        Ok(Self::new("0", "success".to_string(), clients.len() as i32, clients))
+        Ok(make_http_200(Self::new("0", "success".to_string(), 
+                                        clients.len() as i32, clients)))
     }
 }
 

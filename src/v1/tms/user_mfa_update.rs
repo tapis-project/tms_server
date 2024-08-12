@@ -1,10 +1,11 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, param::Query };
+use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, param::Query, ApiResponse };
 use anyhow::Result;
 use futures::executor::block_on;
 
+use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::UPDATE_USER_MFA_ENABLED;
 use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str};
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
@@ -28,7 +29,7 @@ pub struct ReqUpdateUserMfa
     enabled: bool,
 }
 
-#[derive(Object)]
+#[derive(Object, Debug)]
 pub struct RespUpdateUserMfa
 {
     result_code: String,
@@ -55,18 +56,44 @@ impl RequestDebug for ReqUpdateUserMfa {
     }
 }
 
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 200)]
+    Http200(Json<RespUpdateUserMfa>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
+    #[oai(status = 401)]
+    Http401(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_200(resp: RespUpdateUserMfa) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
+}
+fn make_http_401(msg: String) -> TmsResponse {
+    TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
 // ***************************************************************************
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
 impl UpdateUserMfaApi {
     #[oai(path = "/tms/usermfa/:tms_user_id", method = "patch")]
-async fn update_client(&self, http_req: &Request, tms_user_id: Path<String>, enabled: Query<bool>) -> Json<RespUpdateUserMfa> {
+async fn update_client(&self, http_req: &Request, tms_user_id: Path<String>, enabled: Query<bool>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
             Ok(t) => t,
-            Err(e) => return Json(RespUpdateUserMfa::new("1", e.to_string(), 0)),
+            Err(e) => return make_http_400(e.to_string()),
         };
 
         // Package the request parameters.        
@@ -82,20 +109,19 @@ async fn update_client(&self, http_req: &Request, tms_user_id: Path<String>, ena
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to update MFA for user {} in tenant {}.", req.tms_user_id, req.tenant);
             error!("{}", msg);
-            return Json(RespUpdateUserMfa::new("1", msg, 0));
+            return make_http_401(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        let resp = match RespUpdateUserMfa::process(http_req, &req) {
+        match RespUpdateUserMfa::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
                 error!("{}", msg);
-                RespUpdateUserMfa::new("1", msg, 0)},
-        };
-
-        Json(resp)
+                make_http_500(msg)
+            }
+        }
     }
 }
 
@@ -108,7 +134,7 @@ impl RespUpdateUserMfa {
         Self {result_code: result_code.to_string(), result_msg, fields_updated: num_updates}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqUpdateUserMfa) -> Result<RespUpdateUserMfa, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqUpdateUserMfa) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -118,7 +144,7 @@ impl RespUpdateUserMfa {
         // Log result and return response.
         let msg = format!("{} update(s) to tms_user_id {} completed", updates, req.tms_user_id);
         info!("{}", msg);
-        Ok(RespUpdateUserMfa::new("0", msg, updates as i32))
+        Ok(make_http_200(RespUpdateUserMfa::new("0", msg, updates as i32)))
     }
 }
 
