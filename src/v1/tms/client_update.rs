@@ -96,7 +96,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 // ***************************************************************************
 #[OpenApi]
 impl UpdateClientApi {
-    #[oai(path = "/tms/client/:client_id", method = "patch")]
+    #[oai(path = "/tms/client/upd/:client_id", method = "patch")]
     async fn update_client(&self, http_req: &Request, client_id: Path<String>, 
                            app_version: Query<Option<String>>, enabled: Query<Option<bool>>) 
             -> TmsResponse {

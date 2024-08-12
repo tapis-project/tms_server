@@ -86,7 +86,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 // ***************************************************************************
 #[OpenApi]
 impl DeleteClientApi {
-    #[oai(path = "/tms/client/:client_id", method = "delete")]
+    #[oai(path = "/tms/client/del/:client_id", method = "delete")]
     async fn delete_client(&self, http_req: &Request, client_id: Path<String>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.

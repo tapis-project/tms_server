@@ -87,7 +87,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 // ***************************************************************************
 #[OpenApi]
 impl DeletePubkeysApi {
-    #[oai(path = "/tms/pubkeys", method = "delete")]
+    #[oai(path = "/tms/pubkeys/del", method = "delete")]
     async fn delete_client(&self, http_req: &Request, req: Json<ReqDeletePubkey>) -> TmsResponse {
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can access a client record.
