@@ -20,5 +20,7 @@ echo docker build -t ${TAG} -f deployment/Dockerfile_cargo .
 docker build -t ${TAG} -f deployment/Dockerfile_cargo .
 
 # Publish image
-# docker push ${TAG}
+echo "=================================="
+echo "To push: docker push ${TAG}"
+echo "=================================="
 cd $RUN_DIR
