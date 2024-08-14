@@ -48,13 +48,6 @@ RUN chown -R tms:tms /home/tms/test
 # Become the user we will run as
 USER tms
 
-# Initial TMS setup done by running with --install option
-RUN /opt/tms/tms_server --install > /home/tms/tms_init_log
-
-RUN mv /home/tms/tms_init_log /home/tms/.tms/init_log
-RUN chmod 400 /home/tms/.tms/init_log
-
-
 # Switch to directory where the server is installed
 WORKDIR /opt/tms
 
