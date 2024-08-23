@@ -4,60 +4,54 @@ use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
 use futures::executor::block_on;
-use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
-
-use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
-use crate::utils::db_statements::LIST_USER_MFA;
+use crate::utils::db_statements::DELETE_USER_HOST;
 use crate::utils::tms_utils::{self, RequestDebug};
-use log::error;
+use crate::utils::authz::{authorize, get_tenant_header, AuthzTypes, X_TMS_TENANT};
+use log::{error, info};
 
 use crate::RUNTIME_CTX;
 
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
-pub struct ListUserMfaApi;
+pub struct DeleteUserHostsApi;
 
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
 #[derive(Object)]
-struct ReqListUserMfa
+pub struct ReqDeleteUserHosts
 {
+    tms_user_id: String,
     tenant: String,
+    host: String,
+    host_account: String,
 }
 
 #[derive(Object, Debug)]
-pub struct RespListUserMfa
+pub struct RespDeleteUserHosts
 {
     result_code: String,
     result_msg: String,
-    num_users: i32,
-    users: Vec<UserMfaListElement>,
-}
-
-#[derive(Object, Debug)]
-pub struct UserMfaListElement
-{
-    id: i32,
-    tenant: String,
-    tms_user_id: String,
-    expires_at: String,
-    enabled: i32,
-    created: String,
-    updated: String,
+    num_deleted: u32,
 }
 
 // Implement the debug record trait for logging.
-impl RequestDebug for ReqListUserMfa {   
-    type Req = ReqListUserMfa;
+impl RequestDebug for ReqDeleteUserHosts {   
+    type Req = ReqDeleteUserHosts;
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
+        s.push_str("\n    tms_user_id: ");
+        s.push_str(&self.tms_user_id);
         s.push_str("\n    tenant: ");
         s.push_str(&self.tenant);
+        s.push_str("\n    host: ");
+        s.push_str(&self.host);
+        s.push_str("\n    host_account: ");
+        s.push_str(&self.host_account);
         s
     }
 }
@@ -66,16 +60,18 @@ impl RequestDebug for ReqListUserMfa {
 #[derive(Debug, ApiResponse)]
 enum TmsResponse {
     #[oai(status = 200)]
-    Http200(Json<RespListUserMfa>),
+    Http200(Json<RespDeleteUserHosts>),
     #[oai(status = 400)]
     Http400(Json<HttpResult>),
     #[oai(status = 401)]
     Http401(Json<HttpResult>),
+    #[oai(status = 403)]
+    Http403(Json<HttpResult>),
     #[oai(status = 500)]
     Http500(Json<HttpResult>),
 }
 
-fn make_http_200(resp: RespListUserMfa) -> TmsResponse {
+fn make_http_200(resp: RespDeleteUserHosts) -> TmsResponse {
     TmsResponse::Http200(Json(resp))
 }
 fn make_http_400(msg: String) -> TmsResponse {
@@ -83,6 +79,9 @@ fn make_http_400(msg: String) -> TmsResponse {
 }
 fn make_http_401(msg: String) -> TmsResponse {
     TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_403(msg: String) -> TmsResponse {
+    TmsResponse::Http403(Json(HttpResult::new(403.to_string(), msg)))
 }
 fn make_http_500(msg: String) -> TmsResponse {
     TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
@@ -92,9 +91,9 @@ fn make_http_500(msg: String) -> TmsResponse {
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
-impl ListUserMfaApi {
-    #[oai(path = "/tms/usermfa/list", method = "get")]
-    async fn get_users(&self, http_req: &Request) -> TmsResponse {
+impl DeleteUserHostsApi {
+    #[oai(path = "/tms/userhosts/del", method = "delete")]
+    async fn delete_client(&self, http_req: &Request, req: Json<ReqDeleteUserHosts>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
@@ -102,22 +101,30 @@ impl ListUserMfaApi {
             Err(e) => return make_http_400(e.to_string()),
         };
         
-        // Package the request parameters.        
-        let req = ReqListUserMfa {tenant: hdr_tenant};
-        
+        // Check that the tenant specified in the header is the same as the one in the request body.
+        if hdr_tenant != req.tenant {
+            let msg = format!("ERROR: FORBIDDEN - The tenant in the {} header ({}) does not match the tenant in the request body ({})", 
+                                      X_TMS_TENANT, hdr_tenant, req.tenant);
+            error!("{}", msg);
+            return make_http_403(msg);  
+        }
+    
         // -------------------- Authorize ----------------------------
-        // Only the tenant admin can query user records.
+        // Currently, only the tenant admin can create a user hosts record.
+        // When user authentication is implemented, we'll add user-own 
+        // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to list user MFA information in tenant {}.", req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to delete host {} for user {} in tenant {}.", 
+                                      req.host, req.tms_user_id, req.tenant);
             error!("{}", msg);
             return make_http_401(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespListUserMfa::process(http_req, &req) {
+        match RespDeleteUserHosts::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -131,32 +138,25 @@ impl ListUserMfaApi {
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-impl UserMfaListElement {
-    /// Create response elements.
-    #[allow(clippy::too_many_arguments)]
-    fn new(id: i32, tenant: String, tms_user_id: String, expires_at: String, 
-           enabled: i32, created: String, updated: String) -> Self {
-        Self {id, tenant, tms_user_id, expires_at, enabled, created, updated}
-    }
-}
-
-impl RespListUserMfa {
+impl RespDeleteUserHosts {
     /// Create a new response.
-    #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: String, num_users: i32, users: Vec<UserMfaListElement>) 
-    -> Self {
-        Self {result_code: result_code.to_string(), result_msg, num_users, users}
-        }
+    fn new(result_code: &str, result_msg: String, num_deleted: u32) -> Self {
+        Self {result_code: result_code.to_string(), result_msg, num_deleted}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqListUserMfa) -> Result<TmsResponse, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqDeleteUserHosts) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
-        // Search for the tenant/users in the database.  
-        let users = block_on(list_mfa_users(req))?;
-        Ok(make_http_200(Self::new("0", "success".to_string(), 
-                                        users.len() as i32, users)))
+        // Insert the new key record.
+        let deletes = block_on(delete_user_host(req))?;
+        
+        // Log result and return response.
+        let msg = 
+            if deletes < 1 {format!("Host {} NOT FOUND for user {} - Nothing deleted", req.host, req.tms_user_id)}
+            else {format!("User host {} deleted for user {}", req.host, req.tms_user_id)};
+        info!("{}", msg);
+        Ok(make_http_200(RespDeleteUserHosts::new("0", msg, deletes as u32)))
     }
 }
 
@@ -164,32 +164,28 @@ impl RespListUserMfa {
 //                          Private Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// list_mfa_users:
+// delete_client:
 // ---------------------------------------------------------------------------
-async fn list_mfa_users(req: &ReqListUserMfa) -> Result<Vec<UserMfaListElement>> {
+async fn delete_user_host(req: &ReqDeleteUserHosts) -> Result<u64> {
     // Get a connection to the db and start a transaction.  Uncommited transactions 
     // are automatically rolled back when they go out of scope. 
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
-    
-    // Create the select statement.
-    let rows = sqlx::query(LIST_USER_MFA)
-        .bind(req.tenant.clone())
-        .fetch_all(&mut *tx)
+
+    // Deletion count.
+    let mut deletes: u64 = 0;
+
+    // Issue the db delete call.
+    let result = sqlx::query(DELETE_USER_HOST)
+        .bind(&req.tms_user_id)
+        .bind(&req.tenant)
+        .bind(&req.host)
+        .bind(&req.host_account)
+        .execute(&mut *tx)
         .await?;
+    deletes += result.rows_affected();
 
     // Commit the transaction.
     tx.commit().await?;
-
-    // Collect the row data into element objects.
-    let mut element_list: Vec<UserMfaListElement> = vec!();
-    for row in rows {
-        let elem = UserMfaListElement::new(
-                 row.get(0), row.get(1), row.get(2), 
-        row.get(3), row.get(4), row.get(5), 
-            row.get(6));
-        element_list.push(elem);
-    }
-
-    Ok(element_list)
+    Ok(deletes)
 }

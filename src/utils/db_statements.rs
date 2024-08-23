@@ -70,13 +70,27 @@ pub const DELETE_USER_MFA: &str = concat!(
 // Secret elided.
 pub const LIST_USER_MFA: &str = concat!(
     "SELECT id, tenant, tms_user_id, expires_at, enabled, created, updated ",
-    "FROM user_mfa WHERE tenant = ? ORDER BY tms_user_id",
+    "FROM user_mfa WHERE tenant = ? ORDER BY tenant, tms_user_id",
 );
 
 // ========================= user_hosts table =======================
 pub const INSERT_USER_HOSTS: &str = concat!(
     "INSERT INTO user_hosts (tenant, tms_user_id, host, host_account, expires_at, created, updated) ",
     "VALUES (?, ?, ?, ?, ?, ?, ?)",
+);
+
+pub const GET_USER_HOST: &str = concat!(
+    "SELECT id, tenant, tms_user_id, host, host_account, expires_at, created, updated ",
+    "FROM user_hosts WHERE id = ? AND tenant = ?"
+);
+
+pub const DELETE_USER_HOST: &str = concat!(
+    "DELETE FROM user_hosts WHERE tms_user_id = ? AND tenant = ? AND host = ? AND host_account = ?"
+);
+
+pub const LIST_USER_HOSTS: &str = concat!(
+    "SELECT id, tenant, tms_user_id, host, host_account, expires_at, created, updated ",
+    "FROM user_hosts WHERE tenant = ? ORDER BY tenant, tms_user_id",
 );
 
 // ========================= user_delegations table =================

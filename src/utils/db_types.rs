@@ -250,3 +250,67 @@ impl UserMfaInput {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// user_host:
+// ---------------------------------------------------------------------------
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct UserHost {
+    pub id: i32,
+    pub tenant: String,
+    pub tms_user_id: String,
+    pub host: String,
+    pub host_account: String,
+    pub expires_at: String,
+    pub created: String,
+    pub updated: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UserHostInput {
+    pub tenant: String,
+    pub tms_user_id: String,
+    pub host: String,
+    pub host_account: String,
+    pub expires_at: String,
+    pub created: String,
+    pub updated: String,
+}
+
+impl UserHost {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    pub fn new(
+        id: i32,
+        tenant: String,
+        tms_user_id: String,
+        host: String,
+        host_account: String,
+        expires_at: String,
+        created: String,
+        updated: String,
+    ) 
+    -> UserHost {
+        UserHost {
+            id, tenant, tms_user_id, host, host_account, expires_at, created, updated
+        }
+    }
+}
+
+impl UserHostInput {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    pub fn new(
+        tenant: String,
+        tms_user_id: String,
+        host: String,
+        host_account: String,
+        expires_at: String,
+        created: String,
+        updated: String,
+    ) 
+    -> UserHostInput {
+        UserHostInput {
+            tenant, tms_user_id, host, host_account, expires_at, created, updated
+        }
+    }
+}

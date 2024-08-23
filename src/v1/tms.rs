@@ -16,3 +16,7 @@ pub mod pubkeys_get;
 pub mod pubkeys_list;
 pub mod pubkeys_delete;
 pub mod pubkeys_update;
+pub mod user_hosts_create;
+pub mod user_hosts_get;
+pub mod user_hosts_list;
+pub mod user_hosts_delete;
