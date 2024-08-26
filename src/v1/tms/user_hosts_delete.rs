@@ -154,7 +154,7 @@ impl RespDeleteUserHosts {
         // Log result and return response.
         let msg = 
             if deletes < 1 {format!("Host {} NOT FOUND for user {} - Nothing deleted", req.host, req.tms_user_id)}
-            else {format!("User host {} deleted for user {}", req.host, req.tms_user_id)};
+            else {format!("User host {} deleted for user {} and account {}", req.host, req.tms_user_id, req.host_account)};
         info!("{}", msg);
         Ok(make_http_200(RespDeleteUserHosts::new("0", msg, deletes as u32)))
     }
