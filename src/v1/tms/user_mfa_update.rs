@@ -1,14 +1,14 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, param::Query, ApiResponse };
+use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
 use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::UPDATE_USER_MFA_ENABLED;
 use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str};
-use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
+use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -65,6 +65,8 @@ enum TmsResponse {
     Http400(Json<HttpResult>),
     #[oai(status = 401)]
     Http401(Json<HttpResult>),
+    #[oai(status = 403)]
+    Http403(Json<HttpResult>),
     #[oai(status = 500)]
     Http500(Json<HttpResult>),
 }
@@ -78,6 +80,9 @@ fn make_http_400(msg: String) -> TmsResponse {
 fn make_http_401(msg: String) -> TmsResponse {
     TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
 }
+fn make_http_403(msg: String) -> TmsResponse {
+    TmsResponse::Http403(Json(HttpResult::new(403.to_string(), msg)))
+}
 fn make_http_500(msg: String) -> TmsResponse {
     TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
 }
@@ -87,8 +92,8 @@ fn make_http_500(msg: String) -> TmsResponse {
 // ***************************************************************************
 #[OpenApi]
 impl UpdateUserMfaApi {
-    #[oai(path = "/tms/usermfa/:tms_user_id", method = "patch")]
-async fn update_client(&self, http_req: &Request, tms_user_id: Path<String>, enabled: Query<bool>) -> TmsResponse {
+    #[oai(path = "/tms/usermfa/upd", method = "patch")]
+async fn update_user_mfa(&self, http_req: &Request, req: Json<ReqUpdateUserMfa>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
@@ -96,9 +101,13 @@ async fn update_client(&self, http_req: &Request, tms_user_id: Path<String>, ena
             Err(e) => return make_http_400(e.to_string()),
         };
 
-        // Package the request parameters.        
-        let req = 
-            ReqUpdateUserMfa {tms_user_id: tms_user_id.to_string(), tenant: hdr_tenant, enabled: *enabled};
+        // Check that the tenant specified in the header is the same as the one in the request body.
+        if hdr_tenant != req.tenant {
+            let msg = format!("ERROR: FORBIDDEN - The tenant in the {} header ({}) does not match the tenant in the request body ({})", 
+                                      X_TMS_TENANT, hdr_tenant, req.tenant);
+            error!("{}", msg);
+            return make_http_403(msg);  
+        }
 
         // -------------------- Authorize ----------------------------
         // Currently, only the tenant admin can create a user mfa record.
@@ -139,7 +148,7 @@ impl RespUpdateUserMfa {
         tms_utils::debug_request(http_req, req);
 
         // Insert the new key record.
-        let updates = block_on(update_client(req))?;
+        let updates = block_on(update_user_mfa(req))?;
         
         // Log result and return response.
         let msg = format!("{} update(s) to tms_user_id {} completed", updates, req.tms_user_id);
@@ -152,9 +161,9 @@ impl RespUpdateUserMfa {
 //                          Private Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// update_client:
+// update_user_mfa:
 // ---------------------------------------------------------------------------
-async fn update_client(req: &ReqUpdateUserMfa) -> Result<u64> {
+async fn update_user_mfa(req: &ReqUpdateUserMfa) -> Result<u64> {
     // Get timestamp.
     let now = timestamp_utc();
     let current_ts = timestamp_utc_to_str(now);

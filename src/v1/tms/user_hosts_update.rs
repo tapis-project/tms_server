@@ -6,10 +6,9 @@ use anyhow::Result;
 use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
-use crate::utils::db_statements::INSERT_USER_HOSTS;
-use crate::utils::db_types::UserHostInput;
-use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT}; 
-use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug};
+use crate::utils::db_statements::UPDATE_USER_HOST_EXPIRY;
+use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, calc_expires_at};
+use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -17,47 +16,45 @@ use crate::RUNTIME_CTX;
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
-pub struct CreateUserHostsApi;
+pub struct UpdateUserHostsApi;
 
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
 #[derive(Object)]
-pub struct ReqCreateUserHosts
+pub struct ReqUpdateUserHosts
 {
-    tenant: String,
     tms_user_id: String,
+    tenant: String,
     host: String,
     host_account: String,
     ttl_minutes: i32,  // negative means i32::MAX
 }
 
 #[derive(Object, Debug)]
-pub struct RespCreateUserHosts
+pub struct RespUpdateUserHosts
 {
     result_code: String,
     result_msg: String,
-    tms_user_id: String,
-    host: String,
-    host_account: String,
+    fields_updated: i32,
     expires_at: String,
 }
 
 // Implement the debug record trait for logging.
-impl RequestDebug for ReqCreateUserHosts {   
-    type Req = ReqCreateUserHosts;
+impl RequestDebug for ReqUpdateUserHosts {   
+    type Req = ReqUpdateUserHosts;
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
-        s.push_str("\n    tenant: ");
-        s.push_str(&self.tenant);
         s.push_str("\n    tms_user_id: ");
         s.push_str(&self.tms_user_id);
+        s.push_str("\n    tenant: ");
+        s.push_str(&self.tenant);
         s.push_str("\n    host: ");
         s.push_str(&self.host);
         s.push_str("\n    host_account: ");
         s.push_str(&self.host_account);
-        s.push_str("\n    tts_minutes: ");
+        s.push_str("\n    ttl_minutes: ");
         s.push_str(&self.ttl_minutes.to_string());
         s
     }
@@ -66,8 +63,8 @@ impl RequestDebug for ReqCreateUserHosts {
 // ------------------- HTTP Status Codes -------------------
 #[derive(Debug, ApiResponse)]
 enum TmsResponse {
-    #[oai(status = 201)]
-    Http201(Json<RespCreateUserHosts>),
+    #[oai(status = 200)]
+    Http200(Json<RespUpdateUserHosts>),
     #[oai(status = 400)]
     Http400(Json<HttpResult>),
     #[oai(status = 401)]
@@ -78,8 +75,8 @@ enum TmsResponse {
     Http500(Json<HttpResult>),
 }
 
-fn make_http_201(resp: RespCreateUserHosts) -> TmsResponse {
-    TmsResponse::Http201(Json(resp))
+fn make_http_200(resp: RespUpdateUserHosts) -> TmsResponse {
+    TmsResponse::Http200(Json(resp))
 }
 fn make_http_400(msg: String) -> TmsResponse {
     TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
@@ -98,9 +95,9 @@ fn make_http_500(msg: String) -> TmsResponse {
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
-impl CreateUserHostsApi {
-    #[oai(path = "/tms/userhosts", method = "post")]
-    async fn create_client(&self, http_req: &Request, req: Json<ReqCreateUserHosts>) -> TmsResponse {
+impl UpdateUserHostsApi {
+    #[oai(path = "/tms/userhosts/upd", method = "patch")]
+async fn update_client(&self, http_req: &Request, req: Json<ReqUpdateUserHosts>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
@@ -115,21 +112,22 @@ impl CreateUserHostsApi {
             error!("{}", msg);
             return make_http_403(msg);  
         }
-
+    
         // -------------------- Authorize ----------------------------
-        // Currently, only the tenant admin can create a user host record.
+        // Currently, only the tenant admin can create a user hosts record.
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to add a user host record in tenant {}.", req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to update host for user {} in tenant {}.", req.tms_user_id, req.tenant);
             error!("{}", msg);
             return make_http_401(msg);
         }
 
         // -------------------- Process Request ----------------------
-        match RespCreateUserHosts::process(http_req, &req) {
+        // Process the request.
+        match RespUpdateUserHosts::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -143,47 +141,23 @@ impl CreateUserHostsApi {
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-impl RespCreateUserHosts {
+impl RespUpdateUserHosts {
     /// Create a new response.
-    fn new(result_code: &str, result_msg: String, tms_user_id: String, host: String, 
-           host_account: String, expires_at: String,) -> Self {
-        Self {result_code: result_code.to_string(), result_msg, tms_user_id, host, host_account, expires_at,}}
+    fn new(result_code: &str, result_msg: String, num_updates: i32, expires_at: String) -> Self {
+        Self {result_code: result_code.to_string(), result_msg, fields_updated: num_updates, expires_at}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqCreateUserHosts) -> Result<TmsResponse, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqUpdateUserHosts) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
-        // ------------------------ Time Values ------------------------ 
-        // The ttl can be negative, which means maximum ttl.
-        let ttl_minutes = if req.ttl_minutes < 0 {i32::MAX} else {req.ttl_minutes};
-
-        // Use the same current UTC timestamp in all related time caculations..
-        let now = timestamp_utc();
-        let current_ts = timestamp_utc_to_str(now);
-        let expires_at = calc_expires_at(now, ttl_minutes);
-
-        // Create the input record.  Note that we save the hash of
-        // the hex secret, but never the secret itself.  
-        let input_record = UserHostInput::new(
-            req.tenant.clone(),
-            req.tms_user_id.clone(),
-            req.host.clone(),
-            req.host_account.clone(),
-            expires_at.clone(),
-            current_ts.clone(), 
-            current_ts,
-        );
-
         // Insert the new key record.
-        block_on(insert_new_client(input_record))?;
-        info!("Host mapping for user '{}' created in tenant '{}' with experation at {}.", 
-              req.tms_user_id, req.tenant, expires_at.clone());
+        let (updates, expires_at) = block_on(update_user_host(req))?;
         
-        // Return the secret represented in hex.
-        Ok(make_http_201(Self::new("0", "success".to_string(), 
-                            req.tms_user_id.clone(), req.host.clone(), 
-                            req.host_account.clone(), expires_at,)))
+        // Log result and return response.
+        let msg = format!("{} update(s) to tms_user_id {} completed", updates, req.tms_user_id);
+        info!("{}", msg);
+        Ok(make_http_200(RespUpdateUserHosts::new("0", msg, updates as i32, expires_at)))
     }
 }
 
@@ -191,28 +165,36 @@ impl RespCreateUserHosts {
 //                          Private Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// insert_new_client:
+// update_user_host:
 // ---------------------------------------------------------------------------
-async fn insert_new_client(rec: UserHostInput) -> Result<u64> {
+async fn update_user_host(req: &ReqUpdateUserHosts) -> Result<(u64, String)> {
+    // Get timestamp.
+    let now = timestamp_utc();
+    let current_ts = timestamp_utc_to_str(now);
+    let ttl_minutes = if req.ttl_minutes < 0 {i32::MAX} else {req.ttl_minutes};
+    let expires_at = calc_expires_at(now, ttl_minutes);
+
     // Get a connection to the db and start a transaction.  Uncommited transactions 
     // are automatically rolled back when they go out of scope. 
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
-    
-    // Create the insert statement.
-    let result = sqlx::query(INSERT_USER_HOSTS)
-        .bind(rec.tenant)
-        .bind(rec.tms_user_id)
-        .bind(rec.host)
-        .bind(rec.host_account)
-        .bind(rec.expires_at)
-        .bind(rec.created)
-        .bind(rec.updated)
+
+    // Update count.
+    let mut updates: u64 = 0;
+
+    // Issue the db update call.
+    let result = sqlx::query(UPDATE_USER_HOST_EXPIRY)
+        .bind(&expires_at)
+        .bind(current_ts)
+        .bind(&req.tms_user_id)
+        .bind(&req.tenant)
+        .bind(&req.host)
+        .bind(&req.host_account)
         .execute(&mut *tx)
         .await?;
+    updates += result.rows_affected();
 
     // Commit the transaction.
     tx.commit().await?;
-
-    Ok(result.rows_affected())
+    Ok((updates, expires_at))
 }

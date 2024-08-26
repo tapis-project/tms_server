@@ -93,6 +93,11 @@ pub const LIST_USER_HOSTS: &str = concat!(
     "FROM user_hosts WHERE tenant = ? ORDER BY tenant, tms_user_id",
 );
 
+pub const UPDATE_USER_HOST_EXPIRY: &str = concat!(
+    "UPDATE user_hosts SET expires_at = ?, updated = ? ", 
+    "WHERE tms_user_id = ? AND tenant = ? AND host = ? AND host_account = ?",
+);
+
 // ========================= user_delegations table =================
 pub const INSERT_DELEGATIONS: &str = concat!(
     "INSERT INTO delegations (tenant, client_id, client_user_id, expires_at, created, updated) ",

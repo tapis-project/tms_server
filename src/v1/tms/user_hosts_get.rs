@@ -95,7 +95,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 // ***************************************************************************
 #[OpenApi]
 impl GetUserHostsApi {
-    #[oai(path = "/tms/userhost/:id", method = "get")]
+    #[oai(path = "/tms/userhosts/:id", method = "get")]
     async fn get_client(&self, http_req: &Request, id: Path<i32>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
