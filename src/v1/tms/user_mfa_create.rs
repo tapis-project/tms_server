@@ -167,7 +167,7 @@ impl RespCreateUserMfa {
         );
 
         // Insert the new key record.
-        block_on(insert_new_client(input_record))?;
+        block_on(insert_user_mfa(input_record))?;
         info!("MFA for user '{}' created in tenant '{}' with experation at {}.", 
               req.tms_user_id, req.tenant, expires_at.clone());
         
@@ -181,9 +181,9 @@ impl RespCreateUserMfa {
 //                          Private Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// insert_new_client:
+// insert_user_mfa:
 // ---------------------------------------------------------------------------
-async fn insert_new_client(rec: UserMfaInput) -> Result<u64> {
+async fn insert_user_mfa(rec: UserMfaInput) -> Result<u64> {
     // Get a connection to the db and start a transaction.  Uncommited transactions 
     // are automatically rolled back when they go out of scope. 
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
