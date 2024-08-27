@@ -21,3 +21,4 @@ pub mod user_hosts_get;
 pub mod user_hosts_list;
 pub mod user_hosts_delete;
 pub mod user_hosts_update;
+pub mod delegations_create;

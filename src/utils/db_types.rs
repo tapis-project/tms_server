@@ -314,3 +314,65 @@ impl UserHostInput {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// delegation:
+// ---------------------------------------------------------------------------
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct Delegation {
+    pub id: i32,
+    pub tenant: String,
+    pub client_id: String,
+    pub client_user_id: String,
+    pub expires_at: String,
+    pub created: String,
+    pub updated: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DelegationInput {
+    pub tenant: String,
+    pub client_id: String,
+    pub client_user_id: String,
+    pub expires_at: String,
+    pub created: String,
+    pub updated: String,
+}
+
+impl Delegation {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    pub fn new(
+        id: i32,
+        tenant: String,
+        client_id: String,
+        client_user_id: String,
+        expires_at: String,
+        created: String,
+        updated: String,
+    ) 
+    -> Delegation {
+        Delegation {
+            id, tenant, client_id, client_user_id, expires_at, created, updated
+        }
+    }
+}
+
+impl DelegationInput {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    pub fn new(
+        tenant: String,
+        client_id: String,
+        client_user_id: String,
+        expires_at: String,
+        created: String,
+        updated: String,
+    ) 
+    -> DelegationInput {
+        DelegationInput {
+            tenant, client_id, client_user_id, expires_at, created, updated
+        }
+    }
+}
+
+

@@ -6,8 +6,8 @@ use anyhow::Result;
 use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
-use crate::utils::db_statements::INSERT_USER_HOSTS;
-use crate::utils::db_types::UserHostInput;
+use crate::utils::db_statements::INSERT_DELEGATIONS;
+use crate::utils::db_types::DelegationInput;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT}; 
 use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug};
 use log::{error, info};
@@ -17,46 +17,42 @@ use crate::RUNTIME_CTX;
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
-pub struct CreateUserHostsApi;
+pub struct CreateDelegationsApi;
 
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
 #[derive(Object)]
-pub struct ReqCreateUserHosts
+pub struct ReqCreateDelegations
 {
     tenant: String,
-    tms_user_id: String,
-    host: String,
-    host_account: String,
+    client_id: String,
+    client_user_id: String,
     ttl_minutes: i32,  // negative means i32::MAX
 }
 
 #[derive(Object, Debug)]
-pub struct RespCreateUserHosts
+pub struct RespCreateDelegations
 {
     result_code: String,
     result_msg: String,
-    tms_user_id: String,
-    host: String,
-    host_account: String,
+    client_id: String,
+    client_user_id: String,
     expires_at: String,
 }
 
 // Implement the debug record trait for logging.
-impl RequestDebug for ReqCreateUserHosts {   
-    type Req = ReqCreateUserHosts;
+impl RequestDebug for ReqCreateDelegations {   
+    type Req = ReqCreateDelegations;
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
         s.push_str("\n    tenant: ");
         s.push_str(&self.tenant);
-        s.push_str("\n    tms_user_id: ");
-        s.push_str(&self.tms_user_id);
-        s.push_str("\n    host: ");
-        s.push_str(&self.host);
-        s.push_str("\n    host_account: ");
-        s.push_str(&self.host_account);
+        s.push_str("\n    client_id: ");
+        s.push_str(&self.client_id);
+        s.push_str("\n    client_user_id: ");
+        s.push_str(&self.client_user_id);
         s.push_str("\n    tts_minutes: ");
         s.push_str(&self.ttl_minutes.to_string());
         s
@@ -67,7 +63,7 @@ impl RequestDebug for ReqCreateUserHosts {
 #[derive(Debug, ApiResponse)]
 enum TmsResponse {
     #[oai(status = 201)]
-    Http201(Json<RespCreateUserHosts>),
+    Http201(Json<RespCreateDelegations>),
     #[oai(status = 400)]
     Http400(Json<HttpResult>),
     #[oai(status = 401)]
@@ -78,7 +74,7 @@ enum TmsResponse {
     Http500(Json<HttpResult>),
 }
 
-fn make_http_201(resp: RespCreateUserHosts) -> TmsResponse {
+fn make_http_201(resp: RespCreateDelegations) -> TmsResponse {
     TmsResponse::Http201(Json(resp))
 }
 fn make_http_400(msg: String) -> TmsResponse {
@@ -98,9 +94,9 @@ fn make_http_500(msg: String) -> TmsResponse {
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
-impl CreateUserHostsApi {
-    #[oai(path = "/tms/userhosts", method = "post")]
-    async fn create_client(&self, http_req: &Request, req: Json<ReqCreateUserHosts>) -> TmsResponse {
+impl CreateDelegationsApi {
+    #[oai(path = "/tms/delegations", method = "post")]
+    async fn create_client(&self, http_req: &Request, req: Json<ReqCreateDelegations>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
@@ -117,19 +113,19 @@ impl CreateUserHostsApi {
         }
 
         // -------------------- Authorize ----------------------------
-        // Currently, only the tenant admin can create a user host record.
+        // Currently, only the tenant admin can create a delegation record.
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to add a user host record in tenant {}.", req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to add a client delegation record in tenant {}.", req.tenant);
             error!("{}", msg);
             return make_http_401(msg);
         }
 
         // -------------------- Process Request ----------------------
-        match RespCreateUserHosts::process(http_req, &req) {
+        match RespCreateDelegations::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -143,14 +139,14 @@ impl CreateUserHostsApi {
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-impl RespCreateUserHosts {
+impl RespCreateDelegations {
     /// Create a new response.
-    fn new(result_code: &str, result_msg: String, tms_user_id: String, host: String, 
-           host_account: String, expires_at: String,) -> Self {
-        Self {result_code: result_code.to_string(), result_msg, tms_user_id, host, host_account, expires_at,}}
+    fn new(result_code: &str, result_msg: String, client_id: String, client_user_id: String, 
+           expires_at: String,) -> Self {
+        Self {result_code: result_code.to_string(), result_msg, client_id, client_user_id, expires_at,}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqCreateUserHosts) -> Result<TmsResponse, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqCreateDelegations) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -165,25 +161,23 @@ impl RespCreateUserHosts {
 
         // Create the input record.  Note that we save the hash of
         // the hex secret, but never the secret itself.  
-        let input_record = UserHostInput::new(
+        let input_record = DelegationInput::new(
             req.tenant.clone(),
-            req.tms_user_id.clone(),
-            req.host.clone(),
-            req.host_account.clone(),
+            req.client_id.clone(),
+            req.client_user_id.clone(),
             expires_at.clone(),
             current_ts.clone(), 
             current_ts,
         );
 
         // Insert the new key record.
-        block_on(insert_user_host(input_record))?;
-        info!("Host mapping for user '{}' created in tenant '{}' with experation at {}.", 
-              req.tms_user_id, req.tenant, expires_at.clone());
+        block_on(insert_delegation(input_record))?;
+        info!("Delegation for user '{}' to client '{}' created in tenant '{}' with experation at {}.", 
+              req.client_user_id, req.client_id, req.tenant, expires_at);
         
         // Return the secret represented in hex.
         Ok(make_http_201(Self::new("0", "success".to_string(), 
-                            req.tms_user_id.clone(), req.host.clone(), 
-                            req.host_account.clone(), expires_at,)))
+                         req.client_id.clone(), req.client_user_id.clone(), expires_at,)))
     }
 }
 
@@ -191,20 +185,19 @@ impl RespCreateUserHosts {
 //                          Private Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// insert_user_host:
+// insert_delegation:
 // ---------------------------------------------------------------------------
-async fn insert_user_host(rec: UserHostInput) -> Result<u64> {
+async fn insert_delegation(rec: DelegationInput) -> Result<u64> {
     // Get a connection to the db and start a transaction.  Uncommited transactions 
     // are automatically rolled back when they go out of scope. 
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
     // Create the insert statement.
-    let result = sqlx::query(INSERT_USER_HOSTS)
+    let result = sqlx::query(INSERT_DELEGATIONS)
         .bind(rec.tenant)
-        .bind(rec.tms_user_id)
-        .bind(rec.host)
-        .bind(rec.host_account)
+        .bind(rec.client_id)
+        .bind(rec.client_user_id)
         .bind(rec.expires_at)
         .bind(rec.created)
         .bind(rec.updated)
