@@ -375,4 +375,56 @@ impl DelegationInput {
     }
 }
 
+// ---------------------------------------------------------------------------
+// user_mfa:
+// ---------------------------------------------------------------------------
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct Tenants {
+    pub id: i32,
+    pub tenant: String,
+    pub enabled: i32,
+    pub created: String,
+    pub updated: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TenantsInput {
+    pub tenant: String,
+    pub enabled: i32,
+    pub created: String,
+    pub updated: String,
+}
+
+impl Tenants {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    pub fn new(
+        id: i32,
+        tenant: String,
+        enabled: i32,
+        created: String,
+        updated: String,
+    ) 
+    -> Tenants {
+        Tenants {
+            id, tenant, enabled, created, updated
+        }
+    }
+}
+
+impl TenantsInput {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    pub fn new(
+        tenant: String,
+        enabled: i32,
+        created: String,
+        updated: String,
+    ) 
+    -> TenantsInput {
+        TenantsInput {
+            tenant, enabled, created, updated
+        }
+    }
+}
+
 

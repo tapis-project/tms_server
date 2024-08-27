@@ -41,8 +41,8 @@ const RESOURCES_DIR        : &str = "./resources"; // relative to currnent dir
 
 const LOG4RS_CONFIG_FILE   : &str = "/log4rs.yml"; // relative to config dir
 const TMS_CONFIG_FILE      : &str = "/tms.toml";   // relative to config dir
-const CERT_PEM_FILE        : &str = "/cert.pem";   // relative to cert dir
-const KEY_PEM_FILE         : &str = "/key.pem";    // relative to cert dir
+const CERT_PEM_FILE        : &str = "/cert.pem";   // relative to certs dir
+const KEY_PEM_FILE         : &str = "/key.pem";    // relative to certs dir
 
 // Networking.
 const DEFAULT_HTTP_ADDR    : &str = "https://localhost";

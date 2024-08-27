@@ -9,6 +9,17 @@ pub const INSERT_STD_TENANTS: &str = concat!(
     "VALUES (?, ?, ?, ?)",
 );
 
+pub const INSERT_TENANT: &str = concat!(
+    "INSERT INTO tenants (tenant, enabled, created, updated) ",
+    "VALUES (?, ?, ?, ?)",
+);
+
+pub const GET_TENANT: &str = concat!(
+    "SELECT id, tenant, enabled, created, updated ",
+    "FROM tenants WHERE tenant = ?"
+);
+
+
 // ========================= clients table =========================
 pub const INSERT_CLIENTS: &str = concat!(
     "INSERT INTO clients (tenant, app_name, app_version, client_id, client_secret, enabled, created, updated) ",

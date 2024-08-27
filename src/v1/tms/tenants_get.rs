@@ -7,10 +7,9 @@ use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
-use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
-use crate::utils::db_statements::GET_USER_MFA;
+use crate::utils::db_statements::GET_TENANT;
 use crate::utils::tms_utils::{self, RequestDebug};
-use crate::utils::db_types::UserMfa;
+use crate::utils::db_types::Tenants;
 use log::error;
 
 use crate::RUNTIME_CTX;
@@ -18,40 +17,35 @@ use crate::RUNTIME_CTX;
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
-pub struct GetUserMfaApi;
+pub struct GetTenantsApi;
 
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
 #[derive(Object)]
-struct ReqGetUserMfa
+struct ReqGetTenants
 {
-    tms_user_id: String,
     tenant: String,
 }
 
 #[derive(Object, Debug)]
-pub struct RespGetUserMfa
+pub struct RespGetTenants
 {
     result_code: String,
     result_msg: String,
     id: i32,
     tenant: String,
-    tms_user_id: String,
-    expires_at: String,
     enabled: i32,
     created: String,
     updated: String,
 }
 
 // Implement the debug record trait for logging.
-impl RequestDebug for ReqGetUserMfa {   
-    type Req = ReqGetUserMfa;
+impl RequestDebug for ReqGetTenants {   
+    type Req = ReqGetTenants;
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
-        s.push_str("\n    tms_user_id: ");
-        s.push_str(&self.tms_user_id);
         s.push_str("\n    tenant: ");
         s.push_str(&self.tenant);
         s
@@ -62,25 +56,15 @@ impl RequestDebug for ReqGetUserMfa {
 #[derive(Debug, ApiResponse)]
 enum TmsResponse {
     #[oai(status = 200)]
-    Http200(Json<RespGetUserMfa>),
-    #[oai(status = 400)]
-    Http400(Json<HttpResult>),
-    #[oai(status = 401)]
-    Http401(Json<HttpResult>),
+    Http200(Json<RespGetTenants>),
     #[oai(status = 404)]
     Http404(Json<HttpResult>),
     #[oai(status = 500)]
     Http500(Json<HttpResult>),
 }
 
-fn make_http_200(resp: RespGetUserMfa) -> TmsResponse {
+fn make_http_200(resp: RespGetTenants) -> TmsResponse {
     TmsResponse::Http200(Json(resp))
-}
-fn make_http_400(msg: String) -> TmsResponse {
-    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
-}
-fn make_http_401(msg: String) -> TmsResponse {
-    TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
 }
 fn make_http_404(msg: String) -> TmsResponse {
     TmsResponse::Http404(Json(HttpResult::new(404.to_string(), msg)))
@@ -93,35 +77,15 @@ fn make_http_500(msg: String) -> TmsResponse {
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
-impl GetUserMfaApi {
-    #[oai(path = "/tms/usermfa/:tms_user_id", method = "get")]
-    async fn get_client(&self, http_req: &Request, tms_user_id: Path<String>) -> TmsResponse {
-        // -------------------- Get Tenant Header --------------------
-        // Get the required tenant header value.
-        let hdr_tenant = match get_tenant_header(http_req) {
-            Ok(t) => t,
-            Err(e) => return make_http_400(e.to_string()),
-        };
-        
+impl GetTenantsApi {
+    #[oai(path = "/tms/tenants/:tenant", method = "get")]
+    async fn get_tenant_api(&self, http_req: &Request, tenant: Path<String>) -> TmsResponse {
         // Package the request parameters.        
-        let req = ReqGetUserMfa {tms_user_id: tms_user_id.to_string(), tenant: hdr_tenant};
+        let req = ReqGetTenants {tenant: tenant.to_string()};
         
-        // -------------------- Authorize ----------------------------
-        // Currently, only the tenant admin can create a user mfa record.
-        // When user authentication is implemented, we'll add user-own 
-        // authorization and any additional validation.
-        let allowed = [AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
-        if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to view mfa information for record #{} in tenant {}", 
-                                      req.tms_user_id, req.tenant);
-            error!("{}", msg);
-            return make_http_401(msg);
-        }
-
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespGetUserMfa::process(http_req, &req) {
+        match RespGetTenants::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -135,27 +99,27 @@ impl GetUserMfaApi {
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-impl RespGetUserMfa {
+impl RespGetTenants {
     /// Create a new response.
     #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: String, id: i32, tenant: String, tms_user_id: String, 
-            expires_at: String, enabled: i32, created: String, updated: String) 
+    fn new(result_code: &str, result_msg: String, id: i32, tenant: String, 
+           enabled: i32, created: String, updated: String) 
     -> Self {
             Self {result_code: result_code.to_string(), result_msg, 
-                  id, tenant, tms_user_id, expires_at, enabled, created, updated}
+                  id, tenant, enabled, created, updated}
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqGetUserMfa) -> Result<TmsResponse, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqGetTenants) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
-        let db_result = block_on(get_user_mfa(req));
+        let db_result = block_on(get_tenant_by_name(req));
         match db_result {
             Ok(u) => Ok(make_http_200(Self::new("0", "success".to_string(), u.id, u.tenant, 
-                                        u.tms_user_id, u.expires_at, u.enabled, u.created, u.updated))),
+                                                             u.enabled, u.created, u.updated))),
             Err(e) => {
                 // Determine if this is a real db error or just record not found.
                 let msg = e.to_string();
@@ -170,17 +134,16 @@ impl RespGetUserMfa {
 //                          Private Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// get_user_mfa:
+// get_tenant_by_name:
 // ---------------------------------------------------------------------------
-async fn get_user_mfa(req: &ReqGetUserMfa) -> Result<UserMfa> {
+async fn get_tenant_by_name(req: &ReqGetTenants) -> Result<Tenants> {
     // Get a connection to the db and start a transaction.  Uncommited transactions 
     // are automatically rolled back when they go out of scope. 
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
     // Create the select statement.
-    let result = sqlx::query(GET_USER_MFA)
-        .bind(&req.tms_user_id)
+    let result = sqlx::query(GET_TENANT)
         .bind(&req.tenant)
         .fetch_optional(&mut *tx)
         .await?;
@@ -188,11 +151,11 @@ async fn get_user_mfa(req: &ReqGetUserMfa) -> Result<UserMfa> {
     // Commit the transaction.
     tx.commit().await?;
 
-    // We may have found the user mfa.
+    // We may have found the tenant.
     match result {
         Some(row) => {
-            Ok(UserMfa::new(row.get(0), row.get(1), row.get(2), row.get(3), 
-                           row.get(4), row.get(5), row.get(6)))
+            Ok(Tenants::new(row.get(0), row.get(1), row.get(2), 
+                            row.get(3), row.get(4)))
         },
         None => {
             Err(anyhow!("NOT_FOUND"))
