@@ -114,6 +114,10 @@ pub const LIST_DELEGATIONS: &str = concat!(
     "FROM delegations WHERE tenant = ? ORDER BY tenant, client_id, client_user_id",
 );
 
+pub const DELETE_DELEGATION: &str = concat!(
+    "DELETE FROM delegations WHERE client_id = ? AND client_user_id = ? AND tenant = ?"
+);
+
 // ========================= pubkeys table =========================
 pub const INSERT_PUBKEYS: &str = concat!(
     "INSERT INTO pubkeys (tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",

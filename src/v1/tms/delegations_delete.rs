@@ -6,7 +6,7 @@ use anyhow::Result;
 use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
-use crate::utils::db_statements::DELETE_USER_HOST;
+use crate::utils::db_statements::DELETE_DELEGATION;
 use crate::utils::tms_utils::{self, RequestDebug};
 use crate::utils::authz::{authorize, get_tenant_header, AuthzTypes, X_TMS_TENANT};
 use log::{error, info};
@@ -16,22 +16,21 @@ use crate::RUNTIME_CTX;
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
-pub struct DeleteUserHostsApi;
+pub struct DeleteDelegationsApi;
 
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
 #[derive(Object)]
-pub struct ReqDeleteUserHosts
+pub struct ReqDeleteDelegations
 {
-    tms_user_id: String,
+    client_id: String,
+    client_user_id: String,
     tenant: String,
-    host: String,
-    host_account: String,
 }
 
 #[derive(Object, Debug)]
-pub struct RespDeleteUserHosts
+pub struct RespDeleteDelegations
 {
     result_code: String,
     result_msg: String,
@@ -39,19 +38,17 @@ pub struct RespDeleteUserHosts
 }
 
 // Implement the debug record trait for logging.
-impl RequestDebug for ReqDeleteUserHosts {   
-    type Req = ReqDeleteUserHosts;
+impl RequestDebug for ReqDeleteDelegations {   
+    type Req = ReqDeleteDelegations;
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
-        s.push_str("\n    tms_user_id: ");
-        s.push_str(&self.tms_user_id);
+        s.push_str("\n    client_id: ");
+        s.push_str(&self.client_id);
+        s.push_str("\n    client_user_id: ");
+        s.push_str(&self.client_user_id);
         s.push_str("\n    tenant: ");
         s.push_str(&self.tenant);
-        s.push_str("\n    host: ");
-        s.push_str(&self.host);
-        s.push_str("\n    host_account: ");
-        s.push_str(&self.host_account);
         s
     }
 }
@@ -60,7 +57,7 @@ impl RequestDebug for ReqDeleteUserHosts {
 #[derive(Debug, ApiResponse)]
 enum TmsResponse {
     #[oai(status = 200)]
-    Http200(Json<RespDeleteUserHosts>),
+    Http200(Json<RespDeleteDelegations>),
     #[oai(status = 400)]
     Http400(Json<HttpResult>),
     #[oai(status = 401)]
@@ -71,7 +68,7 @@ enum TmsResponse {
     Http500(Json<HttpResult>),
 }
 
-fn make_http_200(resp: RespDeleteUserHosts) -> TmsResponse {
+fn make_http_200(resp: RespDeleteDelegations) -> TmsResponse {
     TmsResponse::Http200(Json(resp))
 }
 fn make_http_400(msg: String) -> TmsResponse {
@@ -91,9 +88,9 @@ fn make_http_500(msg: String) -> TmsResponse {
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
-impl DeleteUserHostsApi {
-    #[oai(path = "/tms/userhosts/del", method = "delete")]
-    async fn delete_client(&self, http_req: &Request, req: Json<ReqDeleteUserHosts>) -> TmsResponse {
+impl DeleteDelegationsApi {
+    #[oai(path = "/tms/delegations/del", method = "delete")]
+    async fn delete_client_delegation(&self, http_req: &Request, req: Json<ReqDeleteDelegations>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
@@ -110,21 +107,21 @@ impl DeleteUserHostsApi {
         }
     
         // -------------------- Authorize ----------------------------
-        // Currently, only the tenant admin can delete a user hosts record.
+        // Currently, only the tenant admin can delete a delegation record.
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to delete host {} for user {} in tenant {}.", 
-                                      req.host, req.tms_user_id, req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to delete delegation for user {} to client {} in tenant {}.", 
+                                      req.client_user_id, req.client_id, req.tenant);
             error!("{}", msg);
             return make_http_401(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespDeleteUserHosts::process(http_req, &req) {
+        match RespDeleteDelegations::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -138,25 +135,25 @@ impl DeleteUserHostsApi {
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-impl RespDeleteUserHosts {
+impl RespDeleteDelegations {
     /// Create a new response.
     fn new(result_code: &str, result_msg: String, num_deleted: u32) -> Self {
         Self {result_code: result_code.to_string(), result_msg, num_deleted}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqDeleteUserHosts) -> Result<TmsResponse, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqDeleteDelegations) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Insert the new key record.
-        let deletes = block_on(delete_user_host(req))?;
+        let deletes = block_on(delete_delegation(req))?;
         
         // Log result and return response.
         let msg = 
-            if deletes < 1 {format!("Host {} NOT FOUND for user {} - Nothing deleted", req.host, req.tms_user_id)}
-            else {format!("User host {} deleted for user {} and account {}", req.host, req.tms_user_id, req.host_account)};
+            if deletes < 1 {format!("Delegation to client {} NOT FOUND for user {} - Nothing deleted", req.client_id, req.client_user_id)}
+            else {format!("User delegation deleted for user {} and client {}", req.client_user_id, req.client_id)};
         info!("{}", msg);
-        Ok(make_http_200(RespDeleteUserHosts::new("0", msg, deletes as u32)))
+        Ok(make_http_200(RespDeleteDelegations::new("0", msg, deletes as u32)))
     }
 }
 
@@ -164,9 +161,9 @@ impl RespDeleteUserHosts {
 //                          Private Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// delete_client:
+// delete_delegation:
 // ---------------------------------------------------------------------------
-async fn delete_user_host(req: &ReqDeleteUserHosts) -> Result<u64> {
+async fn delete_delegation(req: &ReqDeleteDelegations) -> Result<u64> {
     // Get a connection to the db and start a transaction.  Uncommited transactions 
     // are automatically rolled back when they go out of scope. 
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
@@ -176,11 +173,10 @@ async fn delete_user_host(req: &ReqDeleteUserHosts) -> Result<u64> {
     let mut deletes: u64 = 0;
 
     // Issue the db delete call.
-    let result = sqlx::query(DELETE_USER_HOST)
-        .bind(&req.tms_user_id)
+    let result = sqlx::query(DELETE_DELEGATION)
+        .bind(&req.client_id)
+        .bind(&req.client_user_id)
         .bind(&req.tenant)
-        .bind(&req.host)
-        .bind(&req.host_account)
         .execute(&mut *tx)
         .await?;
     deletes += result.rows_affected();
