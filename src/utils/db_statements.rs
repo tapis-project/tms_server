@@ -90,7 +90,7 @@ pub const DELETE_USER_HOST: &str = concat!(
 
 pub const LIST_USER_HOSTS: &str = concat!(
     "SELECT id, tenant, tms_user_id, host, host_account, expires_at, created, updated ",
-    "FROM user_hosts WHERE tenant = ? ORDER BY tenant, tms_user_id",
+    "FROM user_hosts WHERE tenant = ? ORDER BY tenant, tms_user_id, host, host_account",
 );
 
 pub const UPDATE_USER_HOST_EXPIRY: &str = concat!(
@@ -102,6 +102,16 @@ pub const UPDATE_USER_HOST_EXPIRY: &str = concat!(
 pub const INSERT_DELEGATIONS: &str = concat!(
     "INSERT INTO delegations (tenant, client_id, client_user_id, expires_at, created, updated) ",
     "VALUES (?, ?, ?, ?, ?, ?)",
+);
+
+pub const GET_DELEGATION: &str = concat!(
+    "SELECT id, tenant, client_id, client_user_id, expires_at, created, updated ",
+    "FROM delegations WHERE id = ? AND tenant = ?"
+);
+
+pub const LIST_DELEGATIONS: &str = concat!(
+    "SELECT id, tenant, client_id, client_user_id, expires_at, created, updated ",
+    "FROM delegations WHERE tenant = ? ORDER BY tenant, client_id, client_user_id",
 );
 
 // ========================= pubkeys table =========================
