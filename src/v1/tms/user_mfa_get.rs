@@ -113,7 +113,7 @@ impl GetUserMfaApi {
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to view mfa information for user {} in tenant {}", 
+            let msg = format!("ERROR: NOT AUTHORIZED to view mfa information for record #{} in tenant {}", 
                                       req.tms_user_id, req.tenant);
             error!("{}", msg);
             return make_http_401(msg);
