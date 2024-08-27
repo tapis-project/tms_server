@@ -6,7 +6,7 @@ use anyhow::Result;
 use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
-use crate::utils::db_statements::UPDATE_USER_HOST_EXPIRY;
+use crate::utils::db_statements::UPDATE_DELEGATION_EXPIRY;
 use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, calc_expires_at};
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT};
 use log::{error, info};
@@ -16,23 +16,22 @@ use crate::RUNTIME_CTX;
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
-pub struct UpdateUserHostsApi;
+pub struct UpdateDelegationsApi;
 
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
 #[derive(Object)]
-pub struct ReqUpdateUserHosts
+pub struct ReqUpdateDelegations
 {
-    tms_user_id: String,
+    client_id: String,
+    client_user_id: String,
     tenant: String,
-    host: String,
-    host_account: String,
     ttl_minutes: i32,  // negative means i32::MAX
 }
 
 #[derive(Object, Debug)]
-pub struct RespUpdateUserHosts
+pub struct RespUpdateDelegations
 {
     result_code: String,
     result_msg: String,
@@ -41,19 +40,17 @@ pub struct RespUpdateUserHosts
 }
 
 // Implement the debug record trait for logging.
-impl RequestDebug for ReqUpdateUserHosts {   
-    type Req = ReqUpdateUserHosts;
+impl RequestDebug for ReqUpdateDelegations {   
+    type Req = ReqUpdateDelegations;
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
-        s.push_str("\n    tms_user_id: ");
-        s.push_str(&self.tms_user_id);
+        s.push_str("\n    client_id: ");
+        s.push_str(&self.client_id);
+        s.push_str("\n    client_user_id: ");
+        s.push_str(&self.client_user_id);
         s.push_str("\n    tenant: ");
         s.push_str(&self.tenant);
-        s.push_str("\n    host: ");
-        s.push_str(&self.host);
-        s.push_str("\n    host_account: ");
-        s.push_str(&self.host_account);
         s.push_str("\n    ttl_minutes: ");
         s.push_str(&self.ttl_minutes.to_string());
         s
@@ -64,7 +61,7 @@ impl RequestDebug for ReqUpdateUserHosts {
 #[derive(Debug, ApiResponse)]
 enum TmsResponse {
     #[oai(status = 200)]
-    Http200(Json<RespUpdateUserHosts>),
+    Http200(Json<RespUpdateDelegations>),
     #[oai(status = 400)]
     Http400(Json<HttpResult>),
     #[oai(status = 401)]
@@ -75,7 +72,7 @@ enum TmsResponse {
     Http500(Json<HttpResult>),
 }
 
-fn make_http_200(resp: RespUpdateUserHosts) -> TmsResponse {
+fn make_http_200(resp: RespUpdateDelegations) -> TmsResponse {
     TmsResponse::Http200(Json(resp))
 }
 fn make_http_400(msg: String) -> TmsResponse {
@@ -95,9 +92,9 @@ fn make_http_500(msg: String) -> TmsResponse {
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
-impl UpdateUserHostsApi {
-    #[oai(path = "/tms/userhosts/upd", method = "patch")]
-async fn update_client(&self, http_req: &Request, req: Json<ReqUpdateUserHosts>) -> TmsResponse {
+impl UpdateDelegationsApi {
+    #[oai(path = "/tms/delegations/upd", method = "patch")]
+async fn update_client_delegation(&self, http_req: &Request, req: Json<ReqUpdateDelegations>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
@@ -120,14 +117,14 @@ async fn update_client(&self, http_req: &Request, req: Json<ReqUpdateUserHosts>)
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to update host for user {} in tenant {}.", req.tms_user_id, req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to update delegation for client {} and user {} in tenant {}.", req.client_id, req.client_user_id, req.tenant);
             error!("{}", msg);
             return make_http_401(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespUpdateUserHosts::process(http_req, &req) {
+        match RespUpdateDelegations::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -141,13 +138,13 @@ async fn update_client(&self, http_req: &Request, req: Json<ReqUpdateUserHosts>)
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-impl RespUpdateUserHosts {
+impl RespUpdateDelegations {
     /// Create a new response.
     fn new(result_code: &str, result_msg: String, num_updates: i32, expires_at: String) -> Self {
         Self {result_code: result_code.to_string(), result_msg, fields_updated: num_updates, expires_at}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqUpdateUserHosts) -> Result<TmsResponse, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqUpdateDelegations) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -155,9 +152,9 @@ impl RespUpdateUserHosts {
         let (updates, expires_at) = block_on(update_user_host(req))?;
         
         // Log result and return response.
-        let msg = format!("{} update(s) to tms_user_id {} completed", updates, req.tms_user_id);
+        let msg = format!("{} update(s) to user {} and client {} completed", updates, req.client_user_id, req.client_id);
         info!("{}", msg);
-        Ok(make_http_200(RespUpdateUserHosts::new("0", msg, updates as i32, expires_at)))
+        Ok(make_http_200(RespUpdateDelegations::new("0", msg, updates as i32, expires_at)))
     }
 }
 
@@ -167,7 +164,7 @@ impl RespUpdateUserHosts {
 // ---------------------------------------------------------------------------
 // update_user_host:
 // ---------------------------------------------------------------------------
-async fn update_user_host(req: &ReqUpdateUserHosts) -> Result<(u64, String)> {
+async fn update_user_host(req: &ReqUpdateDelegations) -> Result<(u64, String)> {
     // Get timestamp.
     let now = timestamp_utc();
     let current_ts = timestamp_utc_to_str(now);
@@ -183,13 +180,12 @@ async fn update_user_host(req: &ReqUpdateUserHosts) -> Result<(u64, String)> {
     let mut updates: u64 = 0;
 
     // Issue the db update call.
-    let result = sqlx::query(UPDATE_USER_HOST_EXPIRY)
+    let result = sqlx::query(UPDATE_DELEGATION_EXPIRY)
         .bind(&expires_at)
         .bind(current_ts)
-        .bind(&req.tms_user_id)
+        .bind(&req.client_id)
+        .bind(&req.client_user_id)
         .bind(&req.tenant)
-        .bind(&req.host)
-        .bind(&req.host_account)
         .execute(&mut *tx)
         .await?;
     updates += result.rows_affected();

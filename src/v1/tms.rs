@@ -25,3 +25,4 @@ pub mod delegations_create;
 pub mod delegations_get;
 pub mod delegations_list;
 pub mod delegations_delete;
+pub mod delegations_update;
