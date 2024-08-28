@@ -40,6 +40,8 @@ use crate::v1::tms::delegations_update::UpdateDelegationsApi;
 use crate::v1::tms::tenants_create::CreateTenantsApi;
 use crate::v1::tms::tenants_get::GetTenantsApi;
 use crate::v1::tms::tenants_list::ListTenantsApi;
+use crate::v1::tms::tenants_delete::DeleteTenantsApi;
+use crate::v1::tms::tenants_update::UpdateTenantsApi;
 use crate::v1::tms::version::VersionApi;
 
 // TMS Utilities
@@ -94,7 +96,7 @@ async fn main() -> Result<(), std::io::Error> {
          GetPubkeysApi, ListPubkeysApi, DeletePubkeysApi, UpdatePubkeyApi,
          CreateUserHostsApi, GetUserHostsApi, ListUserHostsApi, DeleteUserHostsApi, UpdateUserHostsApi,
          CreateDelegationsApi, GetDelegationsApi, ListDelegationsApi, DeleteDelegationsApi, UpdateDelegationsApi,
-         CreateTenantsApi, GetTenantsApi, ListTenantsApi);
+         CreateTenantsApi, GetTenantsApi, ListTenantsApi, DeleteTenantsApi, UpdateTenantsApi);
     let mut api_service = 
         OpenApiService::new(endpoints, "TMS Server", "0.0.1");
     let urls = &RUNTIME_CTX.parms.config.server_urls;

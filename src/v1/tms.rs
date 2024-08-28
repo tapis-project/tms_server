@@ -29,3 +29,5 @@ pub mod delegations_update;
 pub mod tenants_create;
 pub mod tenants_get;
 pub mod tenants_list;
+pub mod tenants_delete;
+pub mod tenants_update;

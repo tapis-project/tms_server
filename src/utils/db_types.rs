@@ -376,7 +376,7 @@ impl DelegationInput {
 }
 
 // ---------------------------------------------------------------------------
-// user_mfa:
+// tenants:
 // ---------------------------------------------------------------------------
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
@@ -392,6 +392,7 @@ pub struct Tenants {
 pub struct TenantsInput {
     pub tenant: String,
     pub enabled: i32,
+    pub key_hash: String,
     pub created: String,
     pub updated: String,
 }
@@ -417,12 +418,13 @@ impl TenantsInput {
     pub fn new(
         tenant: String,
         enabled: i32,
+        key_hash: String,
         created: String,
         updated: String,
     ) 
     -> TenantsInput {
         TenantsInput {
-            tenant, enabled, created, updated
+            tenant, enabled, key_hash, created, updated
         }
     }
 }

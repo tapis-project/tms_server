@@ -25,6 +25,19 @@ pub const LIST_TENANTS: &str = concat!(
     "FROM tenants ORDER BY id",
 );
 
+pub const DELETE_TENANT: &str = concat!(
+    "DELETE FROM tenants WHERE tenant = ?"
+);
+
+// Called before DELETE_TENANT to remove admin foreign references.
+pub const DELETE_ADMINS_FOR_TENANT: &str = concat!(
+    "DELETE FROM admin WHERE tenant = ?"
+);
+
+pub const UPDATE_TENANTS_ENABLED: &str = concat!(
+    "UPDATE tenants SET enabled = ?, updated = ? WHERE tenant = ?"
+);
+
 // ========================= clients table =========================
 pub const INSERT_CLIENTS: &str = concat!(
     "INSERT INTO clients (tenant, app_name, app_version, client_id, client_secret, enabled, created, updated) ",

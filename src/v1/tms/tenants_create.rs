@@ -6,11 +6,11 @@ use anyhow::Result;
 use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
-use crate::utils::db_statements::INSERT_TENANT;
+use crate::utils::db_statements::{INSERT_TENANT, INSERT_ADMIN};
 use crate::utils::db_types::TenantsInput;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header}; 
-use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, RequestDebug};
-use crate::utils::config::DEFAULT_TENANT;
+use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, create_hex_secret, hash_hex_secret, RequestDebug};
+use crate::utils::config::{DEFAULT_TENANT, DEFAULT_ADMIN_ID, PERM_ADMIN};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -35,6 +35,9 @@ pub struct RespCreateTenants
     result_code: String,
     result_msg: String,
     enabled: bool,
+    tenant: String,
+    admin_id: String,
+    admin_secret: String,
 }
 
 // Implement the debug record trait for logging.
@@ -133,8 +136,9 @@ impl CreateTenantsApi {
 // ***************************************************************************
 impl RespCreateTenants {
     /// Create a new response.
-    fn new(result_code: &str, result_msg: String, enabled: bool,) -> Self {
-        Self {result_code: result_code.to_string(), result_msg, enabled,}}
+    fn new(result_code: &str, result_msg: String, enabled: bool, tenant: String,
+           admin_id: String, admin_secret: String) -> Self {
+        Self {result_code: result_code.to_string(), result_msg, enabled, tenant, admin_id, admin_secret}}
 
     /// Process the request.
     fn process(http_req: &Request, req: &ReqCreateTenants) -> Result<TmsResponse, anyhow::Error> {
@@ -145,22 +149,27 @@ impl RespCreateTenants {
         let now = timestamp_utc();
         let current_ts = timestamp_utc_to_str(now);
 
+        // Generate the admin user's secret.
+        let key_str = create_hex_secret();
+        let key_hash = hash_hex_secret(&key_str);
+    
         // Create the input record.  Note that we save the hash of
         // the hex secret, but never the secret itself.  
-        let input_record = TenantsInput::new(
+        let input_record: TenantsInput = TenantsInput::new(
             req.tenant.clone(),
             1,
+            key_hash,
             current_ts.clone(), 
             current_ts,
         );
 
         // Insert the new key record.
         block_on(insert_tenant(input_record))?;
-        info!("New tenant '{}' created and enabled.", req.tenant);
+        info!("New tenant '{}' created and enabled.", &req.tenant);
         
         // Return the secret represented in hex.
-        Ok(make_http_201(Self::new("0", "success".to_string(), 
-                         true)))
+        Ok(make_http_201(Self::new("0", "success".to_string(), true, 
+                         req.tenant.clone(), DEFAULT_ADMIN_ID.to_string(), key_str)))
     }
 }
 
@@ -176,12 +185,23 @@ async fn insert_tenant(rec: TenantsInput) -> Result<u64> {
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
-    // Create the insert statement.
+    // Create the tenant insert statement.
     let result = sqlx::query(INSERT_TENANT)
-        .bind(rec.tenant)
+        .bind(&rec.tenant)
         .bind(rec.enabled)
-        .bind(rec.created)
-        .bind(rec.updated)
+        .bind(&rec.created)
+        .bind(&rec.updated)
+        .execute(&mut *tx)
+        .await?;
+
+    // Create the new tenant's user id.
+    let _dft_admin_result = sqlx::query(INSERT_ADMIN)
+        .bind(&rec.tenant)
+        .bind(DEFAULT_ADMIN_ID)
+        .bind(&rec.key_hash)
+        .bind(PERM_ADMIN)
+        .bind(&rec.created)
+        .bind(&rec.updated)
         .execute(&mut *tx)
         .await?;
 
