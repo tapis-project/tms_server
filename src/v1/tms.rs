@@ -28,3 +28,4 @@ pub mod delegations_delete;
 pub mod delegations_update;
 pub mod tenants_create;
 pub mod tenants_get;
+pub mod tenants_list;

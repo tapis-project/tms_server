@@ -19,6 +19,11 @@ pub const GET_TENANT: &str = concat!(
     "FROM tenants WHERE tenant = ?"
 );
 
+// Secret elided.
+pub const LIST_TENANTS: &str = concat!(
+    "SELECT id, tenant, enabled, created, updated ",
+    "FROM tenants ORDER BY id",
+);
 
 // ========================= clients table =========================
 pub const INSERT_CLIENTS: &str = concat!(
