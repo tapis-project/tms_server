@@ -25,18 +25,64 @@ pub const LIST_TENANTS: &str = concat!(
     "FROM tenants ORDER BY id",
 );
 
-pub const DELETE_TENANT: &str = concat!(
-    "DELETE FROM tenants WHERE tenant = ?"
+pub const UPDATE_TENANTS_ENABLED: &str = concat!(
+    "UPDATE tenants SET enabled = ?, updated = ? WHERE tenant = ?"
 );
 
-// Called before DELETE_TENANT to remove admin foreign references.
+// ---------------- Start of Delete and Wipe Calls
+// The following DELETE calls are issued for delete and wipe calls. 
+// 
+// The sandard delete operation is undoes the admin and tenants 
+// table insertions performed when a new tenant is added.  Only 
+// these two tables are affected, but the call will only succeed
+// if no other foreign key references to the tenant exists from 
+// any other table.
+//
+// The wipe operation is completely removes the tenant and all 
+// records with a foreign key reference to that tenant.  This is
+// a highly destructive operation that subverts the ON DELETE RESTRICT 
+// foreign key configurations.  Use sparingly because all references
+// to the target tenant are removed from the database except for
+// the records in the audit tables.  
+
+// --- Wipe begins here
+pub const DELETE_RESERVATIONS_FOR_TENANT: &str = concat!(
+    "DELETE FROM reservations WHERE tenant = ?"
+);
+
+pub const DELETE_PUBKEYS_FOR_TENANT: &str = concat!(
+    "DELETE FROM pubkeys WHERE tenant = ?"
+);
+
+pub const DELETE_DELEGATIONS_FOR_TENANT: &str = concat!(
+    "DELETE FROM delegations WHERE tenant = ?"
+);
+
+pub const DELETE_USER_HOSTS_FOR_TENANT: &str = concat!(
+    "DELETE FROM user_hosts WHERE tenant = ?"
+);
+
+pub const DELETE_USER_MFAS_FOR_TENANT: &str = concat!(
+    "DELETE FROM user_mfa WHERE tenant = ?"
+);
+
+pub const DELETE_CLIENTS_FOR_TENANT: &str = concat!(
+    "DELETE FROM clients WHERE tenant = ?"
+);
+
+pub const DELETE_HOSTS_FOR_TENANT: &str = concat!(
+    "DELETE FROM hosts WHERE tenant = ?"
+);
+
+// --- Standard delete begins here (and wipe continues)
 pub const DELETE_ADMINS_FOR_TENANT: &str = concat!(
     "DELETE FROM admin WHERE tenant = ?"
 );
 
-pub const UPDATE_TENANTS_ENABLED: &str = concat!(
-    "UPDATE tenants SET enabled = ?, updated = ? WHERE tenant = ?"
+pub const DELETE_TENANT: &str = concat!(
+    "DELETE FROM tenants WHERE tenant = ?"
 );
+// ---------------- End of Delete and Wipe Calls
 
 // ========================= clients table =========================
 pub const INSERT_CLIENTS: &str = concat!(

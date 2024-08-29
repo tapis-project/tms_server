@@ -6,7 +6,9 @@ use anyhow::Result;
 use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
-use crate::utils::db_statements::{DELETE_TENANT, DELETE_ADMINS_FOR_TENANT};
+use crate::utils::db_statements::{DELETE_TENANT, DELETE_ADMINS_FOR_TENANT, DELETE_RESERVATIONS_FOR_TENANT,
+        DELETE_PUBKEYS_FOR_TENANT, DELETE_DELEGATIONS_FOR_TENANT, DELETE_USER_HOSTS_FOR_TENANT, 
+        DELETE_USER_MFAS_FOR_TENANT, DELETE_CLIENTS_FOR_TENANT, DELETE_HOSTS_FOR_TENANT};
 use crate::utils::tms_utils::{self, RequestDebug};
 use crate::utils::authz::{authorize, get_tenant_header, AuthzTypes, X_TMS_TENANT};
 use log::{error, info};
@@ -16,19 +18,19 @@ use crate::RUNTIME_CTX;
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
-pub struct DeleteTenantsApi;
+pub struct WipeTenantsApi;
 
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
 #[derive(Object)]
-pub struct ReqDeleteTenants
+pub struct ReqWipeTenants
 {
     tenant: String,
 }
 
 #[derive(Object, Debug)]
-pub struct RespDeleteTenants
+pub struct RespWipeTenants
 {
     result_code: String,
     result_msg: String,
@@ -36,8 +38,8 @@ pub struct RespDeleteTenants
 }
 
 // Implement the debug record trait for logging.
-impl RequestDebug for ReqDeleteTenants {   
-    type Req = ReqDeleteTenants;
+impl RequestDebug for ReqWipeTenants {   
+    type Req = ReqWipeTenants;
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
@@ -51,7 +53,7 @@ impl RequestDebug for ReqDeleteTenants {
 #[derive(Debug, ApiResponse)]
 enum TmsResponse {
     #[oai(status = 200)]
-    Http200(Json<RespDeleteTenants>),
+    Http200(Json<RespWipeTenants>),
     #[oai(status = 400)]
     Http400(Json<HttpResult>),
     #[oai(status = 401)]
@@ -62,7 +64,7 @@ enum TmsResponse {
     Http500(Json<HttpResult>),
 }
 
-fn make_http_200(resp: RespDeleteTenants) -> TmsResponse {
+fn make_http_200(resp: RespWipeTenants) -> TmsResponse {
     TmsResponse::Http200(Json(resp))
 }
 fn make_http_400(msg: String) -> TmsResponse {
@@ -82,9 +84,9 @@ fn make_http_500(msg: String) -> TmsResponse {
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
-impl DeleteTenantsApi {
-    #[oai(path = "/tms/tenants/del/:tenant", method = "delete")]
-    async fn delete_tenant_api(&self, http_req: &Request, tenant: Path<String>) -> TmsResponse {
+impl WipeTenantsApi {
+    #[oai(path = "/tms/tenants/wipe/:tenant", method = "delete")]
+    async fn wipe_tenant(&self, http_req: &Request, tenant: Path<String>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
@@ -101,12 +103,10 @@ impl DeleteTenantsApi {
         }
     
         // Package the request parameters.
-        let req = ReqDeleteTenants { tenant: hdr_tenant};
+        let req = ReqWipeTenants { tenant: hdr_tenant};
 
         // -------------------- Authorize ----------------------------
-        // Currently, only the tenant admin can delete a user mfa record.
-        // When user authentication is implemented, we'll add user-own 
-        // authorization and any additional validation.
+        // Currently, only the tenant admin can wipe a tenant record and all its dependencies.
         let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
@@ -117,7 +117,7 @@ impl DeleteTenantsApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespDeleteTenants::process(http_req, &req) {
+        match RespWipeTenants::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -131,25 +131,25 @@ impl DeleteTenantsApi {
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-impl RespDeleteTenants {
+impl RespWipeTenants {
     /// Create a new response.
     fn new(result_code: &str, result_msg: String, num_deleted: u32) -> Self {
         Self {result_code: result_code.to_string(), result_msg, num_deleted}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqDeleteTenants) -> Result<TmsResponse, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqWipeTenants) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Insert the new key record.
-        let deletes = block_on(delete_tenant(req))?;
+        let deletes = block_on(wipe_tenant(req))?;
         
         // Log result and return response.
         let msg = 
             if deletes < 1 {format!("Tenant {} NOT FOUND - Nothing deleted", req.tenant)}
-            else {format!("Tenant {} deleted", req.tenant)};
+            else {format!("Tenant {} and dependencies wiped", req.tenant)};
         info!("{}", msg);
-        Ok(make_http_200(RespDeleteTenants::new("0", msg, deletes as u32)))
+        Ok(make_http_200(RespWipeTenants::new("0", msg, deletes as u32)))
     }
 }
 
@@ -157,14 +157,12 @@ impl RespDeleteTenants {
 //                          Private Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// delete_tenant:
+// wipe_tenant:
 // ---------------------------------------------------------------------------
-/** Delete a tenant and its admin users.  The following tables also define
- * foriegn keys and must not refer to the tenant being deleted.  If any such 
- * reference exists, a "FOREIGN KEY constraint failed" error message will be 
- * returned.  Here is the list of tables with foreign keys into the tenants table, 
- * not counting the admin table, which is handled by this function.
+/** Delete a tenant and all dependent records in all tables.  These tables 
+ * define foriegn keys on the tenant: 
  * 
+ *      admin
  *      clients
  *      user_mfa
  *      user_hosts
@@ -173,7 +171,7 @@ impl RespDeleteTenants {
  *      reservations
  *      hosts
  */
-async fn delete_tenant(req: &ReqDeleteTenants) -> Result<u64> {
+async fn wipe_tenant(req: &ReqWipeTenants) -> Result<u64> {
     // Get a connection to the db and start a transaction.  Uncommited transactions 
     // are automatically rolled back when they go out of scope. 
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
@@ -182,14 +180,63 @@ async fn delete_tenant(req: &ReqDeleteTenants) -> Result<u64> {
     // Deletion count.
     let mut deletes: u64 = 0;
 
-    // First delete all the admin users defined for this tenant.
+    // Delete all possible foreign key records that reference the tenant.
+    let result = sqlx::query(DELETE_RESERVATIONS_FOR_TENANT)
+        .bind(&req.tenant)
+        .execute(&mut *tx)
+        .await?;
+    deletes += result.rows_affected();
+
+    let result = sqlx::query(DELETE_PUBKEYS_FOR_TENANT)
+        .bind(&req.tenant)
+        .execute(&mut *tx)
+        .await?;
+    deletes += result.rows_affected();
+
+    let result = sqlx::query(DELETE_DELEGATIONS_FOR_TENANT)
+        .bind(&req.tenant)
+        .execute(&mut *tx)
+        .await?;
+    deletes += result.rows_affected();
+
+    let result = sqlx::query(DELETE_USER_HOSTS_FOR_TENANT)
+        .bind(&req.tenant)
+        .execute(&mut *tx)
+        .await?;
+    deletes += result.rows_affected();
+
+    let result = sqlx::query(DELETE_USER_MFAS_FOR_TENANT)
+        .bind(&req.tenant)
+        .execute(&mut *tx)
+        .await?;
+    deletes += result.rows_affected();
+
+    // Delete all the adin users defined for this tenant.
+    let result = sqlx::query(DELETE_CLIENTS_FOR_TENANT)
+        .bind(&req.tenant)
+        .execute(&mut *tx)
+        .await?;
+    deletes += result.rows_affected();
+
+    let result = sqlx::query(DELETE_CLIENTS_FOR_TENANT)
+        .bind(&req.tenant)
+        .execute(&mut *tx)
+        .await?;
+    deletes += result.rows_affected();
+
+    let result = sqlx::query(DELETE_HOSTS_FOR_TENANT)
+        .bind(&req.tenant)
+        .execute(&mut *tx)
+        .await?;
+    deletes += result.rows_affected();
+
     let result = sqlx::query(DELETE_ADMINS_FOR_TENANT)
         .bind(&req.tenant)
         .execute(&mut *tx)
         .await?;
     deletes += result.rows_affected();
 
-    // Issue the tenant delete call.
+   // Issue the tenant delete call.
     let result = sqlx::query(DELETE_TENANT)
         .bind(&req.tenant)
         .execute(&mut *tx)
