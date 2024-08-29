@@ -32,7 +32,7 @@
 -- The "tms_" and "client_" prefix on "user_id" simply indicates the component
 -- that initiated the IDP authentication action.  
 -- 
--- Hosts identify users by their host_accounts, which is the login account a 
+-- Hosts identify users by their host_accounts, which is the login account  
 -- for a user.  No matter what identity a user authenticated to an IDP with, 
 -- it's the host_account associated with that identity that is used to access
 -- a target host.
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS clients
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS clts_app_idx ON clients (tenant, app_name, app_version);
-CREATE UNIQUE INDEX IF NOT EXISTS clts_app_client_id_idx ON clients (client_id);
+CREATE UNIQUE INDEX IF NOT EXISTS clts_app_client_id_idx ON clients (tenant, client_id);
 CREATE INDEX IF NOT EXISTS clts_updated_idx ON clients (updated);
 
 -- ---------------------------------------
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS delegations
     updated           TEXT NOT NULL,
     FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
     FOREIGN KEY(tenant, client_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY(client_id) REFERENCES clients(client_id) ON UPDATE CASCADE ON DELETE CASCADE 
+    FOREIGN KEY(tenant, client_id) REFERENCES clients(tenant, client_id) ON UPDATE CASCADE ON DELETE CASCADE 
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS delg_user_client_idx ON delegations (tenant, client_id, client_user_id);
@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS pubkeys
     updated                TEXT NOT NULL,
     FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
     FOREIGN KEY(tenant, client_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY(client_id) REFERENCES clients(client_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY(tenant, client_id) REFERENCES clients(tenant, client_id) ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY(tenant, client_user_id, host, host_account) REFERENCES user_hosts(tenant, tms_user_id, host, host_account) ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY(tenant, client_id, client_user_id) REFERENCES delegations(tenant, client_id, client_user_id) ON UPDATE CASCADE ON DELETE CASCADE
 ) STRICT;
@@ -205,7 +205,7 @@ CREATE TABLE IF NOT EXISTS reservations
     updated                TEXT NOT NULL,
     FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
     FOREIGN KEY(tenant, client_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY(client_id) REFERENCES clients(client_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY(tenant, client_id) REFERENCES clients(tenant, client_id) ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY(public_key_fingerprint, host) REFERENCES pubkeys(public_key_fingerprint, host) ON UPDATE CASCADE ON DELETE CASCADE
 ) STRICT;
 
@@ -254,7 +254,8 @@ CREATE TABLE IF NOT EXISTS hosts
     host              TEXT NOT NULL,
     addr              TEXT NOT NULL,
     created           TEXT NOT NULL,
-    updated           TEXT NOT NULL
+    updated           TEXT NOT NULL,
+    FOREIGN KEY(tenant) REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT
 ) STRICT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS host_host_addr_idx ON hosts (tenant, host, addr);
