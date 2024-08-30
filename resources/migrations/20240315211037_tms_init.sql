@@ -5,7 +5,8 @@
 -- 
 -- Different user identities are referenced in this schema:
 --  
---  1. tms_user_id - The user identity that TMS aquires directly from an IDP.
+--  1. tms_user_id - The user identity that TMS ensures has been validated by 
+--        an IDP.
 --  2. client_user_id - The user identity that TMS aquires from a client 
 --        application on API calls initiated by the client.
 --  3. host_account - the user's login account on a host.
