@@ -211,13 +211,7 @@ async fn wipe_tenant(req: &ReqWipeTenants) -> Result<u64> {
         .await?;
     deletes += result.rows_affected();
 
-    // Delete all the adin users defined for this tenant.
-    let result = sqlx::query(DELETE_CLIENTS_FOR_TENANT)
-        .bind(&req.tenant)
-        .execute(&mut *tx)
-        .await?;
-    deletes += result.rows_affected();
-
+    // Delete all the admin users defined for this tenant.
     let result = sqlx::query(DELETE_CLIENTS_FOR_TENANT)
         .bind(&req.tenant)
         .execute(&mut *tx)
