@@ -104,7 +104,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 #[OpenApi]
 impl GetPubkeysApi {
     #[oai(path = "/tms/pubkeys/id/:seqno", method = "get")]
-    async fn get_client(&self, http_req: &Request, seqno: Path<i32>) -> TmsResponse {
+    async fn get_pubkey_by_id(&self, http_req: &Request, seqno: Path<i32>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {

@@ -95,7 +95,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 #[OpenApi]
 impl GetDelegationsApi {
     #[oai(path = "/tms/delegations/:id", method = "get")]
-    async fn get_client(&self, http_req: &Request, id: Path<i32>) -> TmsResponse {
+    async fn get_delegation_api(&self, http_req: &Request, id: Path<i32>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {

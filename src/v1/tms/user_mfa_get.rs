@@ -95,7 +95,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 #[OpenApi]
 impl GetUserMfaApi {
     #[oai(path = "/tms/usermfa/:tms_user_id", method = "get")]
-    async fn get_client(&self, http_req: &Request, tms_user_id: Path<String>) -> TmsResponse {
+    async fn get_user_mfa_api(&self, http_req: &Request, tms_user_id: Path<String>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {

@@ -253,3 +253,24 @@ pub const GET_ADMIN_SECRET: &str = concat!(
     "SELECT admin_secret FROM admin WHERE admin_user = ? AND tenant = ?",
 );
 
+// ========================= hosts table ===========================
+pub const INSERT_HOSTS: &str = concat!(
+    "INSERT INTO hosts (tenant, host, addr, created, updated) ",
+    "VALUES (?, ?, ?, ?, ?)", 
+);
+
+pub const GET_HOST: &str = concat!(
+    "SELECT id, tenant, host, addr, created, updated ",
+    "FROM hosts WHERE id = ? AND tenant = ?"
+);
+
+pub const DELETE_HOST: &str = concat!(
+    "DELETE FROM hosts WHERE tenant = ? AND host = ? AND addr = ?"
+);
+
+pub const LIST_HOSTS: &str = concat!(
+    "SELECT id, tenant, host, addr, created, updated ",
+    "FROM hosts WHERE tenant = ? ORDER BY tenant, host, addr",
+);
+
+

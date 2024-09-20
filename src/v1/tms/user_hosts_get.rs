@@ -96,7 +96,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 #[OpenApi]
 impl GetUserHostsApi {
     #[oai(path = "/tms/userhosts/:id", method = "get")]
-    async fn get_client(&self, http_req: &Request, id: Path<i32>) -> TmsResponse {
+    async fn get_user_host_api(&self, http_req: &Request, id: Path<i32>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {

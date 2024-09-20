@@ -380,7 +380,7 @@ impl DelegationInput {
 // ---------------------------------------------------------------------------
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
-pub struct Tenants {
+pub struct Tenant {
     pub id: i32,
     pub tenant: String,
     pub enabled: i32,
@@ -389,7 +389,7 @@ pub struct Tenants {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct TenantsInput {
+pub struct TenantInput {
     pub tenant: String,
     pub enabled: i32,
     pub key_hash: String,
@@ -397,7 +397,7 @@ pub struct TenantsInput {
     pub updated: String,
 }
 
-impl Tenants {
+impl Tenant {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
         id: i32,
@@ -406,14 +406,14 @@ impl Tenants {
         created: String,
         updated: String,
     ) 
-    -> Tenants {
-        Tenants {
+    -> Tenant {
+        Tenant {
             id, tenant, enabled, created, updated
         }
     }
 }
 
-impl TenantsInput {
+impl TenantInput {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
         tenant: String,
@@ -422,11 +422,66 @@ impl TenantsInput {
         created: String,
         updated: String,
     ) 
-    -> TenantsInput {
-        TenantsInput {
+    -> TenantInput {
+        TenantInput {
             tenant, enabled, key_hash, created, updated
         }
     }
 }
 
+// ---------------------------------------------------------------------------
+// hosts:
+// ---------------------------------------------------------------------------
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct Host {
+    pub id: i32,
+    pub tenant: String,
+    pub host: String,
+    pub addr: String,
+    pub created: String,
+    pub updated: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HostInput {
+    pub tenant: String,
+    pub host: String,
+    pub addr: String,
+    pub created: String,
+    pub updated: String,
+}
+
+impl Host {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    pub fn new(
+        id: i32,
+        tenant: String,
+        host: String,
+        addr: String,
+        created: String,
+        updated: String,
+    ) 
+    -> Host {
+        Host {
+            id, tenant, host, addr, created, updated
+        }
+    }
+}
+
+impl HostInput {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    pub fn new(
+        tenant: String,
+        host: String,
+        addr: String,
+        created: String,
+        updated: String,
+    ) 
+    -> HostInput {
+        HostInput {
+            tenant, host, addr, created, updated
+        }
+    }
+}
 

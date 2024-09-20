@@ -32,3 +32,7 @@ pub mod tenants_list;
 pub mod tenants_delete;
 pub mod tenants_update;
 pub mod tenants_wipe;
+pub mod hosts_create;
+pub mod hosts_get;
+pub mod hosts_delete;
+pub mod hosts_list;

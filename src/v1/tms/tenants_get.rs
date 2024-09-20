@@ -9,7 +9,7 @@ use sqlx::Row;
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::GET_TENANT;
 use crate::utils::tms_utils::{self, RequestDebug};
-use crate::utils::db_types::Tenants;
+use crate::utils::db_types::Tenant;
 use log::error;
 
 use crate::RUNTIME_CTX;
@@ -136,7 +136,7 @@ impl RespGetTenants {
 // ---------------------------------------------------------------------------
 // get_tenant_by_name:
 // ---------------------------------------------------------------------------
-async fn get_tenant_by_name(req: &ReqGetTenants) -> Result<Tenants> {
+async fn get_tenant_by_name(req: &ReqGetTenants) -> Result<Tenant> {
     // Get a connection to the db and start a transaction.  Uncommited transactions 
     // are automatically rolled back when they go out of scope. 
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
@@ -154,7 +154,7 @@ async fn get_tenant_by_name(req: &ReqGetTenants) -> Result<Tenants> {
     // We may have found the tenant.
     match result {
         Some(row) => {
-            Ok(Tenants::new(row.get(0), row.get(1), row.get(2), 
+            Ok(Tenant::new(row.get(0), row.get(1), row.get(2), 
                             row.get(3), row.get(4)))
         },
         None => {

@@ -82,7 +82,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 #[OpenApi]
 impl DeleteUserMfaApi {
     #[oai(path = "/tms/usermfa/del/:tms_user_id", method = "delete")]
-    async fn delete_client(&self, http_req: &Request, tms_user_id: Path<String>) -> TmsResponse {
+    async fn delete_user_mfa_api(&self, http_req: &Request, tms_user_id: Path<String>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
@@ -147,7 +147,7 @@ impl RespDeleteUserMfa {
 //                          Private Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// delete_client:
+// delete_user_mfa:
 // ---------------------------------------------------------------------------
 async fn delete_user_mfa(req: &ReqDeleteUserMfa) -> Result<u64> {
     // Get a connection to the db and start a transaction.  Uncommited transactions 

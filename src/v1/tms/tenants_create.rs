@@ -7,7 +7,7 @@ use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{INSERT_TENANT, INSERT_ADMIN};
-use crate::utils::db_types::TenantsInput;
+use crate::utils::db_types::TenantInput;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header}; 
 use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, create_hex_secret, hash_hex_secret, RequestDebug};
 use crate::utils::config::{DEFAULT_TENANT, DEFAULT_ADMIN_ID, PERM_ADMIN};
@@ -155,7 +155,7 @@ impl RespCreateTenants {
     
         // Create the input record.  Note that we save the hash of
         // the hex secret, but never the secret itself.  
-        let input_record: TenantsInput = TenantsInput::new(
+        let input_record: TenantInput = TenantInput::new(
             req.tenant.clone(),
             1,
             key_hash,
@@ -179,7 +179,7 @@ impl RespCreateTenants {
 // ---------------------------------------------------------------------------
 // insert_tenant:
 // ---------------------------------------------------------------------------
-async fn insert_tenant(rec: TenantsInput) -> Result<u64> {
+async fn insert_tenant(rec: TenantInput) -> Result<u64> {
     // Get a connection to the db and start a transaction.  Uncommited transactions 
     // are automatically rolled back when they go out of scope. 
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.

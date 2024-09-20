@@ -90,7 +90,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 #[OpenApi]
 impl DeleteDelegationsApi {
     #[oai(path = "/tms/delegations/del", method = "delete")]
-    async fn delete_client_delegation(&self, http_req: &Request, req: Json<ReqDeleteDelegations>) -> TmsResponse {
+    async fn delete_delegation_api(&self, http_req: &Request, req: Json<ReqDeleteDelegations>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {

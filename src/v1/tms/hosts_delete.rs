@@ -1,60 +1,54 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
-use anyhow::{Result, anyhow};
+use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
+use anyhow::Result;
 use futures::executor::block_on;
-use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
-use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
-use crate::utils::db_statements::GET_CLIENT;
+use crate::utils::db_statements::DELETE_HOST;
 use crate::utils::tms_utils::{self, RequestDebug};
-use crate::utils::db_types::Client;
-use log::error;
+use crate::utils::authz::{authorize, get_tenant_header, AuthzTypes, X_TMS_TENANT};
+use log::{error, info};
 
 use crate::RUNTIME_CTX;
 
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
-pub struct GetClientApi;
+pub struct DeleteHostsApi;
 
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
 #[derive(Object)]
-struct ReqGetClient
+pub struct ReqDeleteHosts
 {
-    client_id: String,
     tenant: String,
+    host: String,
+    addr: String,
 }
 
 #[derive(Object, Debug)]
-pub struct RespGetClient
+pub struct RespDeleteHosts
 {
     result_code: String,
     result_msg: String,
-    id: i32,
-    tenant: String,
-    app_name: String,
-    app_version: String,
-    client_id: String,
-    enabled: i32,
-    created: String,
-    updated: String,
+    num_deleted: u32,
 }
 
 // Implement the debug record trait for logging.
-impl RequestDebug for ReqGetClient {   
-    type Req = ReqGetClient;
+impl RequestDebug for ReqDeleteHosts {   
+    type Req = ReqDeleteHosts;
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
-        s.push_str("\n    client_id: ");
-        s.push_str(&self.client_id);
         s.push_str("\n    tenant: ");
         s.push_str(&self.tenant);
+        s.push_str("\n    host: ");
+        s.push_str(&self.host);
+        s.push_str("\n    addr: ");
+        s.push_str(&self.addr);
         s
     }
 }
@@ -63,20 +57,18 @@ impl RequestDebug for ReqGetClient {
 #[derive(Debug, ApiResponse)]
 enum TmsResponse {
     #[oai(status = 200)]
-    Http200(Json<RespGetClient>),
+    Http200(Json<RespDeleteHosts>),
     #[oai(status = 400)]
     Http400(Json<HttpResult>),
     #[oai(status = 401)]
     Http401(Json<HttpResult>),
     #[oai(status = 403)]
     Http403(Json<HttpResult>),
-    #[oai(status = 404)]
-    Http404(Json<HttpResult>),
     #[oai(status = 500)]
     Http500(Json<HttpResult>),
 }
 
-fn make_http_200(resp: RespGetClient) -> TmsResponse {
+fn make_http_200(resp: RespDeleteHosts) -> TmsResponse {
     TmsResponse::Http200(Json(resp))
 }
 fn make_http_400(msg: String) -> TmsResponse {
@@ -88,9 +80,6 @@ fn make_http_401(msg: String) -> TmsResponse {
 fn make_http_403(msg: String) -> TmsResponse {
     TmsResponse::Http403(Json(HttpResult::new(403.to_string(), msg)))
 }
-fn make_http_404(msg: String) -> TmsResponse {
-    TmsResponse::Http404(Json(HttpResult::new(404.to_string(), msg)))
-}
 fn make_http_500(msg: String) -> TmsResponse {
     TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
 }
@@ -99,9 +88,9 @@ fn make_http_500(msg: String) -> TmsResponse {
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
-impl GetClientApi {
-    #[oai(path = "/tms/client/:client_id", method = "get")]
-    async fn get_client_api(&self, http_req: &Request, client_id: Path<String>) -> TmsResponse {
+impl DeleteHostsApi {
+    #[oai(path = "/tms/hosts/del", method = "delete")]
+    async fn delete_host_api(&self, http_req: &Request, req: Json<ReqDeleteHosts>) -> TmsResponse {
         // -------------------- Get Tenant Header --------------------
         // Get the required tenant header value.
         let hdr_tenant = match get_tenant_header(http_req) {
@@ -109,29 +98,30 @@ impl GetClientApi {
             Err(e) => return make_http_400(e.to_string()),
         };
         
-        // Package the request parameters.        
-        let req = ReqGetClient {client_id: client_id.to_string(), tenant: hdr_tenant};
-        
+        // Check that the tenant specified in the header is the same as the one in the request body.
+        if hdr_tenant != req.tenant {
+            let msg = format!("ERROR: FORBIDDEN - The tenant in the {} header ({}) does not match the tenant in the request body ({})", 
+                                      X_TMS_TENANT, hdr_tenant, req.tenant);
+            error!("{}", msg);
+            return make_http_403(msg);  
+        }
+    
         // -------------------- Authorize ----------------------------
-        // Only the client and tenant admin can query a client record.
-        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
+        // Currently, only the tenant admin can delete a user hosts record.
+        // When user authentication is implemented, we'll add user-own 
+        // authorization and any additional validation.
+        let allowed = [AuthzTypes::TenantAdmin];
         let authz_result = authorize(http_req, &allowed);
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to view client {} in tenant {}.", req.client_id, req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to delete host mapping {} -> {} in tenant {}.", 
+                                      req.host, req.addr, req.tenant);
             error!("{}", msg);
             return make_http_401(msg);
         }
 
-        // Make sure the path parms conform to the header values used for authorization.
-        if !authz_result.check_hdr_id(&req.client_id) {
-            let msg = format!("ERROR: FORBIDDEN - Path parameters ({}@{}) differ from those in the request header.", 
-                                      req.client_id, req.tenant);
-            error!("{}", msg);
-            return make_http_403(msg);        }
-
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespGetClient::process(http_req, &req) {
+        match RespDeleteHosts::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -145,35 +135,25 @@ impl GetClientApi {
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-impl RespGetClient {
+impl RespDeleteHosts {
     /// Create a new response.
-    #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: String, id: i32, tenant: String, app_name: String, 
-            app_version: String, client_id: String, enabled: i32, created: String, updated: String) 
-    -> Self {
-            Self {result_code: result_code.to_string(), result_msg, 
-              id, tenant, app_name, app_version, client_id, enabled, created, updated}
-        }
+    fn new(result_code: &str, result_msg: String, num_deleted: u32) -> Self {
+        Self {result_code: result_code.to_string(), result_msg, num_deleted}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqGetClient) -> Result<TmsResponse, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqDeleteHosts) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
-        // Search for the tenant/client id in the database.  Not found was already 
-        // The client_secret is never part of the response.
-        let db_result = block_on(get_client(req));
-        match db_result {
-            Ok(client) => Ok(make_http_200(Self::new("0", "success".to_string(), 
-                                    client.id, client.tenant, client.app_name, client.app_version, 
-                                    client.client_id, client.enabled, client.created, client.updated))),
-            Err(e) => {
-                // Determine if this is a real db error or just record not found.
-                let msg = e.to_string();
-                if msg.contains("NOT_FOUND") {Ok(make_http_404(msg))} 
-                  else {Err(e)}
-            },
-        }
+        // Insert the new key record.
+        let deletes = block_on(delete_host(req))?;
+        
+        // Log result and return response.
+        let msg = 
+            if deletes < 1 {format!("Host mapping {} -> {} NOT FOUND for tenant {} - Nothing deleted", req.host, req.addr, req.tenant)}
+            else {format!("Host {} -> {} deleted in tenant {}", req.host, req.addr, req.tenant)};
+        info!("{}", msg);
+        Ok(make_http_200(RespDeleteHosts::new("0", msg, deletes as u32)))
     }
 }
 
@@ -181,32 +161,27 @@ impl RespGetClient {
 //                          Private Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// get_client:
+// delete_host:
 // ---------------------------------------------------------------------------
-async fn get_client(req: &ReqGetClient) -> Result<Client> {
+async fn delete_host(req: &ReqDeleteHosts) -> Result<u64> {
     // Get a connection to the db and start a transaction.  Uncommited transactions 
     // are automatically rolled back when they go out of scope. 
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
-    
-    // Create the select statement.
-    let result = sqlx::query(GET_CLIENT)
-        .bind(req.client_id.clone())
-        .bind(req.tenant.clone())
-        .fetch_optional(&mut *tx)
+
+    // Deletion count.
+    let mut deletes: u64 = 0;
+
+    // Issue the db delete call.
+    let result = sqlx::query(DELETE_HOST)
+        .bind(&req.tenant)
+        .bind(&req.host)
+        .bind(&req.addr)
+        .execute(&mut *tx)
         .await?;
+    deletes += result.rows_affected();
 
     // Commit the transaction.
     tx.commit().await?;
-
-    // We may have found the client. 
-    match result {
-        Some(row) => {
-            Ok(Client::new(row.get(0), row.get(1), row.get(2), row.get(3), row.get(4),
-                           row.get(5), row.get(6), row.get(7), row.get(8)))
-        },
-        None => {
-            Err(anyhow!("NOT_FOUND"))
-        },
-    }
+    Ok(deletes)
 }
