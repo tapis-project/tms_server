@@ -134,6 +134,11 @@ pub const GET_USER_MFA: &str = concat!(
     "FROM user_mfa WHERE tms_user_id = ? AND tenant = ?"
 );
 
+pub const GET_USER_MFA_ACTIVE: &str = concat!(
+    "SELECT expires_at, enabled ",
+    "FROM user_mfa WHERE tms_user_id = ? AND tenant = ?"
+);
+
 pub const UPDATE_USER_MFA_ENABLED: &str = concat!(
     "UPDATE user_mfa SET enabled = ?, updated = ? WHERE tms_user_id = ? AND tenant = ?"
 );
@@ -159,6 +164,11 @@ pub const GET_USER_HOST: &str = concat!(
     "FROM user_hosts WHERE id = ? AND tenant = ?"
 );
 
+pub const GET_USER_HOST_ACTIVE: &str = concat!(
+    "SELECT expires_at ",
+    "FROM user_hosts WHERE tms_user_id = ? AND tenant = ? AND host = ? AND host_account = ?"
+);
+
 pub const DELETE_USER_HOST: &str = concat!(
     "DELETE FROM user_hosts WHERE tms_user_id = ? AND tenant = ? AND host = ? AND host_account = ?"
 );
@@ -182,6 +192,11 @@ pub const INSERT_DELEGATIONS: &str = concat!(
 pub const GET_DELEGATION: &str = concat!(
     "SELECT id, tenant, client_id, client_user_id, expires_at, created, updated ",
     "FROM delegations WHERE id = ? AND tenant = ?"
+);
+
+pub const GET_DELEGATION_ACTIVE: &str = concat!(
+    "SELECT expires_at ",
+    "FROM delegations WHERE AND tenant = ? AND client_id = ? AND client_user_id = ?"
 );
 
 pub const LIST_DELEGATIONS: &str = concat!(

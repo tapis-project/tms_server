@@ -146,7 +146,7 @@ pub fn timestamp_utc_to_str(ts: DateTime<Utc>) -> String {
 // ---------------------------------------------------------------------------
 // timestamp_utc_secs_to_str:
 // ---------------------------------------------------------------------------
-/** Convert a UTC datetime to rfc3339 format with second precision,  which looks 
+/** Convert a UTC datetime to rfc3339 format with second precision, which looks 
  * like this:  2022-09-13T14:14:42Z
  */
 #[allow(dead_code)]

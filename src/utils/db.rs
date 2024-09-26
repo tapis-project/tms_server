@@ -1,18 +1,21 @@
 #![forbid(unsafe_code)]
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use log::{info, warn};
 use chrono::{Utc, DateTime};
 use std::io::{self, Write};
+use sqlx::Row;
 
 use futures::executor::block_on;
-use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, create_hex_secret, hash_hex_secret};
+use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime, create_hex_secret, hash_hex_secret};
 use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_STD_TENANTS, INSERT_USER_HOSTS, INSERT_USER_MFA};
 use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, SQLITE_TRUE, DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_ARGS};
+use log::error;
 
 use crate::RUNTIME_CTX;
 
-use super::db_statements::{INSERT_ADMIN, INSERT_CLIENTS};
+use super::db_statements::{INSERT_ADMIN, INSERT_CLIENTS, GET_USER_MFA_ACTIVE, GET_USER_HOST_ACTIVE,
+                           GET_DELEGATION_ACTIVE};
 
 // ---------------------------------------------------------------------------
 // create_std_tenants:
@@ -140,7 +143,7 @@ pub fn check_test_data() {
             if b {info!("Test records inserted into test tenant.");} 
         }
         Err(e) => {
-            warn!("****** Ignoring error while inserting test records into test tenant: {}", e.to_string());
+            warn!("****** Ignoring error while inserting test records into test tenant: {}", e);
         }
     };
 }
@@ -218,4 +221,167 @@ async fn create_test_data() -> Result<bool> {
     tx.commit().await?;
     
     Ok(true)
+}
+
+// ---------------------------------------------------------------------------
+// check_pubkey_dependencies:
+// ---------------------------------------------------------------------------
+/** When creating a public key or a reservation on a public key we must check
+ * that the user's MFA, user/host mapping and client delegation are currently 
+ * active.  Active means that the records exist in their respective tables, are
+ * enabled and have not expired.
+ * 
+ * We return as soon as we encounter any dependency that cannot be fulfilled or
+ * any other type of error.  The database transaction is read-only, so exiting
+ * abruptly causes the transaction to roll back, which frees up the database 
+ * just as commit.
+ */
+pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String, 
+                                             client_user_id: &String, host: &String, 
+                                             host_account: &String)
+    -> Result<()>
+{
+    // Get a connection to the db and start a transaction.
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+
+    // -------- Check user_mfa dependency
+    let mfa_row = sqlx::query(GET_USER_MFA_ACTIVE)
+        .bind(client_user_id)
+        .bind(tenant)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+    match mfa_row {
+        Some(row) => {
+            // Unpack row.
+            let expires_at: String = row.get(0);
+            let enabled: i32 = row.get(1);
+
+            // Check whether the user's mfa is enabled.
+            if enabled != 1 {
+                let msg = format!("Required user MFA record for user ID {} in tenant {} is disabled.",
+                                          client_user_id, tenant);
+                error!("{}", msg);
+                return Result::Err(anyhow!(msg));
+            }
+
+            // Parse the user's mfa expires_at timestamp.
+            let expires_at_utc= match timestamp_str_to_datetime(&expires_at) {
+                Ok(utc) => utc,
+                Err(e) => {
+                    // This should not happen since we are the only ones that write the database.
+                    let msg = format!("INTERNAL ERROR: Unable to parse user_mfa expires_at value '{}' for user {}@{}: {}", 
+                                              expires_at, client_user_id, tenant, e);
+                    error!("{}", msg);
+                    return Result::Err(anyhow!(msg));
+                }
+            };
+
+            // Check whether the mfa has expired.
+            if expires_at_utc < timestamp_utc() {
+                let msg = format!("Required user MFA record for user ID {} in tenant {} expired at {}.",
+                                          client_user_id, tenant, expires_at);
+                error!("{}", msg);
+                return Result::Err(anyhow!(msg));
+            }
+        },
+        None => {
+            let msg = format!("Required user MFA record not found for user ID {} in tenant {}.",
+                                      client_user_id, tenant);
+            error!("{}", msg);
+            return Result::Err(anyhow!(msg));
+        }
+    };
+
+    // -------- Check user_hosts dependency
+    let host_row = sqlx::query(GET_USER_HOST_ACTIVE)
+        .bind(client_user_id)
+        .bind(tenant)
+        .bind(host)
+        .bind(host_account)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        match host_row {
+            Some(row) => {
+                // Unpack row.
+                let expires_at: String = row.get(0);
+    
+                // Parse the user host mapping's expires_at timestamp.
+                let expires_at_utc= match timestamp_str_to_datetime(&expires_at) {
+                    Ok(utc) => utc,
+                    Err(e) => {
+                        // This should not happen since we are the only ones that write the database.
+                        let msg = format!("INTERNAL ERROR: Unable to parse user_hosts expires_at value '{}' \
+                                                  for user {}@{} with account {} on host {}: {}", 
+                                                  expires_at, client_user_id, tenant, host_account, host, e);
+                        error!("{}", msg);
+                        return Result::Err(anyhow!(msg));
+                    }
+                };
+    
+                // Check whether the user host mapping has expired.
+                if expires_at_utc < timestamp_utc() {
+                    let msg = format!("Required user host record for user {}@{} with account {} on host {} expired at {}.",
+                                              client_user_id, tenant, host_account, host, expires_at);
+                    error!("{}", msg);
+                    return Result::Err(anyhow!(msg));
+                }
+            },
+            None => {
+                let msg = format!("Required user host record not found for user {}@{} with account {} on host {}.",
+                                          client_user_id, tenant, host_account, host);
+                error!("{}", msg);
+                return Result::Err(anyhow!(msg));
+            }
+        };
+    
+    // -------- Check delegations dependency
+    let delg_row = sqlx::query(GET_DELEGATION_ACTIVE)
+        .bind(tenant)
+        .bind(client_id)
+        .bind(client_user_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        match delg_row {
+            Some(row) => {
+                // Unpack row.
+                let expires_at: String = row.get(0);
+    
+                // Parse the user's delegation's expires_at timestamp.
+                let expires_at_utc= match timestamp_str_to_datetime(&expires_at) {
+                    Ok(utc) => utc,
+                    Err(e) => {
+                        // This should not happen since we are the only ones that write the database.
+                        let msg = format!("INTERNAL ERROR: Unable to parse the delegation expires_at value '{}' \
+                                                  for client {} and client_user_id {} in tenant {}: {}", 
+                                                  expires_at, client_id, client_user_id, tenant, e);
+                        error!("{}", msg);
+                        return Result::Err(anyhow!(msg));
+                    }
+                };
+    
+                // Check whether the delegation has expired.
+                if expires_at_utc < timestamp_utc() {
+                    let msg = format!("Required delegation record for client {} and client_user_id {} \
+                                              in tenant {} expired at {}.",
+                                              client_id, client_user_id, tenant, expires_at);
+                    error!("{}", msg);
+                    return Result::Err(anyhow!(msg));
+                }
+            },
+            None => {
+                let msg = format!("Required delegation record not found for client {} and client_user_id {} in tenant {}.",
+                                          client_id, client_user_id, tenant);
+                error!("{}", msg);
+                return Result::Err(anyhow!(msg));
+            }
+        };
+    
+    // Commit the transaction.
+    tx.commit().await?;
+
+    // All checks passed.
+    Ok(())
 }

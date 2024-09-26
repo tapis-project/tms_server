@@ -11,6 +11,7 @@ use crate::utils::errors::HttpResult;
 use crate::utils::keygen::{self, KeyType};
 use crate::utils::db_types::PubkeyInput;
 use crate::utils::db_statements::INSERT_PUBKEYS;
+use crate::utils::db::check_pubkey_dependencies;
 use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug};
 use log::{error, info};
 
@@ -96,6 +97,8 @@ enum TmsResponse {
     Http400(Json<HttpResult>),
     #[oai(status = 401)]
     Http401(Json<HttpResult>),
+    #[oai(status = 403)]
+    Http403(Json<HttpResult>),
     #[oai(status = 500)]
     Http500(Json<HttpResult>),
 }
@@ -108,6 +111,9 @@ fn make_http_400(msg: String) -> TmsResponse {
 }
 fn make_http_401(msg: String) -> TmsResponse {
     TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
+}
+fn make_http_403(msg: String) -> TmsResponse {
+    TmsResponse::Http403(Json(HttpResult::new(403.to_string(), msg)))
 }
 fn make_http_500(msg: String) -> TmsResponse {
     TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
@@ -169,6 +175,33 @@ impl RespNewSshKeys {
                                       req_ext.client_id, req_ext.tenant);
             error!("{}", msg);
             return Ok(make_http_401(msg));
+        }
+
+        // --------------------- Check Expirations -----------------------
+        // The 3 tables whose expiration times need to be checked before we create this key are:
+        //
+        //  user_mfa - use tenant and client_user_id to target unique record
+        //  delegations - use tenant, client_id and client_user_id to target unique record
+        //  user_hosts - use tenant, client_user_id, host and host_account to target unique record
+        //
+        // Each of the above tables are queried using values that define a unique index on the
+        // target table.  This guarantees that either 0 or 1 record will be returned.  In the 
+        // former case, the pubkey key cannot be created because one of its foriegn keys doesn't
+        // exist.  In the latter case, we have to check that the retrieved record has not 
+        // expired.
+        //
+        // This method returns an detailed error message that indicates which table did not
+        // contain the required values and whether the error resulted from a missing or 
+        // expired record.  
+        match block_on(check_pubkey_dependencies(&req_ext.tenant, &req_ext.client_id, 
+                                        &req.client_user_id, &req.host, &req.host_account))
+        {
+            Ok(_) => (),
+            Err(e) => {
+                let msg = format!("Missing or expired dependency: {}", e);
+                error!("{}", msg);
+                return Ok(make_http_403(msg));
+            } 
         }
 
         // ------------------------ Generate Keys ------------------------
