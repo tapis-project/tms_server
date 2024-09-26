@@ -36,3 +36,5 @@ pub mod hosts_create;
 pub mod hosts_get;
 pub mod hosts_delete;
 pub mod hosts_list;
+pub mod reservations_get;
+pub mod reservations_delete;

@@ -485,3 +485,77 @@ impl HostInput {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Reservations:
+// ---------------------------------------------------------------------------
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct Reservation {
+    pub id: i32,
+    pub resid: String,
+    pub tenant: String,
+    pub client_id: String,
+    pub client_user_id: String,
+    pub host: String,
+    pub public_key_fingerprint: String, 
+    pub expires_at: String,
+    pub created: String,
+    pub updated: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReservationInput {
+    pub resid: String,
+    pub tenant: String,
+    pub client_id: String,
+    pub client_user_id: String,
+    pub host: String,
+    pub public_key_fingerprint: String, 
+    pub expires_at: String,
+    pub created: String,
+    pub updated: String,
+}
+
+impl Reservation {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    pub fn new(
+        id: i32,
+        resid: String,
+        tenant: String,
+        client_id: String,
+        client_user_id: String,
+        host: String,
+        public_key_fingerprint: String, 
+        expires_at: String,
+        created: String,
+        updated: String,
+    ) 
+    -> Reservation {
+        Reservation {
+            id, resid, tenant, client_id, client_user_id, host, public_key_fingerprint,  
+            expires_at, created, updated
+        }
+    }
+}
+
+impl ReservationInput {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    pub fn new(
+        resid: String,
+        tenant: String,
+        client_id: String,
+        client_user_id: String,
+        host: String,
+        public_key_fingerprint: String, 
+        expires_at: String,
+        created: String,
+        updated: String,
+    ) 
+    -> ReservationInput {
+        ReservationInput {
+            resid, tenant, client_id, client_user_id, host, public_key_fingerprint,  
+            expires_at, created, updated
+        }
+    }
+}
+

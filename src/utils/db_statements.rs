@@ -273,4 +273,14 @@ pub const LIST_HOSTS: &str = concat!(
     "FROM hosts WHERE tenant = ? ORDER BY tenant, host, addr",
 );
 
+// ==================== reservations table =========================
+pub const GET_RESERVATION: &str = concat!(
+    "SELECT id, resid, tenant, client_id, client_user_id, host, public_key_fingerprint, ", 
+    "expires_at, created, updated ",
+    "FROM reservations WHERE resid = ? AND tenant = ?",
+);
+
+pub const DELETE_RESERVATION: &str = concat!(
+    "DELETE FROM reservations WHERE resid = ? AND client_id = ? AND tenant = ?"
+);
 

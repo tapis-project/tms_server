@@ -91,7 +91,7 @@ impl AuthzResult {
             Some(atype) => {
                 match atype {
                     AuthzTypes::ClientOwn => self.check_client_own(req_id),
-                    _ => true
+                    _ => true  // non-client authorization (ex: admin)
                 }
             },
             None => false,
