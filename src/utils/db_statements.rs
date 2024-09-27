@@ -230,6 +230,11 @@ pub const SELECT_PUBKEY_FOR_UPDATE: &str = concat!(
     "WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?",
 );
 
+pub const SELECT_PUBKEY_RESERVATION_INFO: &str = concat!(
+    "SELECT remaining_uses, expires_at, host_account FROM pubkeys ",
+    "WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?",
+);
+
 pub const GET_PUBKEY_TEMPLATE: &str = concat!(
     "SELECT id, tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",
     "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated ",
@@ -289,6 +294,12 @@ pub const LIST_HOSTS: &str = concat!(
 );
 
 // ==================== reservations table =========================
+pub const INSERT_RESERVATIONS: &str = concat!(
+    "INSERT INTO reservations (resid, tenant, client_id, client_user_id, host, ", 
+    "public_key_fingerprint, expires_at, created, updated) ",
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+);
+
 pub const GET_RESERVATION: &str = concat!(
     "SELECT id, resid, tenant, client_id, client_user_id, host, public_key_fingerprint, ", 
     "expires_at, created, updated ",
