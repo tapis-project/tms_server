@@ -233,10 +233,13 @@ impl RespNewSshKeys {
         let max_uses = if req.num_uses < 0 {i32::MAX} else {req.num_uses};
         let ttl_minutes = if req.ttl_minutes < 0 {i32::MAX} else {req.ttl_minutes};
 
-        // Use the same current UTC timestamp in all related time caculations..
+        // Use the same current UTC timestamp in all related time caculations.
+        // We also use the original requested ttl_minutes to calculate expires_at
+        // so that we get a uniform maximum uniform datetime rather then one that
+        // changes with current time when req.ttl_minutes = -1.
         let now  = timestamp_utc();
         let current_ts  = timestamp_utc_to_str(now);
-        let expires_at  = calc_expires_at(now, ttl_minutes); 
+        let expires_at  = calc_expires_at(now, req.ttl_minutes); 
         let remaining_uses = max_uses;
 
         // Create the input record.

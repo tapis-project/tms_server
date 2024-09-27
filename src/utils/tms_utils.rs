@@ -22,6 +22,12 @@ use log::{error, debug, LevelFilter};
 use crate::utils::db_statements::PLACEHOLDER;
 use crate::utils::authz::{AuthzResult, AuthzTypes};
 
+// ----------- Constants
+// The chrono library's MAX_UTC causes overflow during string
+// converstions because year is more than 4 digits.  Use this
+// value instead for long durations or timeouts.
+pub const MAX_TMS_UTC: &str = "9999-12-31T23:59:59Z";
+
 // ***************************************************************************
 // GENERAL PUBLIC FUNCTIONS
 // ***************************************************************************
@@ -107,7 +113,7 @@ pub fn get_files_in_dir(dir: &str) -> Result<Vec<PathBuf>> {
 /** The ttl should never be negative, but we handle it if it is. */
 pub fn calc_expires_at(now : DateTime<Utc>, ttl_minutes : i32) -> String {
     if ttl_minutes < 0 {
-        timestamp_utc_secs_to_str(DateTime::<Utc>::MAX_UTC)
+        MAX_TMS_UTC.to_string()
     } else {
         timestamp_utc_secs_to_str(now + Duration::minutes(ttl_minutes as i64))
     }

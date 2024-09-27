@@ -2,12 +2,12 @@
 
 use anyhow::{Result, anyhow};
 use log::{info, warn};
-use chrono::{Utc, DateTime};
 use std::io::{self, Write};
 use sqlx::Row;
 
 use futures::executor::block_on;
-use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime, create_hex_secret, hash_hex_secret};
+use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime, 
+                              create_hex_secret, hash_hex_secret, MAX_TMS_UTC};
 use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_STD_TENANTS, INSERT_USER_HOSTS, INSERT_USER_MFA};
 use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, SQLITE_TRUE, DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_ARGS};
 use log::error;
@@ -165,7 +165,6 @@ async fn create_test_data() -> Result<bool> {
     // Get the timestamp string.
     let now = timestamp_utc();
     let current_ts = timestamp_utc_secs_to_str(now);
-    let max_datetime = timestamp_utc_secs_to_str(DateTime::<Utc>::MAX_UTC);
 
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
@@ -187,7 +186,7 @@ async fn create_test_data() -> Result<bool> {
     sqlx::query(INSERT_USER_MFA)
         .bind(TEST_TENANT)
         .bind(TEST_USER)
-        .bind(&max_datetime)
+        .bind(MAX_TMS_UTC)
         .bind(SQLITE_TRUE)
         .bind(&current_ts)
         .bind(&current_ts)
@@ -200,7 +199,7 @@ async fn create_test_data() -> Result<bool> {
         .bind(TEST_USER)
         .bind(TEST_HOST)
         .bind(TEST_HOST_ACCOUNT)
-        .bind(&max_datetime)
+        .bind(MAX_TMS_UTC)
         .bind(&current_ts)
         .bind(&current_ts)
         .execute(&mut *tx)
@@ -211,7 +210,7 @@ async fn create_test_data() -> Result<bool> {
         .bind(TEST_TENANT)
         .bind(TEST_CLIENT)
         .bind(TEST_USER)
-        .bind(&max_datetime)
+        .bind(MAX_TMS_UTC)
         .bind(&current_ts)
         .bind(&current_ts)
         .execute(&mut *tx)
@@ -258,7 +257,7 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
             let enabled: i32 = row.get(1);
 
             // Check whether the user's mfa is enabled.
-            if enabled != 1 {
+            if enabled != SQLITE_TRUE {
                 let msg = format!("Required user MFA record for user ID {} in tenant {} is disabled.",
                                           client_user_id, tenant);
                 error!("{}", msg);

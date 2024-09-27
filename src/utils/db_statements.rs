@@ -196,7 +196,7 @@ pub const GET_DELEGATION: &str = concat!(
 
 pub const GET_DELEGATION_ACTIVE: &str = concat!(
     "SELECT expires_at ",
-    "FROM delegations WHERE AND tenant = ? AND client_id = ? AND client_user_id = ?"
+    "FROM delegations WHERE tenant = ? AND client_id = ? AND client_user_id = ?"
 );
 
 pub const LIST_DELEGATIONS: &str = concat!(
