@@ -493,6 +493,7 @@ impl HostInput {
 pub struct Reservation {
     pub id: i32,
     pub resid: String,
+    pub parent_resid: String,
     pub tenant: String,
     pub client_id: String,
     pub client_user_id: String,
@@ -506,6 +507,7 @@ pub struct Reservation {
 #[derive(Debug, Deserialize)]
 pub struct ReservationInput {
     pub resid: String,
+    pub parent_resid: String,
     pub tenant: String,
     pub client_id: String,
     pub client_user_id: String,
@@ -521,6 +523,7 @@ impl Reservation {
     pub fn new(
         id: i32,
         resid: String,
+        parent_resid: String,
         tenant: String,
         client_id: String,
         client_user_id: String,
@@ -532,8 +535,8 @@ impl Reservation {
     ) 
     -> Reservation {
         Reservation {
-            id, resid, tenant, client_id, client_user_id, host, public_key_fingerprint,  
-            expires_at, created, updated
+            id, resid, parent_resid, tenant, client_id, client_user_id, host, 
+            public_key_fingerprint, expires_at, created, updated
         }
     }
 }
@@ -542,6 +545,7 @@ impl ReservationInput {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
         resid: String,
+        parent_resid: String,
         tenant: String,
         client_id: String,
         client_user_id: String,
@@ -553,8 +557,8 @@ impl ReservationInput {
     ) 
     -> ReservationInput {
         ReservationInput {
-            resid, tenant, client_id, client_user_id, host, public_key_fingerprint,  
-            expires_at, created, updated
+            resid, parent_resid, tenant, client_id, client_user_id, host,  
+            public_key_fingerprint, expires_at, created, updated
         }
     }
 }

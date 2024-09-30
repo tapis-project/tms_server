@@ -39,3 +39,4 @@ pub mod hosts_list;
 pub mod reservations_get;
 pub mod reservations_delete;
 pub mod reservations_create;
+pub mod reservations_extend;

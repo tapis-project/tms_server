@@ -38,6 +38,7 @@ pub struct RespGetReservation
     result_msg: String,
     id: i32,
     resid: String,
+    parent_resid: String,
     tenant: String,
     client_id: String,
     client_user_id: String,
@@ -158,12 +159,12 @@ impl GetReservationApi {
 impl RespGetReservation {
     // Create a new response.
     #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: String, id: i32, resid: String, tenant: String, client_id: String, 
-            client_user_id: String, host: String, public_key_fingerprint: String, 
-            expires_at: String, created: String, updated: String) 
+    fn new(result_code: &str, result_msg: String, id: i32, resid: String, parent_resid: String, 
+            tenant: String, client_id: String, client_user_id: String, host: String, 
+            public_key_fingerprint: String, expires_at: String, created: String, updated: String) 
     -> Self {
             Self {result_code: result_code.to_string(), result_msg, 
-              id, resid, tenant, client_id, client_user_id, host, public_key_fingerprint, 
+              id, resid, parent_resid, tenant, client_id, client_user_id, host, public_key_fingerprint, 
               expires_at, created, updated}
         }
 
@@ -176,8 +177,8 @@ impl RespGetReservation {
         let db_result = block_on(get_reservation(req));
         match db_result {
             Ok(res) => Ok(make_http_200(Self::new("0", "success".to_string(), 
-                                    res.id, res.resid, res.tenant, res.client_id, res.client_user_id, 
-                                    res.host, res.public_key_fingerprint, 
+                                    res.id, res.resid, res.parent_resid, res.tenant, res.client_id, 
+                                    res.client_user_id, res.host, res.public_key_fingerprint, 
                                     res.expires_at, res.created, res.updated))),
             Err(e) => {
                 // Determine if this is a real db error or just record not found.
@@ -214,9 +215,9 @@ async fn get_reservation(req: &ReqGetReservation) -> Result<Reservation> {
     // We may have found the reservation. 
     match result {
         Some(row) => {
-            Ok(Reservation::new(row.get(0), row.get(1), row.get(2), row.get(3), 
-                row.get(4), row.get(5), row.get(6), 
-                row.get(7), row.get(8), row.get(9)))
+            Ok(Reservation::new(row.get(0), row.get(1), row.get(2), 
+                row.get(3), row.get(4), row.get(5), row.get(6), 
+                row.get(7), row.get(8), row.get(9), row.get(10)))
         },
         None => {
             Err(anyhow!("NOT_FOUND"))

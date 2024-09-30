@@ -295,15 +295,20 @@ pub const LIST_HOSTS: &str = concat!(
 
 // ==================== reservations table =========================
 pub const INSERT_RESERVATIONS: &str = concat!(
-    "INSERT INTO reservations (resid, tenant, client_id, client_user_id, host, ", 
-    "public_key_fingerprint, expires_at, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO reservations (resid, parent_resid, tenant, client_id, client_user_id, ", 
+    "host, public_key_fingerprint, expires_at, created, updated) ",
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 );
 
 pub const GET_RESERVATION: &str = concat!(
-    "SELECT id, resid, tenant, client_id, client_user_id, host, public_key_fingerprint, ", 
-    "expires_at, created, updated ",
+    "SELECT id, resid, parent_resid, tenant, client_id, client_user_id, host, ", 
+    "public_key_fingerprint, expires_at, created, updated ",
     "FROM reservations WHERE resid = ? AND tenant = ?",
+);
+
+pub const GET_RESERVATION_FOR_EXTEND: &str = concat!(
+    "SELECT parent_resid, expires_at FROM reservations ", 
+    "WHERE resid = ? AND tenant = ? AND client_id = ?",
 );
 
 pub const DELETE_RESERVATION: &str = concat!(

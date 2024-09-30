@@ -196,6 +196,7 @@ CREATE TABLE IF NOT EXISTS reservations
 (
     id                     INTEGER PRIMARY KEY NOT NULL,
     resid                  TEXT NOT NULL,
+    parent_resid           TEXT NOT NULL,
     tenant                 TEXT NOT NULL,
     client_id              TEXT NOT NULL,
     client_user_id         TEXT NOT NULL,
@@ -210,8 +211,8 @@ CREATE TABLE IF NOT EXISTS reservations
     FOREIGN KEY(public_key_fingerprint, host) REFERENCES pubkeys(public_key_fingerprint, host) ON UPDATE CASCADE ON DELETE CASCADE
 ) STRICT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS res_unique_tuple_idx ON reservations (resid, tenant, client_id, client_user_id, host, public_key_fingerprint);
-CREATE INDEX IF NOT EXISTS res_resid_idx ON reservations (resid);
+CREATE UNIQUE INDEX IF NOT EXISTS res_resid_idx ON reservations (resid);
+CREATE INDEX IF NOT EXISTS res_parent_resid_idx ON reservations (parent_resid);
 CREATE INDEX IF NOT EXISTS res_tenant_user_idx ON reservations (tenant, client_user_id); 
 CREATE INDEX IF NOT EXISTS res_client_idx ON reservations (client_id);
 CREATE INDEX IF NOT EXISTS res_expires_idx ON reservations (expires_at);

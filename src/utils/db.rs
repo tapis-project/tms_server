@@ -15,7 +15,7 @@ use log::error;
 use crate::RUNTIME_CTX;
 
 use super::db_statements::{INSERT_ADMIN, INSERT_CLIENTS, GET_USER_MFA_ACTIVE, GET_USER_HOST_ACTIVE,
-                           GET_DELEGATION_ACTIVE};
+                           GET_DELEGATION_ACTIVE, GET_RESERVATION_FOR_EXTEND};
 
 // ---------------------------------------------------------------------------
 // create_std_tenants:
@@ -386,4 +386,88 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
 
     // All checks passed.
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// check_parent_reservation:
+// ---------------------------------------------------------------------------
+/** When extending a reservation we need to check that these conditions hold:
+ * 
+ *  - The designated parent reservation is not a itself a child of another reservation.
+ *  - The parent reservation has not expired.
+ * 
+ * The resid parameter designates the candidate parent reservation for a new extending
+ * reservation.  The tenant and client_id are used to guarantee that clients can only
+ * extend their own reservations.
+ *   
+ * Note that message that contains "INTERNAL ERROR:" should trigger a 500 http 
+ * return code.
+ */
+pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id: &String) 
+-> Result<String>
+{
+    // Get a connection to the db and start a transaction.
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+
+    // -------- Check user_mfa dependency
+    let mfa_row = sqlx::query(GET_RESERVATION_FOR_EXTEND)
+        .bind(resid)
+        .bind(tenant)
+        .bind(client_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+    // Check the candidate parent reservation and save its expiration time.    
+    let expires_at: String;
+    match mfa_row {
+        Some(row) => {
+            // Unpack row.
+            let parent_resid: String = row.get(0);
+            expires_at = row.get(1);
+
+            // Make sure the parent reservation is not also a child of another reservation.
+            // Top-level reservations have their parent_resid set to their own resid, so if
+            // the resid used to retrieve the reservation differs from that reservation's
+            // parent, then we know the retrieved reservation is already a child. 
+            if *resid != parent_resid {
+                let msg = format!("Reservation {} cannot be designated as parent for another reservation \
+                                          because it is already a child of reservation {}.",
+                                            resid, parent_resid);
+                error!("{}", msg);
+                return Result::Err(anyhow!(msg));
+            }
+
+            // Parse the reservation's expires_at timestamp.
+            let expires_at_utc= match timestamp_str_to_datetime(&expires_at) {
+                Ok(utc) => utc,
+                Err(e) => {
+                    // This should not happen since we are the only ones that write the database.
+                    let msg = format!("INTERNAL ERROR: Unable to parse reservation expires_at value '{}' for resid {} \
+                                            for client {} in tenant {}: {}", expires_at, resid, client_id, tenant, e);
+                    error!("{}", msg);
+                    return Result::Err(anyhow!(msg));
+                }
+            };
+
+            // Check whether the reservation has expired.
+            if expires_at_utc < timestamp_utc() {
+                let msg = format!("Parent reservation {} for client {} in tenant {} expired at {}.",
+                                            resid, client_id, tenant, expires_at);
+                error!("{}", msg);
+                return Result::Err(anyhow!(msg));
+            }
+        },
+        None => {
+            let msg = format!("NOT_FOUND: Reservation {} not found for client {} in tenant {}.",
+                                        resid, client_id, tenant);
+            error!("{}", msg);
+            return Result::Err(anyhow!(msg));
+        }
+    };  
+
+    // Commit the transaction.
+    tx.commit().await?;
+
+    // All checks passed.
+    Ok(expires_at)
 }
