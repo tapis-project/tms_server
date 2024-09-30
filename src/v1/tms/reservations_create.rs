@@ -25,6 +25,11 @@ const MAX_RESERVATION_MINUTES: i32 = 48 * 60;
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
+/** Create a new reservation on an active (non-expired) pubkey record.  All 
+ * dependency checking required for pubkey creation is also performed here.  
+ * Specifically, the user mfa, user/host mapping and client delegation records 
+ * must be in order and active before a reservation can be created.
+ */
 pub struct CreateReservationsApi;
 
 #[derive(Object)]
@@ -232,8 +237,8 @@ impl RespReservation {
         //  delegations - use tenant, client_id and client_user_id to target unique record
         //  user_hosts - use tenant, client_user_id, host and host_account to target unique record
         //
-        // Each of the above tables are queried using values that define a unique index on the
-        // target table.  This guarantees that either 0 or 1 record will be returned.  In the 
+        // Each of the above tables is queried using values that define a unique index on that
+        // target table.  This guarantees that either 0 or 1 records will be returned.  In the 
         // former case, the pubkey key cannot be created because one of its foriegn keys doesn't
         // exist.  In the latter case, we have to check that the retrieved record has not 
         // expired.
@@ -248,7 +253,8 @@ impl RespReservation {
             Err(e) => {
                 let msg = format!("Missing or expired dependency: {}", e);
                 error!("{}", msg);
-                return Ok(make_http_403(msg));
+                if msg.contains("INTERNAL ERROR:") {return Ok(make_http_500(msg));}
+                    else {return Ok(make_http_403(msg));}
             } 
         }
 
@@ -286,7 +292,7 @@ impl RespReservation {
         info!("Reservation '{}' created for '{}@{}' for host '{}' expires at {}.", 
               resid, req.client_user_id, req_ext.tenant, req.host, expires_at);
 
-        // Success! Zero key bits means a fixed key length.
+        // Success! 
         Ok(make_http_201(Self::new("0", "success", 
                          resid, expires_at,)))
     }

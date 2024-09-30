@@ -234,10 +234,13 @@ async fn create_test_data() -> Result<bool> {
  * any other type of error.  The database transaction is read-only, so exiting
  * abruptly causes the transaction to roll back, which frees up the database 
  * just as commit.
+ * 
+ * Note that message that contains "INTERNAL ERROR:" should trigger a 500 http 
+ * return code.
  */
 pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String, 
-                                             client_user_id: &String, host: &String, 
-                                             host_account: &String)
+                                        client_user_id: &String, host: &String, 
+                                        host_account: &String)
     -> Result<()>
 {
     // Get a connection to the db and start a transaction.

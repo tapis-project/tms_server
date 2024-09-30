@@ -200,7 +200,9 @@ impl RespNewSshKeys {
             Err(e) => {
                 let msg = format!("Missing or expired dependency: {}", e);
                 error!("{}", msg);
-                return Ok(make_http_403(msg));
+                if msg.contains("INTERNAL ERROR:") {return Ok(make_http_500(msg));}
+                else {return Ok(make_http_403(msg));}
+
             } 
         }
 
