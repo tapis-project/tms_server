@@ -40,3 +40,4 @@ pub mod reservations_get;
 pub mod reservations_delete;
 pub mod reservations_create;
 pub mod reservations_extend;
+pub mod reservations_delete_related;

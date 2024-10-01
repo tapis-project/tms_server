@@ -332,3 +332,6 @@ pub const DELETE_RESERVATION: &str = concat!(
     "DELETE FROM reservations WHERE resid = ? AND client_id = ? AND tenant = ?"
 );
 
+pub const DELETE_RELATED_RESERVATIONS: &str = concat!(
+    "DELETE FROM reservations WHERE (resid = ? OR parent_resid = ?) AND client_id = ? AND tenant = ?"
+);

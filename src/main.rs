@@ -49,6 +49,7 @@ use crate::v1::tms::hosts_delete::DeleteHostsApi;
 use crate::v1::tms::hosts_list::ListHostsApi;
 use crate::v1::tms::reservations_get::GetReservationApi;
 use crate::v1::tms::reservations_delete::DeleteReservationApi;
+use crate::v1::tms::reservations_delete_related::DeleteRelatedReservationsApi;
 use crate::v1::tms::reservations_create::CreateReservationsApi;
 use crate::v1::tms::reservations_extend::ExtendReservationsApi;
 use crate::v1::tms::version::VersionApi;
@@ -107,7 +108,7 @@ async fn main() -> Result<(), std::io::Error> {
          CreateDelegationsApi, GetDelegationsApi, ListDelegationsApi, DeleteDelegationsApi, UpdateDelegationsApi,
          CreateTenantsApi, GetTenantsApi, ListTenantsApi, DeleteTenantsApi, UpdateTenantsApi, WipeTenantsApi,
          CreateHostsApi, GetHostsApi, DeleteHostsApi, ListHostsApi,
-         GetReservationApi, DeleteReservationApi, CreateReservationsApi, ExtendReservationsApi);
+         GetReservationApi, DeleteReservationApi, CreateReservationsApi, ExtendReservationsApi, DeleteRelatedReservationsApi);
     let mut api_service = 
         OpenApiService::new(endpoints, "TMS Server", "0.0.1");
     let urls = &RUNTIME_CTX.parms.config.server_urls;
