@@ -139,6 +139,10 @@ pub const GET_USER_MFA_ACTIVE: &str = concat!(
     "FROM user_mfa WHERE tms_user_id = ? AND tenant = ?"
 );
 
+pub const GET_USER_MFA_EXISTS: &str = concat!(
+    "SELECT 1 FROM user_mfa WHERE tms_user_id = ? AND tenant = ?"
+);
+
 pub const UPDATE_USER_MFA_ENABLED: &str = concat!(
     "UPDATE user_mfa SET enabled = ?, updated = ? WHERE tms_user_id = ? AND tenant = ?"
 );
@@ -167,6 +171,10 @@ pub const GET_USER_HOST: &str = concat!(
 pub const GET_USER_HOST_ACTIVE: &str = concat!(
     "SELECT expires_at ",
     "FROM user_hosts WHERE tms_user_id = ? AND tenant = ? AND host = ? AND host_account = ?"
+);
+
+pub const GET_USER_HOST_EXISTS: &str = concat!(
+    "SELECT 1 FROM user_hosts WHERE tms_user_id = ? AND tenant = ? AND host = ? AND host_account = ?"
 );
 
 pub const DELETE_USER_HOST: &str = concat!(
@@ -199,6 +207,10 @@ pub const GET_DELEGATION_ACTIVE: &str = concat!(
     "FROM delegations WHERE tenant = ? AND client_id = ? AND client_user_id = ?"
 );
 
+pub const GET_DELEGATION_EXISTS: &str = concat!(
+    "SELECT 1 FROM delegations WHERE tenant = ? AND client_id = ? AND client_user_id = ?"
+);
+
 pub const LIST_DELEGATIONS: &str = concat!(
     "SELECT id, tenant, client_id, client_user_id, expires_at, created, updated ",
     "FROM delegations WHERE tenant = ? ORDER BY tenant, client_id, client_user_id",
@@ -227,6 +239,11 @@ pub const SELECT_PUBKEY: &str = concat!(
 
 pub const SELECT_PUBKEY_FOR_UPDATE: &str = concat!(
     "SELECT max_uses, remaining_uses FROM pubkeys ",
+    "WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?",
+);
+
+pub const SELECT_PUBKEY_HOST_ACCOUNT: &str = concat!(
+    "SELECT host_account FROM pubkeys ",
     "WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?",
 );
 

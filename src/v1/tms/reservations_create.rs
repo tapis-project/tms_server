@@ -33,7 +33,7 @@ const MAX_RESERVATION_MINUTES: i32 = 48 * 60;
 pub struct CreateReservationsApi;
 
 #[derive(Object)]
-pub struct ReqReservation
+pub struct ReqCreateReservation
 {
     client_user_id: String,
     host: String,
@@ -42,17 +42,18 @@ pub struct ReqReservation
 }
 
 #[derive(Object, Debug)]
-struct RespReservation
+struct RespCreateReservation
 {
     result_code: String,
     result_msg: String,
     resid: String,
+    parent_resid: String,
     expires_at: String,
 }
 
 // Implement the debug record trait for logging.
-impl RequestDebug for ReqReservation {   
-    type Req = ReqReservation;
+impl RequestDebug for ReqCreateReservation {   
+    type Req = ReqCreateReservation;
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
@@ -93,7 +94,7 @@ struct PubkeyInfo {
 #[derive(Debug, ApiResponse)]
 enum TmsResponse {
     #[oai(status = 201)]
-    Http201(Json<RespReservation>),
+    Http201(Json<RespCreateReservation>),
     #[oai(status = 400)]
     Http400(Json<HttpResult>),
     #[oai(status = 401)]
@@ -106,7 +107,7 @@ enum TmsResponse {
     Http500(Json<HttpResult>),
 }
 
-fn make_http_201(resp: RespReservation) -> TmsResponse {
+fn make_http_201(resp: RespCreateReservation) -> TmsResponse {
     TmsResponse::Http201(Json(resp))
 }
 fn make_http_400(msg: String) -> TmsResponse {
@@ -131,8 +132,8 @@ fn make_http_500(msg: String) -> TmsResponse {
 #[OpenApi]
 impl CreateReservationsApi {
     #[oai(path = "/tms/reservations", method = "post")]
-    async fn create_reservation_api(&self, http_req: &Request, req: Json<ReqReservation>) -> TmsResponse {
-        match RespReservation::process(http_req, &req) {
+    async fn create_reservation_api(&self, http_req: &Request, req: Json<ReqCreateReservation>) -> TmsResponse {
+        match RespCreateReservation::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 // Assume a server fault if a raw error came through.
@@ -147,15 +148,15 @@ impl CreateReservationsApi {
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-impl RespReservation {
+impl RespCreateReservation {
     #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: &str, resid: String, expires_at: String) -> Self {
+    fn new(result_code: &str, result_msg: &str, resid: String, parent_resid: String, expires_at: String) -> Self {
         Self {result_code: result_code.to_string(), result_msg: result_msg.to_string(), 
-              resid, expires_at,
+              resid, parent_resid, expires_at,
         }
     }
 
-    fn process(http_req: &Request, req: &ReqReservation) -> Result<TmsResponse, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqCreateReservation) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -295,7 +296,7 @@ impl RespReservation {
 
         // Success! 
         Ok(make_http_201(Self::new("0", "success", 
-                         resid, expires_at,)))
+                         resid.clone(), resid, expires_at,)))
     }
 }
 

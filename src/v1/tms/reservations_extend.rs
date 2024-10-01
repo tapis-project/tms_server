@@ -27,7 +27,7 @@ use crate::RUNTIME_CTX;
 pub struct ExtendReservationsApi;
 
 #[derive(Object)]
-pub struct ReqReservation
+pub struct ReqExtendReservation
 {
     client_user_id: String,
     host: String,
@@ -36,17 +36,18 @@ pub struct ReqReservation
 }
 
 #[derive(Object, Debug)]
-struct RespReservation
+struct RespExtendReservation
 {
     result_code: String,
     result_msg: String,
     resid: String,
+    parent_resid: String,
     expires_at: String,
 }
 
 // Implement the debug record trait for logging.
-impl RequestDebug for ReqReservation {   
-    type Req = ReqReservation;
+impl RequestDebug for ReqExtendReservation {   
+    type Req = ReqExtendReservation;
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
@@ -57,7 +58,7 @@ impl RequestDebug for ReqReservation {
         s.push_str("\n    public_key_fingerprint: ");
         s.push_str(&self.public_key_fingerprint);
         s.push_str("\n    parent_resid: ");
-        s.push_str(&&self.parent_resid);
+        s.push_str(&self.parent_resid);
         s.push('\n');
         s
     }
@@ -80,7 +81,7 @@ impl ReqReservationExtension {
 #[derive(Debug, ApiResponse)]
 enum TmsResponse {
     #[oai(status = 201)]
-    Http201(Json<RespReservation>),
+    Http201(Json<RespExtendReservation>),
     #[oai(status = 400)]
     Http400(Json<HttpResult>),
     #[oai(status = 401)]
@@ -93,7 +94,7 @@ enum TmsResponse {
     Http500(Json<HttpResult>),
 }
 
-fn make_http_201(resp: RespReservation) -> TmsResponse {
+fn make_http_201(resp: RespExtendReservation) -> TmsResponse {
     TmsResponse::Http201(Json(resp))
 }
 fn make_http_400(msg: String) -> TmsResponse {
@@ -118,8 +119,8 @@ fn make_http_500(msg: String) -> TmsResponse {
 #[OpenApi]
 impl ExtendReservationsApi {
     #[oai(path = "/tms/reservations/extend", method = "post")]
-    async fn extend_reservation_api(&self, http_req: &Request, req: Json<ReqReservation>) -> TmsResponse {
-        match RespReservation::process(http_req, &req) {
+    async fn extend_reservation_api(&self, http_req: &Request, req: Json<ReqExtendReservation>) -> TmsResponse {
+        match RespExtendReservation::process(http_req, &req) {
             Ok(r) => r,
             Err(e) => {
                 // Assume a server fault if a raw error came through.
@@ -134,15 +135,15 @@ impl ExtendReservationsApi {
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-impl RespReservation {
+impl RespExtendReservation {
     #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: &str, resid: String, expires_at: String) -> Self {
+    fn new(result_code: &str, result_msg: &str, resid: String, parent_resid: String, expires_at: String) -> Self {
         Self {result_code: result_code.to_string(), result_msg: result_msg.to_string(), 
-              resid, expires_at,
+              resid, parent_resid, expires_at,
         }
     }
 
-    fn process(http_req: &Request, req: &ReqReservation) -> Result<TmsResponse, anyhow::Error> {
+    fn process(http_req: &Request, req: &ReqExtendReservation) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -169,8 +170,9 @@ impl RespReservation {
         // ------------------ Get Parent Reservation -------------------
         // Check that the designated parent reservation can be extended
         // and retrieve that reservation's experation time.
-        let expires_at = match block_on(check_parent_reservation(&req.parent_resid, 
-                                                &req_ext.tenant, &req_ext.client_id,)) {
+        let expires_at = match block_on(check_parent_reservation(&req.parent_resid, &req_ext.tenant, 
+                        &req_ext.client_id, &req.client_user_id, &req.host, &req.public_key_fingerprint)) 
+        {
             Ok(expiry) => expiry,
             Err(e) => {
                 let msg = format!("Missing or expired dependency: {}", e);
@@ -213,7 +215,7 @@ impl RespReservation {
 
         // Success! 
         Ok(make_http_201(Self::new("0", "success", 
-                         resid, expires_at,)))
+                         resid, req.parent_resid.clone(), expires_at,)))
     }
 }
 

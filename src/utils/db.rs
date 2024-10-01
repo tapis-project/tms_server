@@ -14,10 +14,23 @@ use log::error;
 
 use crate::RUNTIME_CTX;
 
-use super::db_statements::{INSERT_ADMIN, INSERT_CLIENTS, GET_USER_MFA_ACTIVE, GET_USER_HOST_ACTIVE,
-                           GET_DELEGATION_ACTIVE, GET_RESERVATION_FOR_EXTEND};
+use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RESERVATION_FOR_EXTEND, GET_USER_HOST_ACTIVE, GET_USER_HOST_EXISTS, GET_USER_MFA_ACTIVE, GET_USER_MFA_EXISTS, INSERT_ADMIN, INSERT_CLIENTS, SELECT_PUBKEY_HOST_ACCOUNT};
 
-// ---------------------------------------------------------------------------
+/** Multiple Query Transactions
+ * 
+ * A note on concurrency and the multiple query transactions contained in this file
+ * and others in TMS.  The sqlite documentation on concurrency indicates that locks
+ * are acquired on database files, not at the row or table level.  One can only assume
+ * that the lock holders are threads, whether in the same or different processes.  
+ * 
+ * To avoid the possibility of deadlocks in TMS, avoid mixing read and write operations 
+ * on multiple tables in the same transaction.  In places where that is necessary, make 
+ * sure there are no other transactions that issue multiple SQL calls on different 
+ * tables in a different order, which could lead to conflicts and deadlocks.
+*/
+
+
+ // ---------------------------------------------------------------------------
 // create_std_tenants:
 // ---------------------------------------------------------------------------
 /** This method should only be called when the --install option is specified.  
@@ -391,26 +404,49 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
 // ---------------------------------------------------------------------------
 // check_parent_reservation:
 // ---------------------------------------------------------------------------
-/** When extending a reservation we need to check that these conditions hold:
+/** This function is used to validate reservation extension requests by checking
+ * database state. 
+ * 
+ * Reservation Constraints
+ * ----------------------- 
+ * When extending a reservation we need to check that these conditions hold on
+ * that reservation:
  * 
  *  - The designated parent reservation is not a itself a child of another reservation.
  *  - The parent reservation has not expired.
  * 
- * The resid parameter designates the candidate parent reservation for a new extending
+ * We identify a child reservation by the fact that its parent_resid is different
+ * than its resid.  TMS limits the parent/child tree to a depth of 2. 
+ * 
+ * Other Constraints
+ * -----------------
+ * The user_mfa, user_hosts and delegations tables must also contain records that the
+ * new extended reservation will depend on.
+ * 
+ *  - user_mfa - the user must have an mfa record
+ *  - user_hosts - the user must have established a link to the reservation's host
+ *  - delegations - the user must of delegated access to the reservation's client 
+ * 
+ * Parameters
+ * ----------
+ * The resid parameter designates the candidate parent reservation for a new extended
  * reservation.  The tenant and client_id are used to guarantee that clients can only
- * extend their own reservations.
+ * extend their own reservations.  The client_user_id specifies a user known in the 
+ * tenant.  The host specifies the where the public key represented by the 
+ * public_key_fingerprint can be applied. 
  *   
  * Note that message that contains "INTERNAL ERROR:" should trigger a 500 http 
  * return code.
  */
-pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id: &String) 
+pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id: &String,
+                                      client_user_id: &String, host: &String, public_key_fingerprint: &String) 
 -> Result<String>
 {
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
 
-    // -------- Check user_mfa dependency
-    let mfa_row = sqlx::query(GET_RESERVATION_FOR_EXTEND)
+    // -------- Check reservations dependency
+    let res_row = sqlx::query(GET_RESERVATION_FOR_EXTEND)
         .bind(resid)
         .bind(tenant)
         .bind(client_id)
@@ -419,7 +455,7 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
 
     // Check the candidate parent reservation and save its expiration time.    
     let expires_at: String;
-    match mfa_row {
+    match res_row {
         Some(row) => {
             // Unpack row.
             let parent_resid: String = row.get(0);
@@ -464,6 +500,75 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
             return Result::Err(anyhow!(msg));
         }
     };  
+
+    // -------- Check user_mfa dependency
+    let mfa_row = sqlx::query(GET_USER_MFA_EXISTS)
+        .bind(client_user_id)
+        .bind(tenant)
+        .fetch_optional(&mut *tx)
+        .await?;
+    match mfa_row {
+        Some(_) => (),
+        None => {
+            let msg = format!("No MFA entry found for user {} in tenant {} .",
+                                        client_user_id, tenant);
+            error!("{}", msg);
+            return Result::Err(anyhow!(msg));
+        }
+    };
+
+    // -------- Check user_hosts dependency
+    // First get host account.
+    let pkey_row = sqlx::query(SELECT_PUBKEY_HOST_ACCOUNT)
+        .bind(client_id)
+        .bind(tenant)
+        .bind(host)
+        .bind(public_key_fingerprint)
+        .fetch_optional(&mut *tx)
+        .await?; 
+    let host_account: String = match pkey_row {
+        Some(h) => h.get(0),
+        None => {
+            let msg = format!("Unable to retrieve host account from pubkey record for client {}@{} on host {} with fingerprint {}.",
+                                        client_id, tenant, host, public_key_fingerprint);
+            error!("{}", msg);
+            return Result::Err(anyhow!(msg));
+        }    
+    };
+
+    let host_row = sqlx::query(GET_USER_HOST_EXISTS)
+        .bind(client_user_id)
+        .bind(tenant)
+        .bind(host)
+        .bind(&host_account)
+        .fetch_optional(&mut *tx)
+        .await?;
+    match host_row {
+        Some(_) => (),
+        None => {
+            let msg = format!("No user/host mapping found for user {}@{} for account {} on host {}.",
+                                        client_user_id, tenant, host_account, host);
+            error!("{}", msg);
+            return Result::Err(anyhow!(msg));
+        }
+    };
+
+    // -------- Check delegation dependency
+    let delg_row = sqlx::query(GET_DELEGATION_EXISTS)
+        .bind(tenant)
+        .bind(client_id)
+        .bind(client_user_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+    match delg_row {
+        Some(_) => (),
+        None => {
+            let msg = format!("No delegation to client {} found for user {} in tenant {}.",
+                                        client_id, client_user_id, tenant);
+            error!("{}", msg);
+            return Result::Err(anyhow!(msg));
+        }
+    };
 
     // Commit the transaction.
     tx.commit().await?;
