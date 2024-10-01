@@ -428,8 +428,9 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
  *  - delegations - the user must of delegated access to the reservation's client 
  * 
  * Validating these constraints before actually submitting the reservation extension
- * request allows us to return meaningful messages users on error. The final arbiter, 
- * however, are foriegn key constraints on the reservation table.
+ * request allows us to return meaningful messages to users on error. The final arbiter, 
+ * however, are foriegn key constraints on the reservation table that take place when
+ * the new reservation is created.
  * 
  * Parameters
  * ----------
