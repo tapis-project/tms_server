@@ -427,6 +427,10 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
  *  - user_hosts - the user must have established a link to the reservation's host
  *  - delegations - the user must of delegated access to the reservation's client 
  * 
+ * Validating these constraints before actually submitting the reservation extension
+ * request allows us to return meaningful messages users on error. The final arbiter, 
+ * however, are foriegn key constraints on the reservation table.
+ * 
  * Parameters
  * ----------
  * The resid parameter designates the candidate parent reservation for a new extended
