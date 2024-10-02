@@ -6,13 +6,16 @@ use anyhow::Result;
 use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
-use crate::utils::db_statements::INSERT_USER_HOSTS;
+use crate::utils::db_statements::{INSERT_USER_HOSTS, INSERT_USER_HOSTS_NOT_STRICT};
 use crate::utils::db_types::UserHostInput;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT}; 
 use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
+
+// Insert fails on conflict.        
+const STRICT:bool = true;
 
 // ***************************************************************************
 //                          Request/Response Definiions
@@ -176,7 +179,7 @@ impl RespCreateUserHosts {
         );
 
         // Insert the new key record.
-        block_on(insert_user_host(input_record))?;
+        block_on(insert_user_host(input_record, STRICT))?;
         info!("Host mapping for user '{}' created in tenant '{}' with experation at {}.", 
               req.tms_user_id, req.tenant, expires_at.clone());
         
@@ -193,14 +196,17 @@ impl RespCreateUserHosts {
 // ---------------------------------------------------------------------------
 // insert_user_host:
 // ---------------------------------------------------------------------------
-async fn insert_user_host(rec: UserHostInput) -> Result<u64> {
+pub async fn insert_user_host(rec: UserHostInput, strict: bool) -> Result<u64> {
+    // Choose the query based on strictness requirement.
+    let sql_query = if strict {INSERT_USER_HOSTS} else {INSERT_USER_HOSTS_NOT_STRICT};
+
     // Get a connection to the db and start a transaction.  Uncommited transactions 
     // are automatically rolled back when they go out of scope. 
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
     // Create the insert statement.
-    let result = sqlx::query(INSERT_USER_HOSTS)
+    let result = sqlx::query(sql_query)
         .bind(rec.tenant)
         .bind(rec.tms_user_id)
         .bind(rec.host)

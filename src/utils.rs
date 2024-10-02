@@ -7,3 +7,4 @@ pub mod db_init;
 pub mod db_types;
 pub mod db_statements;
 pub mod keygen;
+pub mod mvp;

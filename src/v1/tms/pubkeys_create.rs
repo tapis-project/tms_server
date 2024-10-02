@@ -13,6 +13,7 @@ use crate::utils::db_types::PubkeyInput;
 use crate::utils::db_statements::INSERT_PUBKEYS;
 use crate::utils::db::check_pubkey_dependencies;
 use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug};
+use crate::utils::mvp::{MVPDependencyParms, create_pubkey_dependencies};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -175,6 +176,28 @@ impl RespNewSshKeys {
                                       req_ext.client_id, req_ext.tenant);
             error!("{}", msg);
             return Ok(make_http_401(msg));
+        }
+
+        // -------------------- MVP Execution ------------------------
+        // Determine if we are running in minimal viable product mode.
+        if RUNTIME_CTX.parms.config.enable_mvp {
+            // Collect values required for dependency record insertions.
+            let mvp_inputs = MVPDependencyParms {
+                tenant: req_ext.tenant.clone(), client_id: req_ext.client_id.clone(),
+                client_user_id: req.client_user_id.clone(), host: req.host.clone(), 
+                host_account: req.host_account.clone(), 
+            };
+
+            // Insert records into the user_mfa, user_hosts and delegations tables
+            // that the key pair we are about to create depends on.
+            match create_pubkey_dependencies(mvp_inputs) {
+                Ok(inserts) => info!("{} MVP dependency records inserted.", inserts),
+                Err(e) => {
+                    let msg = format!("MVP ERROR: Unable to create MVP dependencies: {}", e); 
+                    error!("{}", msg);
+                    return Ok(make_http_500(msg));
+                }
+            };
         }
 
         // --------------------- Check Expirations -----------------------

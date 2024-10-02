@@ -129,6 +129,11 @@ pub const INSERT_USER_MFA: &str = concat!(
     "VALUES (?, ?, ?, ?, ?, ?)",
 );
 
+pub const INSERT_USER_MFA_NOT_STRICT: &str = concat!(
+    "INSERT INTO user_mfa (tenant, tms_user_id, expires_at, enabled, created, updated) ",
+    "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+);
+
 pub const GET_USER_MFA: &str = concat!(
     "SELECT id, tenant, tms_user_id, expires_at, enabled, created, updated ",
     "FROM user_mfa WHERE tms_user_id = ? AND tenant = ?"
@@ -163,6 +168,11 @@ pub const INSERT_USER_HOSTS: &str = concat!(
     "VALUES (?, ?, ?, ?, ?, ?, ?)",
 );
 
+pub const INSERT_USER_HOSTS_NOT_STRICT: &str = concat!(
+    "INSERT INTO user_hosts (tenant, tms_user_id, host, host_account, expires_at, created, updated) ",
+    "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+);
+
 pub const GET_USER_HOST: &str = concat!(
     "SELECT id, tenant, tms_user_id, host, host_account, expires_at, created, updated ",
     "FROM user_hosts WHERE id = ? AND tenant = ?"
@@ -195,6 +205,11 @@ pub const UPDATE_USER_HOST_EXPIRY: &str = concat!(
 pub const INSERT_DELEGATIONS: &str = concat!(
     "INSERT INTO delegations (tenant, client_id, client_user_id, expires_at, created, updated) ",
     "VALUES (?, ?, ?, ?, ?, ?)",
+);
+
+pub const INSERT_DELEGATIONS_NOT_STRICT: &str = concat!(
+    "INSERT INTO delegations (tenant, client_id, client_user_id, expires_at, created, updated) ",
+    "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
 );
 
 pub const GET_DELEGATION: &str = concat!(

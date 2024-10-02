@@ -179,6 +179,7 @@ pub struct Config {
     pub title: String,
     pub http_addr: String,
     pub http_port: u16,
+    pub enable_mvp: bool,
     pub server_urls: Vec<String>,
 }
 
@@ -195,6 +196,7 @@ impl Default for Config {
             title: "TMS Server".to_string(),
             http_addr: DEFAULT_HTTP_ADDR.to_string(),
             http_port: DEFAULT_HTTP_PORT,
+            enable_mvp: false,
             server_urls: vec![DEFAULT_SVR_URL.to_string()],
         }
     }
