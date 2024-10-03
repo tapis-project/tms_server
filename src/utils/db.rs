@@ -294,7 +294,7 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
 
             // Check whether the mfa has expired.
             if expires_at_utc < timestamp_utc() {
-                let msg = format!("Required user MFA record for user ID {} in tenant {} expired at {}.",
+                let msg = format!("Required user MFA record for user ID '{}' in tenant {} expired at {}.",
                                           client_user_id, tenant, expires_at);
                 error!("{}", msg);
                 return Result::Err(anyhow!(msg));

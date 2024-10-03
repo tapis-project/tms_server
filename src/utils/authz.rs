@@ -267,7 +267,7 @@ fn authorize_by_type(http_req: &Request, hdr_tenant: &str, authz_type: AuthzType
     let db_secret_hash = match block_on(get_authz_secret(hdr_id, hdr_tenant, spec.sql_query)) {
         Ok(s) => s,
         Err(e) => {
-            error!("Unable to retrieve secret for {} id {}: {}", spec.display_name, hdr_id, e);
+            error!("Unable to retrieve secret for {} ID '{}': {}", spec.display_name, hdr_id, e);
             return AuthzResult::new_unauthorized();
         },
     };
