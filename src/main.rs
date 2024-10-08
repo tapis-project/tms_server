@@ -130,21 +130,27 @@ async fn main() -> Result<(), std::io::Error> {
         .at("/spec_yaml", spec_yaml);
 
     // ------------------ Main Loop -------------------
-    // We expect the certificate and key to be in the external data directory.
-    let key = RUNTIME_CTX.tms_dirs.certs_dir.clone() + TMSS_KEY_FILE;
-    let cert = RUNTIME_CTX.tms_dirs.certs_dir.clone() + TMSS_CERT_FILE;
-    poem::Server::new(
-        TcpListener::bind(addr).rustls(
-            RustlsConfig::new().fallback(
-                RustlsCertificate::new()
-                    .key(std::fs::read(key)?)
-                    .cert(std::fs::read(cert)?),
+    // Create and start the server, either https or http
+    if RUNTIME_CTX.parms.config.http_addr.starts_with("https") {
+        // HTTPS: We expect the certificate and key to be in the external data directory.
+        let key = RUNTIME_CTX.tms_dirs.certs_dir.clone() + TMSS_KEY_FILE;
+        let cert = RUNTIME_CTX.tms_dirs.certs_dir.clone() + TMSS_CERT_FILE;
+        poem::Server::new(
+            TcpListener::bind(addr).rustls(
+                RustlsConfig::new().fallback(
+                    RustlsCertificate::new()
+                        .key(std::fs::read(key)?)
+                        .cert(std::fs::read(cert)?),
+                ),
             ),
-        ),
-    )
-    .name(SERVER_NAME)
-    .run(app)
-    .await
+        )
+        .name(SERVER_NAME)
+        .run(app)
+        .await
+    } else {
+        // HTTP only
+        poem::Server::new(TcpListener::bind(addr)).name(SERVER_NAME).run(app).await
+     }
 }
 
 // ***************************************************************************
