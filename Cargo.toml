@@ -22,7 +22,7 @@ poem-extensions = "0.9"
 poem-openapi = { version = "5", features = ["swagger-ui"] }
 rand = { version = "0.8" }
 rand_core = "0.6"
-rustls-pemfile = { version = "2.0.0-alpha.1" }
+rustls-pemfile = { version = "2.2" }
 semver = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
