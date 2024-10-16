@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+use std::time::Duration;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use log::info;
@@ -145,6 +146,7 @@ async fn main() -> Result<(), std::io::Error> {
             ),
         )
         .name(SERVER_NAME)
+        .idle_timeout(Duration::from_secs(60))
         .run(app)
         .await
     } else {
