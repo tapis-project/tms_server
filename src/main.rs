@@ -4,7 +4,7 @@ use std::time::Duration;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use log::info;
-use poem::listener::{Listener, RustlsCertificate, RustlsConfig};
+use poem::listener::{Listener, OpensslTlsConfig};
 use poem::{listener::TcpListener, Route};
 use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 use poem_extensions::api;
@@ -133,24 +133,22 @@ async fn main() -> Result<(), std::io::Error> {
     // ------------------ Main Loop -------------------
     // Create and start the server, either https or http
     if RUNTIME_CTX.parms.config.http_addr.starts_with("https") {
-        // HTTPS: We expect the certificate and key to be in the external data directory.
+        // ** HTTPS: We expect the certificate and key to be in the external data directory.
         let key = RUNTIME_CTX.tms_dirs.certs_dir.clone() + TMSS_KEY_FILE;
         let cert = RUNTIME_CTX.tms_dirs.certs_dir.clone() + TMSS_CERT_FILE;
         poem::Server::new(
-            TcpListener::bind(addr).rustls(
-                RustlsConfig::new().fallback(
-                    RustlsCertificate::new()
-                        .key(std::fs::read(key)?)
-                        .cert(std::fs::read(cert)?),
-                ),
-            ),
+            TcpListener::bind(addr).openssl_tls(
+                OpensslTlsConfig::new()
+                        .cert_from_file(cert)
+                        .key_from_file(key)
+            )
         )
         .name(SERVER_NAME)
         .idle_timeout(Duration::from_secs(60))
         .run(app)
         .await
     } else {
-        // HTTP only
+        // ** HTTP only
         poem::Server::new(TcpListener::bind(addr)).name(SERVER_NAME).run(app).await
      }
 }

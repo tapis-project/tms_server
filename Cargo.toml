@@ -17,7 +17,7 @@ lazy_static = "1.4"
 log = "0.4"
 log4rs = "1.3"
 path-absolutize = "3.1"
-poem = { version = "3", features = ["rustls"] }
+poem = { version = "3", features = ["openssl-tls"] }
 poem-extensions = "0.9"
 poem-openapi = { version = "5", features = ["swagger-ui"] }
 rand = { version = "0.8" }
