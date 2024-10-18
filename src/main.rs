@@ -144,7 +144,7 @@ async fn main() -> Result<(), std::io::Error> {
             )
         )
         .name(SERVER_NAME)
-        .idle_timeout(Duration::from_secs(60))
+        .idle_timeout(Duration::from_secs(50))
         .run(app)
         .await
     } else {
