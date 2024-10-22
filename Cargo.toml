@@ -34,7 +34,7 @@ ssh-key = { version = "0.6", features = [ "alloc", "rsa", "ed25519", "ecdsa", "p
 structopt = {  version = "0.3", features = [ "default" ] }
 tera = "1"
 thiserror = "1.0"
-tokio = { version = "1", features = ["full", "rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 toml = "0.8"
 uuid = { version = "1.10", features = ["v4", "serde"] }
 
