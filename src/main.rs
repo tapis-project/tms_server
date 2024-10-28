@@ -86,7 +86,7 @@ lazy_static! {
 // ---------------------------------------------------------------------------
 // main:
 // ---------------------------------------------------------------------------
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 20)]
 async fn main() -> Result<(), std::io::Error> {
     // --------------- Initialize TMS -----------------
     // Announce ourselves.
