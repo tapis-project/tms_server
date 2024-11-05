@@ -27,9 +27,11 @@ pub struct MVPDependencyParms
  * supports the following:
  * 
  *  - Keys don't expire.
+ *  - Note that to satisfy foreign key constraints, records must be created
+ *      in the following order: user_mfa, delegations, user_host
  *  - Key dependency records are automatically created in these tables:
- *      - delegations - delegation established between user and client 
  *      - user_mfa - non-expiring MFA set up for user
+ *      - delegations - delegation established between user and client 
  *      - user_host - user binding created to host_account
  *  
  * When the enable_mvp flag is turned on in the configuration file, clients can
@@ -48,28 +50,6 @@ pub fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64> {
      // Use the same current UTC timestamp in all related time caculations..
      let now = timestamp_utc();
      let current_ts = timestamp_utc_to_str(now);
-     
-    // --------------------- Insert delegations record ---------------------
-    // Required inputs: tenant, client_id, client_user_id
-    //
-    // Create the input record.  Note that we save the hash of
-    // the hex secret, but never the secret itself.  
-    let input_record = DelegationInput::new(
-        parms.tenant.clone(),
-        parms.client_id.clone(),
-        parms.client_user_id.clone(),
-        expires_at.to_string(),
-        current_ts.clone(), 
-        current_ts.clone(),
-    );
-    
-    // Insert the new record if it doesn't already exist.
-    let count = block_on(insert_delegation(input_record, NOT_STRICT))?;
-    if count > 0 {
-        insert_count += count;
-        info!("MVP: Delegation for user '{}' to client '{}' created in tenant '{}' with expiration at {}.", 
-                parms.client_user_id, parms.client_id, parms.tenant, expires_at);
-    }
 
     // --------------------- Insert user_mfa record ------------------------
     // Required inputs: tenant, client_user_id
@@ -91,6 +71,28 @@ pub fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64> {
         insert_count += count;
         info!("MVP: MFA for user '{}' created in tenant '{}' with experation at {}.", 
             parms.client_user_id, parms.tenant, expires_at);
+    }
+
+    // --------------------- Insert delegations record ---------------------
+    // Required inputs: tenant, client_id, client_user_id
+    //
+    // Create the input record.  Note that we save the hash of
+    // the hex secret, but never the secret itself.  
+    let input_record = DelegationInput::new(
+        parms.tenant.clone(),
+        parms.client_id.clone(),
+        parms.client_user_id.clone(),
+        expires_at.to_string(),
+        current_ts.clone(), 
+        current_ts.clone(),
+    );
+
+    // Insert the new record if it doesn't already exist.
+    let count = block_on(insert_delegation(input_record, NOT_STRICT))?;
+    if count > 0 {
+        insert_count += count;
+        info!("MVP: Delegation for user '{}' to client '{}' created in tenant '{}' with expiration at {}.", 
+              parms.client_user_id, parms.client_id, parms.tenant, expires_at);
     }
 
     // --------------------- Insert user_hosts record ---------------------
