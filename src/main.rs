@@ -56,7 +56,7 @@ use crate::v1::tms::reservations_extend::ExtendReservationsApi;
 use crate::v1::tms::version::VersionApi;
 
 // TMS Utilities
-use crate::utils::config::{TMS_ARGS, TMS_DIRS, init_log, init_runtime_context, check_prior_installation, RuntimeCtx};
+use crate::utils::config::{TMS_ARGS, TMS_DIRS, TEST_TENANT, init_log, init_runtime_context, check_prior_installation, RuntimeCtx};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
 
@@ -199,6 +199,16 @@ fn tms_init() -> bool {
         println!("Exiting: TMS root directory installed and initialized at {}", &TMS_DIRS.root_dir);
         false 
     } else {
+        // Manage test tenant enablement by always setting the test tenant's enablement
+        // flag to the value specified in the configuration.
+        let tenant = TEST_TENANT.to_string();
+        block_on(db::set_tenant_enabled_internal(
+            &tenant, RUNTIME_CTX.parms.config.enable_test_tenant))
+            .unwrap_or_else(|_|{
+                panic!("Unable to set the {} tenant's enabled flag to match the enable_test_tenant configuration. \
+                        Aborting server execution.", tenant);
+            });
+
         // Fully initialized.
         true
     }

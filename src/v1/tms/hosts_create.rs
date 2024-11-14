@@ -9,7 +9,7 @@ use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::INSERT_HOSTS;
 use crate::utils::db_types::HostInput;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT}; 
-use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, RequestDebug};
+use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, RequestDebug, check_tenant_enabled};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -107,6 +107,11 @@ impl CreateHostsApi {
                                       X_TMS_TENANT, hdr_tenant, req.tenant);
             error!("{}", msg);
             return make_http_403(msg);  
+        }
+
+        // Check tenant.
+        if !check_tenant_enabled(&hdr_tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
         }
 
         // -------------------- Authorize ----------------------------

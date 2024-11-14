@@ -14,7 +14,7 @@ use log::error;
 
 use crate::RUNTIME_CTX;
 
-use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RESERVATION_FOR_EXTEND, GET_USER_HOST_ACTIVE, GET_USER_HOST_EXISTS, GET_USER_MFA_ACTIVE, GET_USER_MFA_EXISTS, INSERT_ADMIN, INSERT_CLIENTS, SELECT_PUBKEY_HOST_ACCOUNT};
+use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RESERVATION_FOR_EXTEND, GET_USER_HOST_ACTIVE, GET_USER_HOST_EXISTS, GET_USER_MFA_ACTIVE, GET_USER_MFA_EXISTS, INSERT_ADMIN, INSERT_CLIENTS, IS_TENANT_ENABLED, SELECT_PUBKEY_HOST_ACCOUNT, UPDATE_TENANTS_ENABLED_INTERNAL};
 
 /** Multiple Query Transactions
  * 
@@ -580,4 +580,56 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
 
     // All checks passed.
     Ok(expires_at)
+}
+
+// ---------------------------------------------------------------------------
+// set_tenant_enabled_internal:
+// ---------------------------------------------------------------------------
+pub async fn set_tenant_enabled_internal(tenant: &String, enabled: bool) -> Result<u64>
+{
+    // Get a connection to the db and start a transaction.
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+
+    // Update count.
+    let mut updates: u64 = 0;
+
+    // Issue the db update call.
+    let result = sqlx::query(UPDATE_TENANTS_ENABLED_INTERNAL)
+        .bind(enabled)
+        .bind(tenant)
+        .execute(&mut *tx)
+        .await?;
+    updates += result.rows_affected();
+
+    // Commit the transaction.
+    tx.commit().await?;
+    Ok(updates)
+}
+
+// ---------------------------------------------------------------------------
+// is_tenant_enabled:
+// ---------------------------------------------------------------------------
+pub async fn is_tenant_enabled(tenant: &String) -> Result<bool>
+{
+    // Get a connection to the db and start a transaction.
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+
+    // Select the tenant's enabled flag value.
+    let result = sqlx::query(IS_TENANT_ENABLED)
+        .bind(tenant)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+    // Commit the transaction.
+    tx.commit().await?;
+
+    // We may have found the tenant.
+    match result {
+        Some(row) => {
+            Ok(row.get(0))
+        },
+        None => {
+            Err(anyhow!("NOT_FOUND"))
+        },
+    }
 }

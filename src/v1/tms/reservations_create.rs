@@ -14,7 +14,8 @@ use crate::utils::errors::HttpResult;
 use crate::utils::db_types::ReservationInput;
 use crate::utils::db_statements::{INSERT_RESERVATIONS, SELECT_PUBKEY_RESERVATION_INFO};
 use crate::utils::db::check_pubkey_dependencies;
-use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, timestamp_str_to_datetime, RequestDebug};
+use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, timestamp_str_to_datetime, 
+                              RequestDebug, check_tenant_enabled};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -168,6 +169,11 @@ impl RespCreateReservation {
                 return Ok(make_http_400(e.to_string()));
             }
         };
+
+        // Check tenant.
+        if !check_tenant_enabled(&req_ext.tenant) {
+            return Ok(make_http_400("Tenant not enabled.".to_string()));
+        }
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.

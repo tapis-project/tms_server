@@ -10,7 +10,7 @@ use crate::utils::errors::HttpResult;
 
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
 use crate::utils::db_statements::LIST_USER_MFA;
-use crate::utils::tms_utils::{self, RequestDebug};
+use crate::utils::tms_utils::{self, RequestDebug, check_tenant_enabled};
 use log::error;
 
 use crate::RUNTIME_CTX;
@@ -102,6 +102,11 @@ impl ListUserMfaApi {
             Err(e) => return make_http_400(e.to_string()),
         };
         
+        // Check tenant.
+        if !check_tenant_enabled(&hdr_tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
+        }
+
         // Package the request parameters.        
         let req = ReqListUserMfa {tenant: hdr_tenant};
         

@@ -9,7 +9,7 @@ use sqlx::Row;
 use crate::utils::errors::HttpResult;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, AuthzResult};
 use crate::utils::db_statements::LIST_PUBKEYS_TEMPLATE;
-use crate::utils::tms_utils::{self, RequestDebug, sql_substitute_client_constraint};
+use crate::utils::tms_utils::{self, RequestDebug, sql_substitute_client_constraint, check_tenant_enabled};
 use log::error;
 
 use crate::RUNTIME_CTX;
@@ -110,6 +110,11 @@ impl ListPubkeysApi {
             Err(e) => return make_http_400(e.to_string()),
         };
         
+        // Check tenant.
+        if !check_tenant_enabled(&hdr_tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
+        }
+
         // Package the request parameters.        
         let req = ReqListPubkeys {tenant: hdr_tenant};
         

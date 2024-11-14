@@ -7,7 +7,7 @@ use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{UPDATE_CLIENT_APP_VERSION, UPDATE_CLIENT_ENABLED};
-use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, validate_semver};
+use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, validate_semver, check_tenant_enabled};
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
 use log::{error, info};
 
@@ -106,6 +106,11 @@ impl UpdateClientApi {
             Ok(t) => t,
             Err(e) => return make_http_400(e.to_string()),
         };
+
+        // Check tenant.
+        if !check_tenant_enabled(&hdr_tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
+        }
 
         // Package the request parameters. The difference in query parameter processing 
         // is because Option<String> does not implement the copy trait, but Option<bool> does.

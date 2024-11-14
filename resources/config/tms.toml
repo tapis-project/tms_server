@@ -1,7 +1,62 @@
+# A descriptive name for this TMS server instance.
 title = "My TMS Server"
+
+# The address and port bound by the TMS server. 
 http_addr = "https://localhost"
 http_port = 3000
+
+# Setting this flag causes the server to run in Minimal Viable Product (MVP)
+# mode, which affects the level of automation during key creation
+# (when the pubkeys_create endpoint executes).  MVP processing has these 
+# characteristics:
+#
+#  1. Keys are created unlimited lifetimes and number of uses.
+#  2. When a client creates a key, the following associations are
+#     automatically created:
+#       a. The user is automatically assigned a non-expiring MFA.
+#       b. The user automatically delegates use of the private key
+#          to the client.
+#       c. The user name is automatically mapped to a host account
+#          with the same name.
+#  3. No new clients can be created.  This has the same effect as
+#     setting new_clients = "disallow".
+#
+# MVP is only appropriate when (1) the Identity Provider (IDP) used by 
+# the client to authenticate its users is the same IDP that the target
+# host uses for user login, (2) the client's user name is the same
+# as the host account name, and (3) when no new clients should be 
+# created.
+#
+# default = false
 enable_mvp = false
 
-# At least one server should be specified.
+# This switch can be used to allow new clients with no restrictions, 
+# lock down the current set of clients by disallowing new client creation, 
+# or only allow new client creation when the caller has a short-lived, 
+# one-time password created by the tenant administrator.  Valid string 
+# values for this parameter are:
+#
+#   allow, disallow, on_approval
+#
+# When enable_mvp is true, then the value of this parameter is always
+# overridden and effectively set to "disallow". 
+#
+# default = "allow"
+new_clients = "allow"
+
+# Enable or disable the use of any artifacts in the test tenant.  By
+# setting this parameter to true clients, delegations, user/host
+# mappings and user MFA information in the test tenant are available
+# via API. When set to false, no actions can take place in the test
+# tenant.
+#
+# We recommend setting this parameter to false in production 
+# environments to avoid misuse of access granted for testing
+# purposes.
+#
+# default = false
+enable_test_tenant = false
+
+# At least one server should be specified.  The base urls listed here
+# get displayed as targets in the openapi generated livedocs.
 server_urls = ["https://localhost:3000/v1"]

@@ -9,7 +9,7 @@ use sqlx::Row;
 use crate::utils::errors::HttpResult;
 use crate::utils::authz::{authorize, get_tenant_header, AuthzResult, AuthzTypes};
 use crate::utils::db_statements::LIST_CLIENTS_TEMPLATE;
-use crate::utils::tms_utils::{self, RequestDebug, sql_substitute_client_constraint};
+use crate::utils::tms_utils::{self, RequestDebug, sql_substitute_client_constraint, check_tenant_enabled};
 use log::error;
 
 use crate::RUNTIME_CTX;
@@ -102,6 +102,11 @@ impl ListClientApi {
             Err(e) => return make_http_400(e.to_string()),
         };
         
+        // Check tenant.
+        if !check_tenant_enabled(&hdr_tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
+        }
+
         // Package the request parameters.        
         let req = ReqListClient {tenant: hdr_tenant};
         

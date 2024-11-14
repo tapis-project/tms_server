@@ -9,7 +9,8 @@ use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{INSERT_USER_MFA, INSERT_USER_MFA_NOT_STRICT};
 use crate::utils::db_types::UserMfaInput;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT}; 
-use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug};
+use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, 
+                              RequestDebug, check_tenant_enabled};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -110,6 +111,11 @@ impl CreateUserMfaApi {
                                       X_TMS_TENANT, hdr_tenant, req.tenant);
             error!("{}", msg);
             return make_http_403(msg);  
+        }
+
+        // Check tenant.
+        if !check_tenant_enabled(&hdr_tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
         }
 
         // -------------------- Authorize ----------------------------

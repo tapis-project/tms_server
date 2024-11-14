@@ -8,7 +8,7 @@ use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::authz::{authorize, get_tenant_header, AuthzResult, AuthzTypes};
-use crate::utils::tms_utils::{self, sql_substitute_client_constraint, RequestDebug};
+use crate::utils::tms_utils::{self, sql_substitute_client_constraint, RequestDebug, check_tenant_enabled};
 use crate::utils::db_statements::GET_PUBKEY_TEMPLATE;
 use crate::utils::db_types::Pubkey;
 use log::error;
@@ -112,6 +112,11 @@ impl GetPubkeysApi {
             Err(e) => return make_http_400(e.to_string()),
         };
         
+        // Check tenant.
+        if !check_tenant_enabled(&hdr_tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
+        }
+
         // Package the request parameters.        
         let req = ReqGetPubkeys {seqno: *seqno, tenant: hdr_tenant};
         

@@ -9,7 +9,8 @@ use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{INSERT_TENANT, INSERT_ADMIN};
 use crate::utils::db_types::TenantInput;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header}; 
-use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, create_hex_secret, hash_hex_secret, RequestDebug};
+use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, create_hex_secret, hash_hex_secret, 
+                              RequestDebug, check_tenant_enabled};
 use crate::utils::config::{DEFAULT_TENANT, DEFAULT_ADMIN_ID, PERM_ADMIN};
 use log::{error, info};
 
@@ -102,6 +103,11 @@ impl CreateTenantsApi {
             let msg = "ERROR: FORBIDDEN - Only admin users in the 'default' tenant can create new tenants.".to_string();
             error!("{}", msg);
             return make_http_403(msg);  
+        }
+
+        // Check tenant.
+        if !check_tenant_enabled(&hdr_tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
         }
 
         // Create a request object.

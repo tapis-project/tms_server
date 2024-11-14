@@ -9,6 +9,7 @@ use std::os::unix::fs::MetadataExt;
 use execute::Execute;
 use chrono::{Utc, DateTime, SecondsFormat, FixedOffset, ParseError, Duration};
 use semver::VersionReq;
+use futures::executor::block_on;
 
 use poem::Request;
 
@@ -21,6 +22,7 @@ use log::{error, debug, LevelFilter};
 
 use crate::utils::db_statements::PLACEHOLDER;
 use crate::utils::authz::{AuthzResult, AuthzTypes};
+use crate::utils::db::is_tenant_enabled;
 
 // ----------- Constants
 // The chrono library's MAX_UTC causes overflow during string
@@ -347,6 +349,20 @@ pub fn sql_substitute_client_constraint(sql_query: &str, authz_result: &AuthzRes
 
     // Return the template after substitution.
     sql_query.replace(PLACEHOLDER, replacement.as_str())    
+}
+
+// ---------------------------------------------------------------------------
+// check_tenant_enabled:
+// ---------------------------------------------------------------------------
+/** Wrapper for the actual database call that handles errors and logging. */
+pub fn check_tenant_enabled(tenant: &String) -> bool {
+    match block_on(is_tenant_enabled(tenant)) {
+        Ok(enabled) => enabled,
+        Err(e) => {
+            error!("Unable to determine if tenant '{}' is enabled: {}", tenant, e);
+            false
+        }
+    }
 }
 
 // ***************************************************************************

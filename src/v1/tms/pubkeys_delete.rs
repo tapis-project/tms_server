@@ -7,7 +7,7 @@ use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::DELETE_PUBKEY;
-use crate::utils::tms_utils::{self, RequestDebug};
+use crate::utils::tms_utils::{self, RequestDebug, check_tenant_enabled};
 use crate::utils::authz::{authorize, AuthzTypes};
 use log::{error, info};
 
@@ -61,6 +61,8 @@ impl RequestDebug for ReqDeletePubkey {
 enum TmsResponse {
     #[oai(status = 200)]
     Http200(Json<RespDeletePubkey>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
     #[oai(status = 401)]
     Http401(Json<HttpResult>),
     #[oai(status = 403)]
@@ -71,6 +73,9 @@ enum TmsResponse {
 
 fn make_http_200(resp: RespDeletePubkey) -> TmsResponse {
     TmsResponse::Http200(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
 }
 fn make_http_401(msg: String) -> TmsResponse {
     TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
@@ -105,6 +110,11 @@ impl DeletePubkeysApi {
                                       req.client_id, req.tenant);
             error!("{}", msg);
             return make_http_403(msg);
+        }
+
+        // Check tenant.
+        if !check_tenant_enabled(&req.tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
         }
 
         // -------------------- Process Request ----------------------

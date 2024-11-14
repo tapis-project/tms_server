@@ -59,6 +59,12 @@ pub const ADMIN_ID_PREFIX  : &str = "~~"; // literal value repeated in next line
 pub const DEFAULT_ADMIN_ID : &str = concat!("~~", "admin"); // admin ids always start with prefix
 pub const PERM_ADMIN       : &str = "PERM_ADMIN";
 
+// New client creation is allowed by default.
+pub const NEW_CLIENTS_ALLOW: &str = "allow";
+pub const NEW_CLIENTS_DISALLOW: &str = "disallow";
+pub const NEW_CLIENTS_ON_APPROVAL: &str = "on_approval";
+pub const DEFAULT_NEW_CLIENTS: &str = NEW_CLIENTS_ALLOW;
+
 // Database constants.
 pub const SQLITE_TRUE      : i32 = 1;
 #[allow(dead_code)]
@@ -180,6 +186,8 @@ pub struct Config {
     pub http_addr: String,
     pub http_port: u16,
     pub enable_mvp: bool,
+    pub enable_test_tenant: bool,
+    pub new_clients: String,
     pub server_urls: Vec<String>,
 }
 
@@ -187,6 +195,25 @@ impl Config {
     #[allow(dead_code)]
     pub fn new() -> Self {
         Config::default()
+    }
+
+    // Validation beyond type checking.
+    fn validate(&self) -> Result<()> {
+        match self.new_clients.as_str() {
+            NEW_CLIENTS_ALLOW => Ok(()),
+            NEW_CLIENTS_DISALLOW => Ok(()),
+            NEW_CLIENTS_ON_APPROVAL =>  {
+                let msg = "The new_clients 'on_approval' setting is not implemented yet.";
+                error!("{}", msg);
+                Result::Err(anyhow!(msg))
+            },           
+            other => {
+                let msg = format!("Invalid value '{}' assigned to the new_clients configuration setting.  \
+                                          Currently supported values are: 'allow', 'disallow'.", other);
+                error!("{}", msg);
+                Result::Err(anyhow!(msg))
+            },
+        } 
     }
 }
 
@@ -197,6 +224,8 @@ impl Default for Config {
             http_addr: DEFAULT_HTTP_ADDR.to_string(),
             http_port: DEFAULT_HTTP_PORT,
             enable_mvp: false,
+            enable_test_tenant: false,
+            new_clients: DEFAULT_NEW_CLIENTS.to_string(),
             server_urls: vec![DEFAULT_SVR_URL.to_string()],
         }
     }
@@ -597,6 +626,9 @@ fn get_parms() -> Result<Parms> {
             return Result::Err(anyhow!(msg));
         }
     };
+
+    // Validate config values
+    config.validate()?;
 
     Ok(Parms { config_file: config_file_abs, config })
 }

@@ -7,7 +7,7 @@ use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::UPDATE_USER_HOST_EXPIRY;
-use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, calc_expires_at};
+use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, calc_expires_at, check_tenant_enabled};
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT};
 use log::{error, info};
 
@@ -113,6 +113,11 @@ async fn update_client(&self, http_req: &Request, req: Json<ReqUpdateUserHosts>)
             return make_http_403(msg);  
         }
     
+        // Check tenant.
+        if !check_tenant_enabled(&hdr_tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
+        }
+
         // -------------------- Authorize ----------------------------
         // Currently, only the tenant admin can create a user hosts record.
         // When user authentication is implemented, we'll add user-own 

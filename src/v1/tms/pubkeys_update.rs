@@ -10,7 +10,7 @@ use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{SELECT_PUBKEY_FOR_UPDATE, UPDATE_MAX_USES, UPDATE_EXPIRES_AT};
-use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, calc_expires_at};
+use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, calc_expires_at, check_tenant_enabled};
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
 use log::{error, info};
 
@@ -145,6 +145,11 @@ impl UpdatePubkeyApi {
                                       req.client_id, req.tenant);
             error!("{}", msg);
             return make_http_403(msg);
+        }
+
+        // Check tenant.
+        if !check_tenant_enabled(&req.tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
         }
 
         // -------------------- Process Request ----------------------

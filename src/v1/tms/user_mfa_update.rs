@@ -7,7 +7,7 @@ use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::UPDATE_USER_MFA_ENABLED;
-use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str};
+use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, check_tenant_enabled};
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT};
 use log::{error, info};
 
@@ -107,6 +107,11 @@ async fn update_user_mfa(&self, http_req: &Request, req: Json<ReqUpdateUserMfa>)
                                       X_TMS_TENANT, hdr_tenant, req.tenant);
             error!("{}", msg);
             return make_http_403(msg);  
+        }
+
+        // Check tenant.
+        if !check_tenant_enabled(&hdr_tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
         }
 
         // -------------------- Authorize ----------------------------

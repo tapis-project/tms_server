@@ -29,6 +29,15 @@ pub const UPDATE_TENANTS_ENABLED: &str = concat!(
     "UPDATE tenants SET enabled = ?, updated = ? WHERE tenant = ?"
 );
 
+// Used to enforce enable_test_tenant configuation value at start up.
+pub const UPDATE_TENANTS_ENABLED_INTERNAL: &str = concat!(
+    "UPDATE tenants SET enabled = ? WHERE tenant = ?"
+);
+
+pub const IS_TENANT_ENABLED: &str = concat!(
+    "SELECT enabled FROM tenants WHERE tenant = ?"
+);
+
 // ---------------- Start of Delete and Wipe Calls
 // The following DELETE calls are issued for delete and wipe calls. 
 // 

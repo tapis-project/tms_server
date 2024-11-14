@@ -8,7 +8,7 @@ use futures::executor::block_on;
 use crate::utils::errors::HttpResult;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
 use crate::utils::db_statements::DELETE_RESERVATION;
-use crate::utils::tms_utils::{self, RequestDebug};
+use crate::utils::tms_utils::{self, RequestDebug, check_tenant_enabled};
 use log::{info, error};
 
 use crate::RUNTIME_CTX;
@@ -99,6 +99,11 @@ impl DeleteReservationApi {
             Err(e) => return make_http_400(e.to_string()),
         };
         
+        // Check tenant.
+        if !check_tenant_enabled(&hdr_tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
+        }
+
         // Package the request parameters.        
         let req = 
             ReqDeleteReservation {resid: resid.to_string(), client_id: client_id.to_string(), tenant: hdr_tenant};

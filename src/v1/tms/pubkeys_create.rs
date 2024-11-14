@@ -12,7 +12,7 @@ use crate::utils::keygen::{self, KeyType};
 use crate::utils::db_types::PubkeyInput;
 use crate::utils::db_statements::INSERT_PUBKEYS;
 use crate::utils::db::check_pubkey_dependencies;
-use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug};
+use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug, check_tenant_enabled};
 use crate::utils::mvp::{MVPDependencyParms, create_pubkey_dependencies};
 use log::{error, info};
 
@@ -167,6 +167,11 @@ impl RespNewSshKeys {
             }
         };
 
+        // Check tenant.
+        if !check_tenant_enabled(&req_ext.tenant) {
+            return Ok(make_http_400("Tenant not enabled.".to_string()));
+        }
+        
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
         let allowed = [AuthzTypes::ClientOwn];

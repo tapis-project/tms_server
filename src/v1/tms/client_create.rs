@@ -8,8 +8,9 @@ use futures::executor::block_on;
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::INSERT_CLIENTS;
 use crate::utils::db_types::ClientInput; 
+use crate::utils::config::NEW_CLIENTS_DISALLOW;
 use crate::utils::tms_utils::{self, create_hex_secret, hash_hex_secret, timestamp_utc, timestamp_utc_to_str, 
-                              RequestDebug, validate_semver};
+                              RequestDebug, validate_semver, check_tenant_enabled};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -115,6 +116,23 @@ impl RespCreateClient {
     fn process(http_req: &Request, req: &ReqCreateClient) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
+
+        // -------------------- Validate Tenant ------------------------
+        if !check_tenant_enabled(&req.tenant) {
+            return Ok(make_http_400("Tenant not enabled.".to_string()));
+        }
+
+        // -------------------- Client Creation Check ------------------
+        // Client creation is disabled if we are running in MVP mode because of the
+        // security implications of automating user/host mappings, client delegations 
+        // and unlimited mfa lifetimes.  Users also can explicitly disable client creation.
+        if RUNTIME_CTX.parms.config.enable_mvp || 
+           RUNTIME_CTX.parms.config.new_clients == NEW_CLIENTS_DISALLOW {
+            let msg = "Client creation is disallowed due either to running in MVP mode \
+                             or by explicit assignment of the new_clients configuration parameter.";
+            error!("{}", msg);
+            return Ok(make_http_400(msg.to_string()));
+        }
 
         // ------------------------ Validate Version -------------------
         // Only valid semantic versions are accepted.

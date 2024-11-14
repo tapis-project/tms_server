@@ -9,7 +9,7 @@ use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{DELETE_TENANT, DELETE_ADMINS_FOR_TENANT, DELETE_RESERVATIONS_FOR_TENANT,
         DELETE_PUBKEYS_FOR_TENANT, DELETE_DELEGATIONS_FOR_TENANT, DELETE_USER_HOSTS_FOR_TENANT, 
         DELETE_USER_MFAS_FOR_TENANT, DELETE_CLIENTS_FOR_TENANT, DELETE_HOSTS_FOR_TENANT};
-use crate::utils::tms_utils::{self, RequestDebug};
+use crate::utils::tms_utils::{self, RequestDebug, check_tenant_enabled};
 use crate::utils::authz::{authorize, get_tenant_header, AuthzTypes, X_TMS_TENANT};
 use log::{error, info};
 
@@ -102,6 +102,11 @@ impl WipeTenantsApi {
             return make_http_403(msg);  
         }
     
+        // Check tenant.
+        if !check_tenant_enabled(&hdr_tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
+        }
+
         // Package the request parameters.
         let req = ReqWipeTenants { tenant: hdr_tenant};
 
