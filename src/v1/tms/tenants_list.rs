@@ -121,7 +121,8 @@ impl RespListTenants {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
-        // Search for the tenant/users in the database.  
+        // Search for the tenant/users in the database. Note that even disabled
+        // tenants can see tenant definitions. The client_secret is never part of the response.
         let users = block_on(list_tenants(req))?;
         Ok(make_http_200(Self::new("0", "success".to_string(), 
                                         users.len() as i32, users)))

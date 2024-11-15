@@ -114,8 +114,8 @@ impl RespGetTenants {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
-        // Search for the tenant/client id in the database.  Not found was already 
-        // The client_secret is never part of the response.
+        // Search for the tenant/client id in the database. Note that even disabled
+        // tenants can see tenant definitions. The client_secret is never part of the response.
         let db_result = block_on(get_tenant_by_name(req));
         match db_result {
             Ok(u) => Ok(make_http_200(Self::new("0", "success".to_string(), u.id, u.tenant, 
