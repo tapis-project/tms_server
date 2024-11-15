@@ -1,7 +1,10 @@
 # A descriptive name for this TMS server instance.
 title = "My TMS Server"
 
-# The address and port bound by the TMS server. 
+# The address and port bound by the TMS server.
+# Setting to http: allows non-tls api calls; Setting to https: uses tls 
+# and requires a certificate. In some environments, the self-signed
+# cerficate shipped with TMS might work.  
 http_addr = "https://localhost"
 http_port = 3000
 
