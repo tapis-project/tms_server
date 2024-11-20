@@ -60,7 +60,7 @@ fi
 chmod 770 /opt/tms_server/tms_server
 if [[ $? != 0 ]]; then
     echo 'ERROR: Unable to chmod on /opt/tms_server/tms_server.'
-    exit 50
+    exit 51
 fi
 
 # Copy the systemd unit file to the /opt directory tree.
@@ -84,6 +84,12 @@ if ! [[ -d ${tms_install_dir} ]]; then
        rm -fr ${tms_install_dir}
        exit 60
     fi
+    chmod 660 ${tms_customizations_dir}/tms-install.out
+    if [[ $? != 0 ]]; then
+       echo 'ERROR: Aborting due to chmod failure on ' ${tms_customizations_dir}/tms-install.out '.'
+       rm -fr ${tms_install_dir}
+       exit 62
+    fi   
 fi	
 
 # ------------- Copy Local Customizations
