@@ -26,7 +26,7 @@ if [[ $? != 0 ]]; then
     exit 10
 fi
 
-# Create the local installation directory if it doesn't exist.
+# Create the local customization  directory if it doesn't exist.
 if ! [[ -d ${tms_customizations_dir} ]]; then
     mkdir ${tms_customizations_dir}
     if [[ $? != 0 ]]; then
@@ -34,6 +34,22 @@ if ! [[ -d ${tms_customizations_dir} ]]; then
     	return 20
     fi
     chmod 700 ${tms_customizations_dir}    
+fi
+
+# Copy the example certificate path files to the customization directory.
+if ! [[ -r ${tms_customizations_dir}/cert.path ]]; then
+    cp -p ${tms_code_dir}/deployment/native/cert.path ${tms_customizations_dir}
+    if [[ $? != 0 ]]; then
+        echo 'ERROR: Unable to create "'  ${tms_customizations_dir}/cert.path '.'
+        return 22
+    fi
+fi
+if ! [[ -r ${tms_customizations_dir}/key.path ]]; then
+    cp -p ${tms_code_dir}/deployment/native/key.path ${tms_customizations_dir}
+    if [[ $? != 0 ]]; then
+        echo 'ERROR: Unable to create "'  ${tms_customizations_dir}/key.path '.'
+        return 24
+    fi
 fi
 
 # ------------- Begin Build
