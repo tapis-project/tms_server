@@ -54,8 +54,25 @@ fi
 # Copy optimized executable to the /opt/tms directory.
 cp -p target/release/tms_server /opt/tms_server
 if [[ $? != 0 ]]; then
-    echo 'ERROR: Unable to copy target/release/tms_server to /opt/tms'
+    echo 'ERROR: Unable to copy target/release/tms_server to /opt/tms_server/tms_server.'
     exit 50
+fi
+chmod 770 /opt/tms_server/tms_server
+if [[ $? != 0 ]]; then
+    echo 'ERROR: Unable to chmod on /opt/tms_server/tms_server.'
+    exit 50
+fi
+
+# Copy the systemd unit file to the /opt directory tree.
+mkdir -p /opt/tms_server/lib/systemd/systems
+if [[ $? != 0 ]]; then
+    echo 'ERROR: Unable to create /opt/tms_server/lib/systemd/systems directory.'
+    exit 53
+fi
+cp -p deployment/native/tms_server.service /opt/tms_server/lib/systemd/systems
+if [[ $? != 0 ]]; then
+    echo 'ERROR: Unable to copy deployment/native/tms_server.service to /opt/tms_server/lib/systemd/systems.'
+    exit 55
 fi
 
 # ------------- First Time Install Processing
