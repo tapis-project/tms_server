@@ -79,16 +79,20 @@ if [[ $? != 0 ]]; then
     exit 51
 fi
 
-# Copy the systemd unit file to the /opt directory tree.
+# Make sure the systemd directory subtree exists.
 mkdir -p /opt/tms_server/lib/systemd/systems
 if [[ $? != 0 ]]; then
     echo 'ERROR: Unable to create /opt/tms_server/lib/systemd/systems directory.'
     exit 53
 fi
-cp -p deployment/native/tms_server.service /opt/tms_server/lib/systemd/systems
-if [[ $? != 0 ]]; then
-    echo 'ERROR: Unable to copy deployment/native/tms_server.service to /opt/tms_server/lib/systemd/systems.'
-    exit 55
+
+# Copy the systemd unit file if it doesn't exist.
+if ! [[ -r /opt/tms_server/lib/systemd/systems/tms_server.service ]]; then
+    cp -p deployment/native/tms_server.service /opt/tms_server/lib/systemd/systems
+    if [[ $? != 0 ]]; then
+        echo 'ERROR: Unable to copy deployment/native/tms_server.service to /opt/tms_server/lib/systemd/systems.'
+        exit 55
+    fi
 fi
 
 # ------------- First Time Install Processing
