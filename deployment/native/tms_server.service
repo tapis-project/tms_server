@@ -1,0 +1,14 @@
+[Unit]
+Description=TMS service
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=tms
+Restart=always
+RestartSec=1
+ExecStart=/opt/tms_server/tms_server
+
+[Install]
+WantedBy=multi-user.target
