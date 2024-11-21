@@ -44,7 +44,7 @@ Perform the following one-time installation steps on the host that will run tms_
       1. **~/.tms** - The runtime configuration directory for tms-server.
       1. **~/tms_customizations** - The local customization directory preserved across native_build_install_tms.sh invocations.
       1. **/opt/tms_server** - The directory that contains the just built tms_server executable.
-      1. **/opt/tms_server/lib/systemd/systems/tms_server.service** - A systemd unit file that can be used to manage tms_server. 
+      1. **/opt/tms_server/lib/systemd/system/tms_server.service** - A systemd unit file that can be used to manage tms_server. 
 
 ## The ~/.tms Runtime Directory
 After installation, tms_server uses the *~/.tms* directory during execution.  The directory contains these subdirectories.
@@ -77,7 +77,7 @@ Whether TMS is being installed for the first time on a host or if it already exi
 
 1. A cargo build is always attempted.  Any changes to the source code will trigger compilation.
 2. The *tms_server* executable is always written to */opt/tms_server*.
-3. The *tms_server.service* file is copied to */opt/tms_server/lib/systemd/systems* if it doesn't already exist there.
+3. The *tms_server.service* file is copied to */opt/tms_server/lib/systemd/system* if it doesn't already exist there.
 4. The example *cert.pem* and *key.pem* files are written to *~/tms_customizations* if they don't already exist there.
 5. If the *tms.toml* or *log4rs.yml* files exist in *~/tms_customizations*, they are written to *~/.tms/config*.
 
@@ -103,5 +103,5 @@ TMS administrators can use any method they like to accomplish the same tasks; *n
 An important consideration for administrators is how to manage certificate/key expiration.  We assume some administrative process external to TMS replaces the host's certificate and key before they expire.  Ideally, this event will trigger the TMS certificate and key file processing just described and then restart TMS (see below). 
 
 # Running TMS
-A convenient way to run TMS is via systemctl.  The *tms_server.service* file that is written to the */opt/tms_server/lib/systemd/systems* directory can be used as is or as a starting point for a systemd unit definition.  This file (or its derivative) can be copied to /etc/systemd/systems or referenced in place using a symbolic link.  Either way, issuing *systemctl start tms_server* as root will start TMS.  If TMS is already running, then *systemctl restart tms_server* should be used, such as after a new host certificate has been installed.
+A convenient way to run TMS is via systemctl.  The *tms_server.service* file that is written to the */opt/tms_server/lib/systemd/system* directory can be used as is or as a starting point for a systemd unit definition.  This file (or its derivative) can be copied to /etc/systemd/system or referenced in place using a symbolic link.  Either way, issuing *systemctl start tms_server* as root will start TMS.  If TMS is already running, then *systemctl restart tms_server* should be used, such as after a new host certificate has been installed.
 

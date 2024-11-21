@@ -80,17 +80,17 @@ if [[ $? != 0 ]]; then
 fi
 
 # Make sure the systemd directory subtree exists.
-mkdir -p /opt/tms_server/lib/systemd/systems
+mkdir -p /opt/tms_server/lib/systemd/system
 if [[ $? != 0 ]]; then
-    echo 'ERROR: Unable to create /opt/tms_server/lib/systemd/systems directory.'
+    echo 'ERROR: Unable to create /opt/tms_server/lib/systemd/system directory.'
     exit 53
 fi
 
 # Copy the systemd unit file if it doesn't exist.
-if ! [[ -r /opt/tms_server/lib/systemd/systems/tms_server.service ]]; then
-    cp -p deployment/native/tms_server.service /opt/tms_server/lib/systemd/systems
+if ! [[ -r /opt/tms_server/lib/systemd/system/tms_server.service ]]; then
+    cp -p deployment/native/tms_server.service /opt/tms_server/lib/systemd/system
     if [[ $? != 0 ]]; then
-        echo 'ERROR: Unable to copy deployment/native/tms_server.service to /opt/tms_server/lib/systemd/systems.'
+        echo 'ERROR: Unable to copy deployment/native/tms_server.service to /opt/tms_server/lib/systemd/system.'
         exit 55
     fi
 fi
