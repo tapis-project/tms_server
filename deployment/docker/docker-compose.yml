@@ -1,11 +1,25 @@
-version: "3"
+#version: "3"
 services:
   tms_server:
-    image: tapis/tms-server-cargo:0.1
+    image: tapis/tms_server:${TMS_VERSION}
+    container_name: tms_server_container
+    environment:
+      - HOME=/tms-root
+    user: ${TMS_UID}:${TMS_GID}
+    command: ["./tms_server", "--root-dir", "/tms-root/.tms"]
     ports:
-      - "3001:3000"
+      - "3000:3000"
     volumes:
-      - tms-root:/home/tms
+      - tms-docker:/tms-root
+#      - type: volume
+#        source: tms-docker
+#        target: /tms-root
+      - type: bind
+        source: ${HOME}/tms-docker/tms_customizations
+        target: /tms-root/tms_customizations
+      - /etc/group:/etc/group:ro
+      - /etc/passwd:/etc/passwd:ro
+      - /etc/shadow:/etc/shadow:ro
 volumes:
-  tms-root:
+  tms-docker:
 

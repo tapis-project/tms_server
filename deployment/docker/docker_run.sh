@@ -1,21 +1,27 @@
-#!/bin/sh
-# Start up local docker image for tms_server_cargo service.
+#!/usr/bin/env bash
+#set -x
 
+# This script should only be called AFTER docker_install.sh has successfully run.
+
+# The tag of the image to be run needs to be the first and only parameter.
 PrgName=$(basename "$0")
-
-USAGE1="Usage: $PrgName"
-
-SVC_NAME="tms_server"
+if [ $# -ne 1 ]; then 
+    echo "Usage: $PrgName <docker tag>"
+    echo "  where <docker tag> is the image version tag"
+    exit 1
+fi
 
 # Run docker image for the service
-TAG="tms_server_cargo:0.1"
+TAG=$1
 
-# Determine absolute path to location from which we are running.
-export RUN_DIR=$(pwd)
-export PRG_RELPATH=$(dirname "$0")
-cd "$PRG_RELPATH"/. || exit
-export PRG_PATH=$(pwd)
-
-# Run server, exposed on port 3001
-docker run -d --rm -p 3001:3000 "${TAG}"
-cd "$RUN_DIR"
+# This script starts the tms_server in the background in a docker container under the user ID 
+# that launches it.  The host's ~/tms-docker/tms_customizations directory is mounted into the 
+# container and the persistent named volume, tms-docker, contains the .tms directory that the 
+# server uses during execution.  The container is removed when the server exits.
+docker run --name tms_server_container --user $(id -u):$(id -g) -e HOME=/tms-root -p 3000:3000 -d --rm \
+--volume tms-docker:/tms-root \
+--mount type=bind,source=${HOME}/tms-docker/tms_customizations,target=/tms-root/tms_customizations \
+--volume="/etc/group:/etc/group:ro" \
+--volume="/etc/passwd:/etc/passwd:ro" \
+--volume="/etc/shadow:/etc/shadow:ro" \
+tapis/tms_server:${TAG}

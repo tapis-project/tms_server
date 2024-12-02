@@ -1,5 +1,7 @@
-# Use nix flake to build docker image for TMS server
+# THIS FILE AND NIX USAGE IN GENERAL IS EXPERIMENTAL
 #
+# Use nix flake to build docker image for TMS server.
+
 # Start with nix image for build stage
 FROM nixos/nix:latest AS builder
 
