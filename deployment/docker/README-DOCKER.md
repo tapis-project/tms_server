@@ -4,7 +4,7 @@ This directory (*deployment/docker*) contains files related to the deployment of
 
 ## Installing TMS Server (tms_server)
 
-The TMS Server must first be installed on the user account under which it will run.  We recommend dedicating a no-password account on the host to run *tms_server*.  
+The TMS Server must first be installed on the user account under which it will run.  We recommend dedicating a no-password account on the host to run *tms_server*.  The same installation process described here is used for both "docker run" and "docker compose" launch methods.  
 
 Set up is handled by the *./docker_install.sh* script, which is invoked as follows:
 
@@ -45,17 +45,37 @@ Note that both files must have 600 permissions, which is the default.
 
 ## Running TMS Server
 
+*tms_server* can be started using either "docker run" or "docker compose".  Each method is encapsulated in a script.
+
+### Docker run 
+
 Once TMS is installed and any customizations applied, run the following script to launch the TMS container in the background:
 
    - *./docker_run.sh* \<image tag\>
 
-where \<image tag\> is the tag of the *tms_server* image to be run.   
+where \<image tag\> is the tag of the *tms_server* image to be run. 
+
+To stop and remove the container, issue:
+
+- *./docker_kill.sh*
+
+### Docker compose
+
+Once TMS is installed and any customizations applied, run the following script to launch the TMS container in the background:
+
+   - *./docker-compose_up.sh* \<image tag\>
+
+where \<image tag\> is the tag of the *tms_server* image to be run.
+
+To stop and remove the container, issue:
+
+   - *./docker-compose_down.sh* \<image tag\>
 
 ## Reinstalling TMS
 
 If you want to wipe out and/or reinstall TMS from scratch, these two manual steps should be performed:
 
-   - docker volume rm tms-docker
+   - *docker volume rm tms_docker_vol*
    - *rm ~/tms-docker/tms_customizations/tms-install.out* to preserve customization files, OR *rm -r ~/tms-docker* to wipe clean all traces of TMS.
 
 # Developer Notes

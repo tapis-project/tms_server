@@ -13,7 +13,7 @@ if [ $# -ne 1 ]; then
     exit 1
 fi
 
-# Run docker image for the service
+# Assign the image tag
 TAG=$1
 
 # Create the customizations directory if it doesn't exist and make it private.
@@ -28,14 +28,14 @@ chmod 700 ~/tms-docker/tms_customizations
 
 # Run tms_server in installation mode.  This command establishes the current
 # user as the user ID under which the server will run; creates the named
-# volume "tms-docker" and initializes it contents; bind mounts the 
+# volume "tms_docker_vol" and initializes it contents; bind mounts the 
 # ~/tms-docker/tms_customizations directory; volume mounts a number of linux 
 # configuration files read-only; and outputs its results to 
 # ~/tms-docker/tms_customizations/tms-install.out.
 #
 # The tms_server container is removed when the program exits, but its state is
-# saved in the named "tms-docker" volume.  When the server is restarted, the saved
-# state will be used.
+# saved in the named "tms_docker_vol" volume.  When the server is restarted, the 
+# saved state will be used.
 #
 # The volume mount of the host's tms-docker directory to the container's tms home 
 # directory creates a named volume that outlives the container and can be written 
@@ -49,7 +49,7 @@ chmod 700 ~/tms-docker/tms_customizations
 # Note: The use of ${HOME} rather than ~ is necessary due to docker's less than 
 #       perfect test for absolute paths.
 docker run --name tms_server_container --user $(id -u):$(id -g) -e HOME=/tms-root --rm \
---volume tms-docker:/tms-root \
+--volume tms_docker_vol:/tms-root \
 --mount type=bind,source=${HOME}/tms-docker/tms_customizations,target=/tms-root/tms_customizations \
 --volume="/etc/group:/etc/group:ro" \
 --volume="/etc/passwd:/etc/passwd:ro" \

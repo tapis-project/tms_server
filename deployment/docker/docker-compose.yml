@@ -1,4 +1,7 @@
-#version: "3"
+# The project name gets an underscore appended to it and 
+# then the whole string is prepended to named volumes.
+# Specifically, "tms_" gets prepended to "docker_vol" below.
+name: tms
 services:
   tms_server:
     image: tapis/tms_server:${TMS_VERSION}
@@ -10,10 +13,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - tms-docker:/tms-root
-#      - type: volume
-#        source: tms-docker
-#        target: /tms-root
+      - docker_vol:/tms-root
       - type: bind
         source: ${HOME}/tms-docker/tms_customizations
         target: /tms-root/tms_customizations
@@ -21,5 +21,5 @@ services:
       - /etc/passwd:/etc/passwd:ro
       - /etc/shadow:/etc/shadow:ro
 volumes:
-  tms-docker:
+  docker_vol:
 
