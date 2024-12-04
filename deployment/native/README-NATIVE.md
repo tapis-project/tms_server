@@ -105,3 +105,16 @@ An important consideration for administrators is how to manage certificate/key e
 # Running TMS
 A convenient way to run TMS is via systemctl.  The *tms_server.service* file that is written to the */opt/tms_server/lib/systemd/system* directory can be used as is or as a starting point for a systemd unit definition.  This file (or its derivative) can be copied to /etc/systemd/system or referenced in place using a symbolic link.  Either way, issuing *systemctl start tms_server* as root will start TMS.  If TMS is already running, then *systemctl restart tms_server* should be used, such as after a new host certificate has been installed.
 
+# Reinstalling TMS
+
+Once TMS is installed and running on a machine, reinstalling entails rebuilding the latest code and copying the executable to the /opt/tms_server directory.  If you launch TMS using systemctl, you'll need to stop the service, copy the executable and then restart the service.
+
+To build the latest code from the ~/tms_server directory, issue:
+
+   - *git pull*
+   - *cargo build --release*
+
+To copy the new executable to /opt/tms_server, issue:    
+
+   - *cp -p target/release/tms_server /opt/tms_server/*
+
