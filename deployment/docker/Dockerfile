@@ -24,7 +24,7 @@
 # and assumes that the container will always run under a non-root user account. 
 
 # Start with rust image for the build
-FROM rust:1.82 AS builder
+FROM rust:1.83 AS builder
 
 # Set up directory with cargo project
 RUN USER=root cargo new --bin tms_server
