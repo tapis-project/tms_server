@@ -11,6 +11,7 @@ use std::os::unix::fs::PermissionsExt;
 use lazy_static::lazy_static;
 use tera::Tera;
 use structopt::StructOpt;
+use users::get_effective_uid;
 
 // See https://users.rust-lang.org/t/relationship-between-std-futures-futures-and-tokio/38077
 // for a cogent explanation on dealing with futures and async programming in Rust.  More 
@@ -242,6 +243,26 @@ fn init_tms_args() -> TmsArgs {
     let args = TmsArgs::from_args();
     println!("{:?}", args);
     args
+}
+
+// ---------------------------------------------------------------------------
+// prohibit_root_user:
+// ---------------------------------------------------------------------------
+/** This function makes a reasonable attempt to stop execution if we are running
+ * as root.  It's not meant to be foolproof, just likely to catch inadvertent, 
+ * high-privilege executions before they can cause trouble.
+ */
+pub fn prohibit_root_user() {
+    // Get the effective user ID.
+    let uid = get_effective_uid();
+    if uid == 0 {
+        let msg = 
+            format!("\n***********************************************************************\n\
+                    ERROR: This program should not execute under UID 0 (root). \n\n\
+                    Please restart as a non-privileged user.\n\
+                    ***********************************************************************\n");
+        panic!("{}", msg);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -672,7 +693,10 @@ pub fn init_runtime_context() -> RuntimeCtx {
     // If either of these fail the application aborts.
     let parms = get_parms().expect("FAILED to read configuration file.");
     let db = block_on(db_init::init_db());
-    //let authz_args = get_authz_args();
+    
+    // Reset the test tenant's enable flag.
+
+    // Return the runtime context.
     RuntimeCtx {parms, db, authz: &AUTHZ_ARGS, tms_args: &TMS_ARGS, tms_dirs: &TMS_DIRS}
 }
 

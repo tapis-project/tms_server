@@ -56,7 +56,8 @@ use crate::v1::tms::reservations_extend::ExtendReservationsApi;
 use crate::v1::tms::version::VersionApi;
 
 // TMS Utilities
-use crate::utils::config::{TMS_ARGS, TMS_DIRS, TEST_TENANT, init_log, init_runtime_context, check_prior_installation, RuntimeCtx};
+use crate::utils::config::{TMS_ARGS, TMS_DIRS, TEST_TENANT, init_log, init_runtime_context, 
+                           check_prior_installation, prohibit_root_user, RuntimeCtx};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
 
@@ -163,6 +164,9 @@ async fn main() -> Result<(), std::io::Error> {
  * to configure the main loop processor.
  */
 fn tms_init() -> bool {
+    // Panic if we detect that we're root.
+    prohibit_root_user();
+
     // Parse command line args and determine if early exit.
     println!("*** Command line arguments *** \n{:?}\n", *TMS_ARGS);
     check_prior_installation(); // Cannot run before installation.
