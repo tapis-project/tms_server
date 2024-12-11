@@ -93,8 +93,8 @@ To replace an existing installation with a new one, simply delete the *~/.tms* d
 The *native_copy_certs.sh* utility program can be used to copy the host fullchain certificate and private key to the *~/.tms/certs/cert.pem* and *~/.tms/certs/key.pem* files, respectively.  Here's what *native_copy_certs.sh* does:
 
 1. Copies two files.
-   1. It uses the *~/tms_customizations/cert.path content as the source file path.  It copies the file at that source path to *~/.tms/certs/cert.pem*.
-   1. It uses the *~/tms_customizations/key.path content as the source file path.  It copies the file at that source path to *~/.tms/certs/key.pem*.
+   1. It uses the *~/tms_customizations/cert.path* content as the source file path.  It copies the file at that source path to *~/.tms/certs/cert.pem*.
+   1. It uses the *~/tms_customizations/key.path* content as the source file path.  It copies the file at that source path to *~/.tms/certs/key.pem*.
 2. Changes r/w access to owner-only (600) on both copied files.
 3. Changes owner:group of both copied files to tms:tms.
 
