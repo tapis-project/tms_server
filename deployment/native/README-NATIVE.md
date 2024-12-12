@@ -114,7 +114,7 @@ To build the latest code from the ~/tms_server directory, issue:
    - *git pull*
    - *cargo build --release*
 
-To copy the new executable to /opt/tms_server, issue:    
+To copy the new executable to /opt/tms_server, first stop *tms_server*, issue the command below, and then restart *tms_server*:    
 
    - *cp -p target/release/tms_server /opt/tms_server/*
 
