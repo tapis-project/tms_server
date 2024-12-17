@@ -55,9 +55,9 @@ Once TMS is installed and any customizations applied, run the following script t
 
 where \<image tag\> is the tag of the *tms_server* image to be run. 
 
-To stop and remove the container, issue:
+To stop the container (but not remove it), issue:
 
-- *./docker_kill.sh*
+- *./docker_stop.sh*
 
 ### Docker compose
 
