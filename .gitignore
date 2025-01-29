@@ -5,3 +5,6 @@
 tms.db*
 .vscode
 tms.toml
+# JetBrains RustRover files
+.idea
+
