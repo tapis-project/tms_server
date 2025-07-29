@@ -3,6 +3,7 @@
 /test/data
 *.log
 tms.db*
+.idea
 .vscode
 tms.toml
 # JetBrains RustRover files

@@ -1,5 +1,6 @@
 # Overview
-The native installation of TMS runs the *tms_server* binary, which is usually started via systemctl.  This file describes the installation, configuration and execution of the tms_server binary.
+The native installation of TMS runs the *tms_server* binary, which is usually started via systemctl.
+This file describes the installation, configuration and execution of the tms_server binary.
 
 # One-Time Installation Procedures
 Perform the following one-time installation steps on the host that will run tms_server.
@@ -14,7 +15,7 @@ Perform the following one-time installation steps on the host that will run tms_
 
    2. mkdir tms_server
 
-   3. chown tms:tms tms
+   3. chown tms:tms tms_server
 
    4. chmod 750 tms_server
 
@@ -63,7 +64,8 @@ After installation, tms_server uses the *~/.tms* directory during execution.  Th
 5. **migration** contains the database schema migration files.
 
 ## The ~/tms_customizations Directory
-The *~/tms_customizations* directory contains information generated during installation and optional local customizations supplied by the TMS administrator.  The files contained in this directory can include:
+The *~/tms_customizations* directory contains information generated during installation and optional local customizations supplied by the TMS administrator.
+The files contained in this directory can include:
 1. **cert.path** - An example pathname to a fullchain certificate file.  The *native_copy_certs.sh* utility program uses the path contained in this file to locate the source certificate file.
 2. **key.path** - An example pathname to the private key file associated with the host's certificate.  The *native_copy_certs.sh* utility program uses the path contained in this file to locate the source key file.
 3. **tms-install.out** - The installation program's output during new installations, including the *default* and *test* tenants' administrator credentials.  *This is only place where these credentials are displayed; losing this information prevents administrative actions in these two tenants and will likely make reinstallation necessary.* 
@@ -82,15 +84,18 @@ Whether TMS is being installed for the first time on a host or if it already exi
 5. If the *tms.toml* or *log4rs.yml* files exist in *~/tms_customizations*, they are written to *~/.tms/config*.
 
 ### Processing in New Installations Only
-*native_build_install_tms.sh* detects a new installation based on whether the *~/.tms* directory exists.  If that directory doesn't exist, then the following actions are taken in addition to the ones listed in the previous section:
+*native_build_install_tms.sh* detects a new installation based on whether the *~/.tms* directory exists. If that directory doesn't exist,
+then the following actions are taken in addition to the ones listed in the previous section:
 
 1. The *~/.tms* directory is created and populated with its default files.
 2. A newly generated *tms-install.out* file is written to *~/tms_customizations*, overwriting a previously generated file if one exists. 
 
-To replace an existing installation with a new one, simply delete the *~/.tms* directory subtree.  You can optionally remove all, some or none of the *~/tms_customizations* content.
+To replace an existing installation with a new one, simply delete the *~/.tms* directory subtree.  You can optionally remove all, some or none of the
+*~/tms_customizations* content.
 
 ## native_copy_certs.sh
-The *native_copy_certs.sh* utility program can be used to copy the host fullchain certificate and private key to the *~/.tms/certs/cert.pem* and *~/.tms/certs/key.pem* files, respectively.  Here's what *native_copy_certs.sh* does:
+The *native_copy_certs.sh* utility program can be used to copy the host fullchain certificate and private key to the *~/.tms/certs/cert.pem* and
+*~/.tms/certs/key.pem* files, respectively.  Here's what *native_copy_certs.sh* does:
 
 1. Copies two files.
    1. It uses the *~/tms_customizations/cert.path* content as the source file path.  It copies the file at that source path to *~/.tms/certs/cert.pem*.
@@ -98,16 +103,23 @@ The *native_copy_certs.sh* utility program can be used to copy the host fullchai
 2. Changes r/w access to owner-only (600) on both copied files.
 3. Changes owner:group of both copied files to tms:tms.
 
-TMS administrators can use any method they like to accomplish the same tasks; *native_copy_certs.sh* does not have to be used as long as the end state regarding file placement, permissions and ownership is the same.
+TMS administrators can use any method they like to accomplish the same tasks; *native_copy_certs.sh* does not have to be used as long as the end state
+regarding file placement, permissions and ownership is the same.
 
-An important consideration for administrators is how to manage certificate/key expiration.  We assume some administrative process external to TMS replaces the host's certificate and key before they expire.  Ideally, this event will trigger the TMS certificate and key file processing just described and then restart TMS (see below). 
+An important consideration for administrators is how to manage certificate/key expiration.  We assume some administrative process external to TMS replaces
+the host's certificate and key before they expire.  Ideally, this event will trigger the TMS certificate and key file processing just described and then restart TMS (see below). 
 
 # Running TMS
-A convenient way to run TMS is via systemctl.  The *tms_server.service* file that is written to the */opt/tms_server/lib/systemd/system* directory can be used as is or as a starting point for a systemd unit definition.  This file (or its derivative) can be copied to /etc/systemd/system or referenced in place using a symbolic link.  Either way, issuing *systemctl start tms_server* as root will start TMS.  If TMS is already running, then *systemctl restart tms_server* should be used, such as after a new host certificate has been installed.
+A convenient way to run TMS is via systemctl.  The *tms_server.service* file that is written to the
+*/opt/tms_server/lib/systemd/system* directory can be used as is or as a starting point for a systemd unit definition.
+This file (or its derivative) can be copied to /etc/systemd/system or referenced in place using a symbolic link.
+Either way, issuing *systemctl start tms_server* as root will start TMS.  If TMS is already running, then
+*systemctl restart tms_server* should be used, such as after a new host certificate has been installed.
 
 # Reinstalling TMS
 
-Once TMS is installed and running on a machine, reinstalling entails rebuilding the latest code and copying the executable to the /opt/tms_server directory.  If you launch TMS using systemctl, you'll need to stop the service, copy the executable and then restart the service.
+Once TMS is installed and running on a machine, reinstalling entails rebuilding the latest code and copying the executable to the /opt/tms_server directory.
+If you launch TMS using systemctl, you'll need to stop the service, copy the executable and then restart the service.
 
 To build the latest code from the ~/tms_server directory, issue:
 
@@ -118,3 +130,8 @@ To copy the new executable to /opt/tms_server, first stop *tms_server*, issue th
 
    - *cp -p target/release/tms_server /opt/tms_server/*
 
+
+The log for the service may be monitored using journalctl (running as root), for example:
+
+`sudo journalctl -u tms_server.service -n 1000 -b -f
+`

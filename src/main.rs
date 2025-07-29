@@ -77,7 +77,7 @@ const TMSS_CERT_FILE: &str = "/cert.pem";
 // ***************************************************************************
 //                             Static Variables
 // ***************************************************************************
-// Lazily initialize the parameters variable so that is has a 'static lifetime.
+// Lazily initialize the parameters variable so that it has a 'static lifetime.
 // We also initialize the database connection pool and run db migrations.
 // We exit if we can't read our parameters or access the database.
 lazy_static! {
