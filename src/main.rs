@@ -5,7 +5,7 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use log::info;
 use poem::listener::{Listener, OpensslTlsConfig};
-use poem::{listener::TcpListener, Route};
+use poem::{listener::TcpListener, Route, get, web::Path, handler};
 use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 use poem_extensions::api;
 use futures::executor::block_on;
@@ -55,6 +55,8 @@ use crate::v1::tms::reservations_create::CreateReservationsApi;
 use crate::v1::tms::reservations_extend::ExtendReservationsApi;
 use crate::v1::tms::version::VersionApi;
 
+use crate::v1::tms::client_get::GetClientApi2;
+
 // TMS Utilities
 use crate::utils::config::{TMS_ARGS, TMS_DIRS, TEST_TENANT, init_log, init_runtime_context, 
                            check_prior_installation, prohibit_root_user, RuntimeCtx};
@@ -84,6 +86,52 @@ lazy_static! {
     static ref RUNTIME_CTX: RuntimeCtx = init_runtime_context();
 }
 
+pub struct ReqGetClient2
+{
+    client_id: String,
+    tenant: String,
+}
+
+pub struct RespGetClient2
+{
+    result_code: String,
+    result_msg: String,
+    id: i32,
+    tenant: String,
+    app_name: String,
+    app_version: String,
+    client_id: String,
+    enabled: i32,
+    created: String,
+    updated: String,
+}
+
+#[handler]
+async fn get_client_api2(Path(client_id): Path<String>) -> String {
+//    format!("hello: {}", client_id)
+// async fn get_client(req: &ReqGetClient) -> Result<Client> {
+    // Create the select statement.
+    let result = sqlx::query(GET_CLIENT)
+        .bind(client_id.clone())
+        .bind("test".to_string())
+        .fetch_optional(&mut *tx)
+        .await?;
+
+    // Commit the transaction.
+    tx.commit().await?;
+
+    // We may have found the client. 
+    match result {
+        Some(row) => {
+            Ok(Client::new(row.get(0), row.get(1), row.get(2), row.get(3), row.get(4),
+                           row.get(5), row.get(6), row.get(7), row.get(8)))
+        },
+        None => {
+            Err(anyhow!("NOT_FOUND"))
+        },
+    }
+}
+
 // ---------------------------------------------------------------------------
 // main:
 // ---------------------------------------------------------------------------
@@ -96,40 +144,42 @@ async fn main() -> Result<(), std::io::Error> {
     // Initialize the server and allow for early exit.
     if !tms_init() { return Ok(()); }
 
-    // --------------- Main Loop Set Up ---------------
-    // Create a tuple with all the endpoints, create the service and add the server urls to it.
-    // Note the use of the poem-extensions api! macro, which allows more than 16 non-generic 
-    // endpoints to be defined (!).  Consult the poem_extensions documentation if generic 
-    // endpoint support is needed.
-    let endpoints = 
-        api!(HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, 
-         CreateClientApi, GetClientApi, UpdateClientApi, DeleteClientApi, UpdateClientSecretApi, ListClientApi, 
-         CreateUserMfaApi, GetUserMfaApi, UpdateUserMfaApi, DeleteUserMfaApi, ListUserMfaApi,
-         GetPubkeysApi, ListPubkeysApi, DeletePubkeysApi, UpdatePubkeyApi,
-         CreateUserHostsApi, GetUserHostsApi, ListUserHostsApi, DeleteUserHostsApi, UpdateUserHostsApi,
-         CreateDelegationsApi, GetDelegationsApi, ListDelegationsApi, DeleteDelegationsApi, UpdateDelegationsApi,
-         CreateTenantsApi, GetTenantsApi, ListTenantsApi, DeleteTenantsApi, UpdateTenantsApi, WipeTenantsApi,
-         CreateHostsApi, GetHostsApi, DeleteHostsApi, ListHostsApi,
-         GetReservationApi, DeleteReservationApi, CreateReservationsApi, ExtendReservationsApi, DeleteRelatedReservationsApi);
-    let mut api_service = 
-        OpenApiService::new(endpoints, "TMS Server", "0.1.0");
-    let urls = &RUNTIME_CTX.parms.config.server_urls;
-    for url in urls.iter() {
-        api_service = api_service.server(url);
-    }
+    // // --------------- Main Loop Set Up ---------------
+    // // Create a tuple with all the endpoints, create the service and add the server urls to it.
+    // // Note the use of the poem-extensions api! macro, which allows more than 16 non-generic 
+    // // endpoints to be defined (!).  Consult the poem_extensions documentation if generic 
+    // // endpoint support is needed.
+    // let endpoints = 
+    //     api!(HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, 
+    //      CreateClientApi, GetClientApi, UpdateClientApi, DeleteClientApi, UpdateClientSecretApi, ListClientApi, 
+    //      CreateClientApi, UpdateClientApi, DeleteClientApi, UpdateClientSecretApi, ListClientApi, 
+    //      CreateUserMfaApi, GetUserMfaApi, UpdateUserMfaApi, DeleteUserMfaApi, ListUserMfaApi,
+    //      GetPubkeysApi, ListPubkeysApi, DeletePubkeysApi, UpdatePubkeyApi,
+    //      CreateUserHostsApi, GetUserHostsApi, ListUserHostsApi, DeleteUserHostsApi, UpdateUserHostsApi,
+    //      CreateDelegationsApi, GetDelegationsApi, ListDelegationsApi, DeleteDelegationsApi, UpdateDelegationsApi,
+    //      CreateTenantsApi, GetTenantsApi, ListTenantsApi, DeleteTenantsApi, UpdateTenantsApi, WipeTenantsApi,
+    //      CreateHostsApi, GetHostsApi, DeleteHostsApi, ListHostsApi,
+    //      GetReservationApi, DeleteReservationApi, CreateReservationsApi, ExtendReservationsApi, DeleteRelatedReservationsApi);
+    // let mut api_service = 
+    //     OpenApiService::new(endpoints, "TMS Server", "0.1.0");
+    // let urls = &RUNTIME_CTX.parms.config.server_urls;
+    // for url in urls.iter() {
+    //     api_service = api_service.server(url);
+    // }
  
-    // Allow the generated openapi specs to be retrieved from the server.
-    let spec = api_service.spec_endpoint();
-    let spec_yaml = api_service.spec_endpoint_yaml();
+    // // Allow the generated openapi specs to be retrieved from the server.
+    // let spec = api_service.spec_endpoint();
+    // let spec_yaml = api_service.spec_endpoint_yaml();
 
     // Create the routes and run the server.
     let addr = format!("{}{}", "0.0.0.0:", RUNTIME_CTX.parms.config.http_port);
-    let ui = api_service.swagger_ui();
-    let app = Route::new()
-        .nest("/v1", api_service)
-        .nest("/", ui)
-        .at("/spec", spec)
-        .at("/spec_yaml", spec_yaml);
+//    let ui = api_service.swagger_ui();
+    // let app = Route::new()
+    //     .nest("/v1", api_service)
+    //     .nest("/", ui)
+    //     .at("/spec", spec)
+    //     .at("/spec_yaml", spec_yaml);
+    let app = Route::new().at("/v1/tms/client/:client_id", get(get_client_api2));
 
     // ------------------ Main Loop -------------------
     // Create and start the server, either https or http
@@ -252,3 +302,30 @@ impl HelloApi {
         }
     }
 }
+// async fn get_client(req: &ReqGetClient) -> Result<Client> {
+//     // Get a connection to the db and start a transaction.  Uncommited transactions 
+//     // are automatically rolled back when they go out of scope. 
+//     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
+//     let mut tx = RUNTIME_CTX.db.begin().await?;
+    
+//     // Create the select statement.
+//     let result = sqlx::query(GET_CLIENT)
+//         .bind(req.client_id.clone())
+//         .bind(req.tenant.clone())
+//         .fetch_optional(&mut *tx)
+//         .await?;
+
+//     // Commit the transaction.
+//     tx.commit().await?;
+
+//     // We may have found the client. 
+//     match result {
+//         Some(row) => {
+//             Ok(Client::new(row.get(0), row.get(1), row.get(2), row.get(3), row.get(4),
+//                            row.get(5), row.get(6), row.get(7), row.get(8)))
+//         },
+//         None => {
+//             Err(anyhow!("NOT_FOUND"))
+//         },
+//     }
+// }

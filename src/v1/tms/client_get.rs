@@ -19,6 +19,7 @@ use crate::RUNTIME_CTX;
 //                          Request/Response Definiions
 // ***************************************************************************
 pub struct GetClientApi;
+pub struct GetClientApi2;
 
 // ***************************************************************************
 //                          Request/Response Definiions
