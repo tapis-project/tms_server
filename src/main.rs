@@ -11,48 +11,7 @@ use poem_extensions::api;
 use futures::executor::block_on;
 
 // TMS APIs
-use crate::v1::tms::client_create::CreateClientApi;
-use crate::v1::tms::client_delete::DeleteClientApi;
 use crate::v1::tms::client_get::GetClientApi;
-use crate::v1::tms::client_list::ListClientApi;
-use crate::v1::tms::client_update_secret::UpdateClientSecretApi;
-use crate::v1::tms::client_update::UpdateClientApi;
-use crate::v1::tms::pubkeys_create::NewSshKeysApi;
-use crate::v1::tms::pubkeys_retrieve::PublicKeyApi;
-use crate::v1::tms::user_mfa_create::CreateUserMfaApi;
-use crate::v1::tms::user_mfa_delete::DeleteUserMfaApi;
-use crate::v1::tms::user_mfa_get::GetUserMfaApi;
-use crate::v1::tms::user_mfa_list::ListUserMfaApi;
-use crate::v1::tms::user_mfa_update::UpdateUserMfaApi;
-use crate::v1::tms::pubkeys_delete::DeletePubkeysApi;
-use crate::v1::tms::pubkeys_get::GetPubkeysApi;
-use crate::v1::tms::pubkeys_list::ListPubkeysApi;
-use crate::v1::tms::pubkeys_update::UpdatePubkeyApi;
-use crate::v1::tms::user_hosts_create::CreateUserHostsApi;
-use crate::v1::tms::user_hosts_get::GetUserHostsApi;
-use crate::v1::tms::user_hosts_list::ListUserHostsApi;
-use crate::v1::tms::user_hosts_delete::DeleteUserHostsApi;
-use crate::v1::tms::user_hosts_update::UpdateUserHostsApi;
-use crate::v1::tms::delegations_create::CreateDelegationsApi;
-use crate::v1::tms::delegations_get::GetDelegationsApi;
-use crate::v1::tms::delegations_list::ListDelegationsApi;
-use crate::v1::tms::delegations_delete::DeleteDelegationsApi;
-use crate::v1::tms::delegations_update::UpdateDelegationsApi;
-use crate::v1::tms::tenants_create::CreateTenantsApi;
-use crate::v1::tms::tenants_get::GetTenantsApi;
-use crate::v1::tms::tenants_list::ListTenantsApi;
-use crate::v1::tms::tenants_delete::DeleteTenantsApi;
-use crate::v1::tms::tenants_update::UpdateTenantsApi;
-use crate::v1::tms::tenants_wipe::WipeTenantsApi;
-use crate::v1::tms::hosts_create::CreateHostsApi;
-use crate::v1::tms::hosts_get::GetHostsApi;
-use crate::v1::tms::hosts_delete::DeleteHostsApi;
-use crate::v1::tms::hosts_list::ListHostsApi;
-use crate::v1::tms::reservations_get::GetReservationApi;
-use crate::v1::tms::reservations_delete::DeleteReservationApi;
-use crate::v1::tms::reservations_delete_related::DeleteRelatedReservationsApi;
-use crate::v1::tms::reservations_create::CreateReservationsApi;
-use crate::v1::tms::reservations_extend::ExtendReservationsApi;
 use crate::v1::tms::version::VersionApi;
 
 // TMS Utilities
@@ -102,15 +61,7 @@ async fn main() -> Result<(), std::io::Error> {
     // endpoints to be defined (!).  Consult the poem_extensions documentation if generic 
     // endpoint support is needed.
     let endpoints = 
-        api!(HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, 
-         CreateClientApi, GetClientApi, UpdateClientApi, DeleteClientApi, UpdateClientSecretApi, ListClientApi, 
-         CreateUserMfaApi, GetUserMfaApi, UpdateUserMfaApi, DeleteUserMfaApi, ListUserMfaApi,
-         GetPubkeysApi, ListPubkeysApi, DeletePubkeysApi, UpdatePubkeyApi,
-         CreateUserHostsApi, GetUserHostsApi, ListUserHostsApi, DeleteUserHostsApi, UpdateUserHostsApi,
-         CreateDelegationsApi, GetDelegationsApi, ListDelegationsApi, DeleteDelegationsApi, UpdateDelegationsApi,
-         CreateTenantsApi, GetTenantsApi, ListTenantsApi, DeleteTenantsApi, UpdateTenantsApi, WipeTenantsApi,
-         CreateHostsApi, GetHostsApi, DeleteHostsApi, ListHostsApi,
-         GetReservationApi, DeleteReservationApi, CreateReservationsApi, ExtendReservationsApi, DeleteRelatedReservationsApi);
+        api!(HelloApi, VersionApi, GetClientApi);
     let mut api_service = 
         OpenApiService::new(endpoints, "TMS Server", "0.1.0");
     let urls = &RUNTIME_CTX.parms.config.server_urls;
