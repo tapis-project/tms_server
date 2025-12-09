@@ -113,7 +113,7 @@ pub fn get_files_in_dir(dir: &str) -> Result<Vec<PathBuf>> {
 // calc_expires_at:
 // ---------------------------------------------------------------------------
 /** The ttl should never be negative, but we handle it if it is. */
-pub fn calc_expires_at(now : DateTime<Utc>, ttl_minutes : i32) -> String {
+pub fn calc_expires_at(now : DateTime<Utc>, ttl_minutes : i64) -> String {
     if ttl_minutes < 0 {
         MAX_TMS_UTC.to_string()
     } else {

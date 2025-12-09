@@ -16,7 +16,8 @@ use users::get_effective_uid;
 // See https://users.rust-lang.org/t/relationship-between-std-futures-futures-and-tokio/38077
 // for a cogent explanation on dealing with futures and async programming in Rust.  More 
 // background can be found at https://rust-lang.github.io/async-book/.
-use sqlx::{Sqlite, Pool};
+//use sqlx::{Sqlite, Pool};
+use sqlx::{Pool, Postgres};
 use futures::executor::block_on;
 
 // TMS Utilities
@@ -67,9 +68,9 @@ pub const NEW_CLIENTS_ON_APPROVAL: &str = "on_approval";
 pub const DEFAULT_NEW_CLIENTS: &str = NEW_CLIENTS_ALLOW;
 
 // Database constants.
-pub const SQLITE_TRUE      : i32 = 1;
+pub const SQLITE_TRUE      : i64 = 1;
 #[allow(dead_code)]
-pub const SQLITE_FALSE     : i32 = 0;
+pub const SQLITE_FALSE     : i64 = 0;
 
 // ***************************************************************************
 //                             Static Variables
@@ -171,7 +172,7 @@ pub struct AuthzArgs {
 #[allow(dead_code)]
 pub struct RuntimeCtx {
     pub parms: Parms,
-    pub db: Pool<Sqlite>,
+    pub db: Pool<Postgres>,
     pub authz: &'static AuthzArgs,
     pub tms_args: &'static TmsArgs,
     pub tms_dirs: &'static TmsDirs,
@@ -692,12 +693,12 @@ pub fn init_runtime_context() -> RuntimeCtx {
 
     // If either of these fail the application aborts.
     let parms = get_parms().expect("FAILED to read configuration file.");
-    let db = block_on(db_init::init_db());
+    let db_pool = block_on(db_init::init_db()).expect("Error initializing DB");
     
     // Reset the test tenant's enable flag.
 
     // Return the runtime context.
-    RuntimeCtx {parms, db, authz: &AUTHZ_ARGS, tms_args: &TMS_ARGS, tms_dirs: &TMS_DIRS}
+    RuntimeCtx {parms, db: db_pool, authz: &AUTHZ_ARGS, tms_args: &TMS_ARGS, tms_dirs: &TMS_DIRS}
 }
 
 // ***************************************************************************

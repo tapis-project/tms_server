@@ -270,7 +270,7 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
         Some(row) => {
             // Unpack row.
             let expires_at: String = row.get(0);
-            let enabled: i32 = row.get(1);
+            let enabled: i64 = row.get(1);
 
             // Check whether the user's mfa is enabled.
             if enabled != SQLITE_TRUE {

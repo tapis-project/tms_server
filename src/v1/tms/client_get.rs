@@ -35,12 +35,12 @@ pub struct RespGetClient
 {
     result_code: String,
     result_msg: String,
-    id: i32,
+    id: i64,
     tenant: String,
     app_name: String,
     app_version: String,
     client_id: String,
-    enabled: i32,
+    enabled: i64,
     created: String,
     updated: String,
 }
@@ -108,11 +108,12 @@ impl GetClientApi {
             Ok(t) => t,
             Err(e) => return make_http_400(e.to_string()),
         };
-        
+
+        // TODO
         // Check tenant.
-        // if !check_tenant_enabled(&hdr_tenant) {
-        //     return make_http_400("Tenant not enabled.".to_string());
-        // }
+        if !check_tenant_enabled(&hdr_tenant) {
+            return make_http_400("Tenant not enabled.".to_string());
+        }
 
         // Package the request parameters.        
         let req = ReqGetClient {client_id: client_id.to_string(), tenant: hdr_tenant};
@@ -153,8 +154,8 @@ impl GetClientApi {
 impl RespGetClient {
     /// Create a new response.
     #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: String, id: i32, tenant: String, app_name: String, 
-            app_version: String, client_id: String, enabled: i32, created: String, updated: String) 
+    fn new(result_code: &str, result_msg: String, id: i64, tenant: String, app_name: String, 
+            app_version: String, client_id: String, enabled: i64, created: String, updated: String) 
     -> Self {
             Self {result_code: result_code.to_string(), result_msg, 
               id, tenant, app_name, app_version, client_id, enabled, created, updated}
@@ -165,32 +166,33 @@ impl RespGetClient {
         // Conditional logging depending on log level.
 //        tms_utils::debug_request(http_req, req);
 
-        // //TODO  Loadtest debug
-        // let resp1 = Self::new("0", "success".to_string(), 
-        //                        1, "test".to_string(), "testapp1".to_string(),
-        //                        "1.0".to_string(), "testclient1".to_string(),
-        //                        1, "2024-11-05T22:00:40Z".to_string(), "2024-11-05T22:00:40Z".to_string());
-        // Ok(make_http_200(resp1))
+        //TODO  Loadtest debug
+        let resp1 = Self::new("0", "success".to_string(), 
+                               1, "test".to_string(), "testapp1".to_string(),
+                               "1.0".to_string(), "testclient1".to_string(),
+                               1, "2024-11-05T22:00:40Z".to_string(), "2024-11-05T22:00:40Z".to_string());
+        Ok(make_http_200(resp1))
 
     // TODO LOADTEST skip db query for client info
-        // Search for the tenant/client id in the database.  Not found was already 
-        // The client_secret is never part of the response.
-        let db_result = block_on(get_client(req));
-        match db_result {
-            Ok(client) => {
-                let resp1 = Self::new("0", "success".to_string(), 
-                                      client.id, client.tenant, client.app_name, client.app_version, 
-                                      client.client_id, client.enabled, client.created, client.updated);
-                println!("****************Resp is {:?}", resp1);
-                Ok(make_http_200(resp1))
-            },
-            Err(e) => {
-                // Determine if this is a real db error or just record not found.
-                let msg = e.to_string();
-                if msg.contains("NOT_FOUND") {Ok(make_http_404(msg))} 
-                  else {Err(e)}
-            },
-        }
+        // // Search for the tenant/client id in the database.  Not found was already 
+        // // The client_secret is never part of the response.
+        // let db_result = block_on(get_client(req));
+        // match db_result {
+        //     Ok(client) => {
+        //         let resp1 = Self::new("0", "success".to_string(), 
+        //                               client.id, client.tenant, client.app_name, client.app_version, 
+        //                               client.client_id, client.enabled, client.created, client.updated);
+        //         println!("****************Resp is {:?}", resp1);
+        //         Ok(make_http_200(resp1))
+        //     },
+        //     Err(e) => {
+        //         // Determine if this is a real db error or just record not found.
+        //         let msg = e.to_string();
+        //         println!("****************Resp Err. Msg is {:?}", msg);
+        //         if msg.contains("NOT_FOUND") {Ok(make_http_404(msg))} 
+        //           else {Err(e)}
+        //     },
+        // }
     }
 }
 
@@ -206,14 +208,31 @@ async fn get_client(req: &ReqGetClient) -> Result<Client> {
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
-    // Create the select statement.
+    // // Create the select statement.
+    // let result = sqlx::query(GET_CLIENT)
+    //     .bind(req.client_id.clone())
+    //     .bind(req.tenant.clone())
+    //     .fetch_optional(&mut *tx)
+    //     .await?;
+//TODO  ???sqlx::query_as::<_, User>
+    // let result: Result<Client,anyhow::Error> = sqlx::query_as(GET_CLIENT)
+    //     .bind(req.client_id.clone())
+    //     .bind(req.tenant.clone())
+    //     .fetch_optional(&mut *tx)
+    //     .await?;
+    // let rows = sqlx::query(GET_CLIENT)
+    //     .bind(req.client_id.clone())
+    //     .bind(req.tenant.clone())
+    //     .fetch_optional(&mut *tx)
+    //     .await?;
+
     let result = sqlx::query(GET_CLIENT)
         .bind(req.client_id.clone())
         .bind(req.tenant.clone())
         .fetch_optional(&mut *tx)
         .await?;
 
-    // Commit the transaction.
+        // Commit the transaction.
     tx.commit().await?;
 
     // We may have found the client. 

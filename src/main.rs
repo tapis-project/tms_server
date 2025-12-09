@@ -154,15 +154,15 @@ fn tms_init() -> bool {
         println!("Exiting: TMS root directory installed and initialized at {}", &TMS_DIRS.root_dir);
         false 
     } else {
-        // Manage test tenant enablement by always setting the test tenant's enablement
-        // flag to the value specified in the configuration.
-        let tenant = TEST_TENANT.to_string();
-        block_on(db::set_tenant_enabled_internal(
-            &tenant, RUNTIME_CTX.parms.config.enable_test_tenant))
-            .unwrap_or_else(|_|{
-                panic!("Unable to set the {} tenant's enabled flag to match the enable_test_tenant configuration. \
-                        Aborting server execution.", tenant);
-            });
+        // // Manage test tenant enablement by always setting the test tenant's enablement
+        // // flag to the value specified in the configuration.
+        // let tenant = TEST_TENANT.to_string();
+        // block_on(db::set_tenant_enabled_internal(
+        //     &tenant, RUNTIME_CTX.parms.config.enable_test_tenant))
+        //     .unwrap_or_else(|_|{
+        //         panic!("Unable to set the {} tenant's enabled flag to match the enable_test_tenant configuration. \
+        //                 Aborting server execution.", tenant);
+        //     });
 
         // Fully initialized.
         true
