@@ -263,23 +263,25 @@ fn authorize_by_type(http_req: &Request, hdr_tenant: &str, authz_type: AuthzType
         return AuthzResult::new_unauthorized();
     }
 
-    // Query the database for the client secret.
-    let db_secret_hash = match block_on(get_authz_secret(hdr_id, hdr_tenant, spec.sql_query)) {
-        Ok(s) => s,
-        Err(e) => {
-            error!("Unable to retrieve secret for {} ID '{}': {}", spec.display_name, hdr_id, e);
-            return AuthzResult::new_unauthorized();
-        },
-    };
+    // TODO LOADTEST skip db query for secret
+    // // Query the database for the client secret.
+    // let db_secret_hash = match block_on(get_authz_secret(hdr_id, hdr_tenant, spec.sql_query)) {
+    //     Ok(s) => s,
+    //     Err(e) => {
+    //         error!("Unable to retrieve secret for {} ID '{}': {}", spec.display_name, hdr_id, e);
+    //         return AuthzResult::new_unauthorized();
+    //     },
+    // };
 
-    // Compare the header secret to the hashed secret from the database.
-    let hdr_secret_hash = hash_hex_secret(&hdr_secret.to_string());
-    if hdr_secret_hash == db_secret_hash {
-        AuthzResult::new_authorized(authz_type, hdr_id.to_string(), hdr_tenant.to_string())  // Authorized
-    } else {
-        error!("Invalid secret given for {} {} in tenant {}", spec.display_name, hdr_id, hdr_tenant);
-        AuthzResult::new_unauthorized() // Not authorized
-    }
+    // // Compare the header secret to the hashed secret from the database.
+    // let hdr_secret_hash = hash_hex_secret(&hdr_secret.to_string());
+    // if hdr_secret_hash == db_secret_hash {
+    //     AuthzResult::new_authorized(authz_type, hdr_id.to_string(), hdr_tenant.to_string())  // Authorized
+    // } else {
+    //     error!("Invalid secret given for {} {} in tenant {}", spec.display_name, hdr_id, hdr_tenant);
+    //     AuthzResult::new_unauthorized() // Not authorized
+    // }
+    AuthzResult::new_authorized(authz_type, hdr_id.to_string(), hdr_tenant.to_string())  // Authorized
 }
 
 // ---------------------------------------------------------------------------

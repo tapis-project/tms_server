@@ -163,15 +163,27 @@ impl RespGetClient {
     /// Process the request.
     fn process(http_req: &Request, req: &ReqGetClient) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
-        tms_utils::debug_request(http_req, req);
+//        tms_utils::debug_request(http_req, req);
 
+        // //TODO  Loadtest debug
+        // let resp1 = Self::new("0", "success".to_string(), 
+        //                        1, "test".to_string(), "testapp1".to_string(),
+        //                        "1.0".to_string(), "testclient1".to_string(),
+        //                        1, "2024-11-05T22:00:40Z".to_string(), "2024-11-05T22:00:40Z".to_string());
+        // Ok(make_http_200(resp1))
+
+    // TODO LOADTEST skip db query for client info
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
         let db_result = block_on(get_client(req));
         match db_result {
-            Ok(client) => Ok(make_http_200(Self::new("0", "success".to_string(), 
-                                    client.id, client.tenant, client.app_name, client.app_version, 
-                                    client.client_id, client.enabled, client.created, client.updated))),
+            Ok(client) => {
+                let resp1 = Self::new("0", "success".to_string(), 
+                                      client.id, client.tenant, client.app_name, client.app_version, 
+                                      client.client_id, client.enabled, client.created, client.updated);
+                println!("****************Resp is {:?}", resp1);
+                Ok(make_http_200(resp1))
+            },
             Err(e) => {
                 // Determine if this is a real db error or just record not found.
                 let msg = e.to_string();
