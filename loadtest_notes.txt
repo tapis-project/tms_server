@@ -1,0 +1,78 @@
+8 Dec 2025
+Errors during one getclient loadtest run of server:
+This was probably from using unmodified branch main.
+
+2025-12-08T23:46:40.692447740Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:143 - ERROR: pool timed out while waiting for an open connection
+2025-12-08T23:46:40.692530328Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:143 - ERROR: pool timed out while waiting for an open connection
+2025-12-08T23:46:40.692655552Z ERROR [tokio-runtime-worker] src/utils/authz.rs:270 - Unable to retrieve secret for client ID 'testclient1': pool timed out while waiting for an open connection
+2025-12-08T23:46:40.692764838Z ERROR [tokio-runtime-worker] src/utils/authz.rs:270 - Unable to retrieve secret for client ID 'testclient1': pool timed out while waiting for an open connection
+2025-12-08T23:46:40.692871011Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:126 - ERROR: NOT AUTHORIZED to view client testclient1 in tenant test.
+2025-12-08T23:46:40.692946521Z ERROR [tokio-runtime-worker] src/utils/tms_utils.rs:362 - Unable to determine if tenant 'test' is enabled: pool timed out while waiting for an open connection
+2025-12-08T23:46:40.693134506Z ERROR [tokio-runtime-worker] src/utils/authz.rs:270 - Unable to retrieve secret for client ID 'testclient1': pool timed out while waiting for an open connection
+2025-12-08T23:46:40.693197728Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:143 - ERROR: pool timed out while waiting for an open connection
+2025-12-08T23:46:40.693243440Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:126 - ERROR: NOT AUTHORIZED to view client testclient1 in tenant test.
+2025-12-08T23:46:40.693288572Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:143 - ERROR: pool timed out while waiting for an open connection
+2025-12-08T23:46:40.693390896Z ERROR [tokio-runtime-worker] src/utils/authz.rs:270 - Unable to retrieve secret for client ID 'testclient1': pool timed out while waiting for an open connection
+2025-12-08T23:46:40.693503606Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:126 - ERROR: NOT AUTHORIZED to view client testclient1 in tenant test.
+2025-12-08T23:46:40.693558835Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:126 - ERROR: NOT AUTHORIZED to view client testclient1 in tenant test.
+2025-12-08T23:47:10.695110380Z ERROR [tokio-runtime-worker] src/utils/authz.rs:270 - Unable to retrieve secret for client ID 'testclient1': pool timed out while waiting for an open connection
+2025-12-08T23:47:10.695347479Z ERROR [tokio-runtime-worker] src/utils/authz.rs:270 - Unable to retrieve secret for client ID 'testclient1': pool timed out while waiting for an open connection
+2025-12-08T23:47:10.695447363Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:126 - ERROR: NOT AUTHORIZED to view client testclient1 in tenant test.
+2025-12-08T23:47:10.695519971Z ERROR [tokio-runtime-worker] src/utils/authz.rs:270 - Unable to retrieve secret for client ID 'testclient1': pool timed out while waiting for an open connection
+2025-12-08T23:47:10.695740676Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:126 - ERROR: NOT AUTHORIZED to view client testclient1 in tenant test.
+2025-12-08T23:47:10.695820528Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:126 - ERROR: NOT AUTHORIZED to view client testclient1 in tenant test.
+2025-12-08T23:47:10.696451282Z ERROR [tokio-runtime-worker] src/utils/authz.rs:270 - Unable to retrieve secret for client ID 'testclient1': pool timed out while waiting for an open connection
+2025-12-08T23:47:10.696556697Z ERROR [tokio-runtime-worker] src/utils/tms_utils.rs:362 - Unable to determine if tenant 'test' is enabled: pool timed out while waiting for an open connection
+2025-12-08T23:47:10.696650941Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:143 - ERROR: pool timed out while waiting for an open connection
+2025-12-08T23:47:10.696820139Z ERROR [tokio-runtime-worker] src/utils/authz.rs:270 - Unable to retrieve secret for client ID 'testclient1': pool timed out while waiting for an open connection
+2025-12-08T23:47:10.696941492Z ERROR [tokio-runtime-worker] src/utils/tms_utils.rs:362 - Unable to determine if tenant 'test' is enabled: pool timed out while waiting for an open connection
+2025-12-08T23:47:10.697043822Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:126 - ERROR: NOT AUTHORIZED to view client testclient1 in tenant test.
+2025-12-08T23:47:10.697117482Z ERROR [tokio-runtime-worker] src/utils/authz.rs:270 - Unable to retrieve secret for client ID 'testclient1': pool timed out while waiting for an open connection
+2025-12-08T23:47:10.697312934Z ERROR [tokio-runtime-worker] src/utils/authz.rs:270 - Unable to retrieve secret for client ID 'testclient1': pool timed out while waiting for an open connection
+2025-12-08T23:47:10.697483509Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:126 - ERROR: NOT AUTHORIZED to view client testclient1 in tenant test.
+2025-12-08T23:47:10.697584458Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:126 - ERROR: NOT AUTHORIZED to view client testclient1 in tenant test.
+2025-12-08T23:47:10.697696367Z ERROR [tokio-runtime-worker] src/v1/tms/client_get.rs:126 - ERROR: NOT AUTHORIZED to view client testclient1 in tenant test.
+
+
+9 Dec 2025
+
+Test is getclient with 10 users, 20,000 requests per user.
+
+Ran getclient loadtest with branch perf-getclient-only. Branch has most other endpoints stripped out.
+
+1. Hang still occurs after very short time (about 10 seconds), but no errors in server log this time.
+
+2. In fetch response method replaced DB call to fetch client details from clients table with hard-coded response. HANG.
+   DB Queries:
+    - select enabled from tenants
+    - select secret from clients
+
+3. In authorize method replaced call to get client secret from clients table with hard code authorized=true. NO HANG.
+   DB Queries:
+    - select enabled from tenants
+
+4. In fetch reponse method reverted to make DB call to fetch client details from clients table. HANG.
+   DB Queries:
+    - select enabled from tenants
+    - select details from clients
+
+5. Remove DB call that checks if tenant is enabled. Only remaining call is to get client details. NO HANG.
+   DB Queries:
+    - select details from clients
+
+6. Add back query to get client secret. HANG.
+   DB Queries:
+    - select secret from clients
+    - select details from clients
+
+For get_client endpoint there appear to be 3 DB queries:
+  - Fetch "enabled" from tenants table.
+  - Fetch client secret from clients table
+  - Fetch client details from clients table.
+=============================================================================================================================================================
+FROM debug log
+------------------
+summary="SELECT enabled FROM tenants …"
+summary="SELECT client_secret FROM clients …" FROM clients
+summary="SELECT id, tenant, app_name, …" FROM clients
+=============================================================================================================================================================

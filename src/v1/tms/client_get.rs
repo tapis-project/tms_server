@@ -110,9 +110,9 @@ impl GetClientApi {
         };
         
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
-            return make_http_400("Tenant not enabled.".to_string());
-        }
+        // if !check_tenant_enabled(&hdr_tenant) {
+        //     return make_http_400("Tenant not enabled.".to_string());
+        // }
 
         // Package the request parameters.        
         let req = ReqGetClient {client_id: client_id.to_string(), tenant: hdr_tenant};
