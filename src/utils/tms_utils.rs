@@ -365,6 +365,15 @@ pub fn check_tenant_enabled(tenant: &String) -> bool {
     }
 }
 
+pub async fn as_check_tenant_enabled(tenant: &String) -> bool {
+    match is_tenant_enabled(tenant).await {
+        Ok(enabled) => enabled,
+        Err(e) => {
+            error!("Unable to determine if tenant '{}' is enabled: {}", tenant, e);
+            false
+        }
+    }
+}
 // ***************************************************************************
 // PRIVATE FUNCTIONS
 // ***************************************************************************
