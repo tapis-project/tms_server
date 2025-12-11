@@ -113,7 +113,7 @@ impl DeletePubkeysApi {
         }
 
         // Check tenant.
-        if !check_tenant_enabled(&req.tenant) {
+        if check_tenant_enabled(&req.tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 

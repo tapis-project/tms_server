@@ -171,7 +171,7 @@ impl RespCreateReservation {
         };
 
         // Check tenant.
-        if !check_tenant_enabled(&req_ext.tenant) {
+        if tokio::runtime::Handle::current().block_on(check_tenant_enabled(&req_ext.tenant)) {
             return Ok(make_http_400("Tenant not enabled.".to_string()));
         }
 

@@ -118,7 +118,7 @@ impl RespCreateClient {
         tms_utils::debug_request(http_req, req);
 
         // -------------------- Validate Tenant ------------------------
-        if !check_tenant_enabled(&req.tenant) {
+        if tokio::runtime::Handle::current().block_on(check_tenant_enabled(&req.tenant)) {
             return Ok(make_http_400("Tenant not enabled.".to_string()));
         }
 

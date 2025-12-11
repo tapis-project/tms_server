@@ -111,7 +111,7 @@ impl ListPubkeysApi {
         };
         
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
+        if check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
