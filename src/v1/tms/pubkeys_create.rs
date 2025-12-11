@@ -127,7 +127,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 impl NewSshKeysApi {
     #[oai(path = "/tms/pubkeys/creds", method = "post")]
     async fn get_new_ssh_keys(&self, http_req: &Request, req: Json<ReqNewSshKeys>) -> TmsResponse {
-        match RespNewSshKeys::process(http_req, &req) {
+        match RespNewSshKeys::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 // Assume a server fault if a raw error came through.
@@ -154,7 +154,7 @@ impl RespNewSshKeys {
             }
     }
 
-    fn process(http_req: &Request, req: &ReqNewSshKeys) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqNewSshKeys) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -168,7 +168,7 @@ impl RespNewSshKeys {
         };
 
         // Check tenant.
-        if tokio::runtime::Handle::current().block_on(check_tenant_enabled(&req_ext.tenant)) {
+        if check_tenant_enabled(&req_ext.tenant).await {
             return Ok(make_http_400("Tenant not enabled.".to_string()));
         }
         

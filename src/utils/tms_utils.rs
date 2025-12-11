@@ -9,7 +9,6 @@ use std::os::unix::fs::MetadataExt;
 use execute::Execute;
 use chrono::{Utc, DateTime, SecondsFormat, FixedOffset, ParseError, Duration};
 use semver::VersionReq;
-use futures::executor::block_on;
 
 use poem::Request;
 

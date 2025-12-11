@@ -120,7 +120,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 impl ExtendReservationsApi {
     #[oai(path = "/tms/reservations/extend", method = "post")]
     async fn extend_reservation_api(&self, http_req: &Request, req: Json<ReqExtendReservation>) -> TmsResponse {
-        match RespExtendReservation::process(http_req, &req) {
+        match RespExtendReservation::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 // Assume a server fault if a raw error came through.
@@ -143,7 +143,7 @@ impl RespExtendReservation {
         }
     }
 
-    fn process(http_req: &Request, req: &ReqExtendReservation) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqExtendReservation) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -157,7 +157,7 @@ impl RespExtendReservation {
         };
 
         // Check tenant.
-        if tokio::runtime::Handle::current().block_on(check_tenant_enabled(&req_ext.tenant)) {
+        if check_tenant_enabled(&req_ext.tenant).await {
             return Ok(make_http_400("Tenant not enabled.".to_string()));
         }
 
