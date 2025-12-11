@@ -630,6 +630,6 @@ pub async fn is_tenant_enabled(tenant: &String) -> Result<bool>
         },
         None => {
             Err(anyhow!("NOT_FOUND"))
-        },
+        }
     }
 }
