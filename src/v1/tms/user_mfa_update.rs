@@ -110,7 +110,7 @@ async fn update_user_mfa(&self, http_req: &Request, req: Json<ReqUpdateUserMfa>)
         }
 
         // Check tenant.
-        if check_tenant_enabled(&hdr_tenant).await {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 

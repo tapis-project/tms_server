@@ -148,7 +148,7 @@ impl UpdatePubkeyApi {
         }
 
         // Check tenant.
-        if check_tenant_enabled(&req.tenant).await {
+        if !check_tenant_enabled(&req.tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 

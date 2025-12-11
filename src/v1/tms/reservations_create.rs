@@ -171,7 +171,7 @@ impl RespCreateReservation {
         };
 
         // Check tenant.
-        if check_tenant_enabled(&req_ext.tenant).await {
+        if !check_tenant_enabled(&req_ext.tenant).await {
             return Ok(make_http_400("Tenant not enabled.".to_string()));
         }
 
