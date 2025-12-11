@@ -69,6 +69,7 @@ Ran getclient loadtest with branch perf-getclient-only. Branch has most other en
    Even with single select enabled from tenant the server hangs very quickly.
    Other combinations of sql queries also hang very quickly, just a few success responses.
    SO, it appears it is not sqlite.
+   ******** Actually, problem is worse. Even with one loadtest client user it still hangs after just 1 or 2 requests.
    
 
 For get_client endpoint there appear to be 3 DB queries:
