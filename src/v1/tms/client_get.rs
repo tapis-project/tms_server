@@ -121,8 +121,8 @@ impl GetClientApi {
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
-        if !authz_result.is_authorized() {
+        let authz_result = authorize(http_req, &allowed).await;
+        if !authz_result.authorized {
             let msg = format!("ERROR: NOT AUTHORIZED to view client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
             return make_http_401(msg);
@@ -137,7 +137,7 @@ impl GetClientApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespGetClient::process(http_req, &req) {
+        match RespGetClient::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -162,37 +162,37 @@ impl RespGetClient {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqGetClient) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqGetClient) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
 //        tms_utils::debug_request(http_req, req);
 
         //TODO  Loadtest debug
-        let resp1 = Self::new("0", "success".to_string(), 
-                               1, "test".to_string(), "testapp1".to_string(),
-                               "1.0".to_string(), "testclient1".to_string(),
-                               1, "2024-11-05T22:00:40Z".to_string(), "2024-11-05T22:00:40Z".to_string());
-        Ok(make_http_200(resp1))
+        // let resp1 = Self::new("0", "success".to_string(), 
+        //                        1, "test".to_string(), "testapp1".to_string(),
+        //                        "1.0".to_string(), "testclient1".to_string(),
+        //                        1, "2024-11-05T22:00:40Z".to_string(), "2024-11-05T22:00:40Z".to_string());
+        // Ok(make_http_200(resp1))
 
     // TODO LOADTEST skip db query for client info
-        // // Search for the tenant/client id in the database.  Not found was already 
-        // // The client_secret is never part of the response.
-        // let db_result = block_on(get_client(req));
-        // match db_result {
-        //     Ok(client) => {
-        //         let resp1 = Self::new("0", "success".to_string(), 
-        //                               client.id, client.tenant, client.app_name, client.app_version, 
-        //                               client.client_id, client.enabled, client.created, client.updated);
-        //         println!("****************Resp is {:?}", resp1);
-        //         Ok(make_http_200(resp1))
-        //     },
-        //     Err(e) => {
-        //         // Determine if this is a real db error or just record not found.
-        //         let msg = e.to_string();
-        //         println!("****************Resp Err. Msg is {:?}", msg);
-        //         if msg.contains("NOT_FOUND") {Ok(make_http_404(msg))} 
-        //           else {Err(e)}
-        //     },
-        // }
+        // Search for the tenant/client id in the database.  Not found was already 
+        // The client_secret is never part of the response.
+        let db_result = get_client(req).await;
+        match db_result {
+            Ok(client) => {
+                let resp1 = Self::new("0", "success".to_string(), 
+                                      client.id, client.tenant, client.app_name, client.app_version, 
+                                      client.client_id, client.enabled, client.created, client.updated);
+                println!("****************Resp is {:?}", resp1);
+                Ok(make_http_200(resp1))
+            },
+            Err(e) => {
+                // Determine if this is a real db error or just record not found.
+                let msg = e.to_string();
+                println!("****************Resp Err. Msg is {:?}", msg);
+                if msg.contains("NOT_FOUND") {Ok(make_http_404(msg))} 
+                  else {Err(e)}
+            },
+        }
     }
 }
 

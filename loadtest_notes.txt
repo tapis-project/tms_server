@@ -71,6 +71,8 @@ Ran getclient loadtest with branch perf-getclient-only. Branch has most other en
    SO, it appears it is not sqlite.
    ******** Actually, problem is worse. Even with one loadtest client user it still hangs after just 1 or 2 requests.
    
+8. Dan Vernon found out the problem is with the use of block_on in async methods. This can lead to deadlock.
+   After dealing with this for the getClient endpoint the load test passes for 10 users and 20,000 requests per user. NO HANG.
 
 For get_client endpoint there appear to be 3 DB queries:
   - Fetch "enabled" from tenants table.
