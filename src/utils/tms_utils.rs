@@ -355,17 +355,7 @@ pub fn sql_substitute_client_constraint(sql_query: &str, authz_result: &AuthzRes
 // check_tenant_enabled:
 // ---------------------------------------------------------------------------
 /** Wrapper for the actual database call that handles errors and logging. */
-pub fn check_tenant_enabled(tenant: &String) -> bool {
-    match block_on(is_tenant_enabled(tenant)) {
-        Ok(enabled) => enabled,
-        Err(e) => {
-            error!("Unable to determine if tenant '{}' is enabled: {}", tenant, e);
-            false
-        }
-    }
-}
-
-pub async fn as_check_tenant_enabled(tenant: &String) -> bool {
+pub async fn check_tenant_enabled(tenant: &String) -> bool {
     match is_tenant_enabled(tenant).await {
         Ok(enabled) => enabled,
         Err(e) => {
@@ -374,6 +364,7 @@ pub async fn as_check_tenant_enabled(tenant: &String) -> bool {
         }
     }
 }
+
 // ***************************************************************************
 // PRIVATE FUNCTIONS
 // ***************************************************************************

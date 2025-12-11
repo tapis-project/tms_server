@@ -9,7 +9,7 @@ use sqlx::Row;
 use crate::utils::errors::HttpResult;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
 use crate::utils::db_statements::GET_CLIENT;
-use crate::utils::tms_utils::{self, RequestDebug, check_tenant_enabled, as_check_tenant_enabled};
+use crate::utils::tms_utils::{self, RequestDebug, check_tenant_enabled};
 use crate::utils::db_types::Client;
 use log::error;
 
@@ -111,8 +111,7 @@ impl GetClientApi {
 
         // TODO
         // Check tenant.
-//        if !check_tenant_enabled(&hdr_tenant) {
-        if !as_check_tenant_enabled(&hdr_tenant).await {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
