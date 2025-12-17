@@ -120,7 +120,7 @@ async fn update_client_delegation(&self, http_req: &Request, req: Json<ReqUpdate
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to update delegation for client {} and user {} in tenant {}.", req.client_id, req.client_user_id, req.tenant);
             error!("{}", msg);

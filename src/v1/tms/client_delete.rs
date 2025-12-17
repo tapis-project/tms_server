@@ -106,7 +106,7 @@ impl DeleteClientApi {
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to delete client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);

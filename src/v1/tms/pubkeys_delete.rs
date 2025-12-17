@@ -97,7 +97,7 @@ impl DeletePubkeysApi {
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can access a pubkeys record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to delete public key {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);

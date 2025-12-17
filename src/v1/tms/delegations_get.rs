@@ -116,7 +116,7 @@ impl GetDelegationsApi {
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to view client delegation information for record #{} in tenant {}", 
                                       req.id, req.tenant);

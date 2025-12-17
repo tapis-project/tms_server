@@ -113,7 +113,7 @@ impl WipeTenantsApi {
         // -------------------- Authorize ----------------------------
         // Currently, only the tenant admin can wipe a tenant record and all its dependencies.
         let allowed = [AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to delete tenant {}.", req.tenant);
             error!("{}", msg);

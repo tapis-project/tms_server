@@ -114,7 +114,7 @@ impl ListClientApi {
         // Only the tenant admin can query all client records; 
         // a client can query their own records.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to list clients in tenant {}.", req.tenant);
             error!("{}", msg);

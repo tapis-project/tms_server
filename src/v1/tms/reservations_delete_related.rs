@@ -114,7 +114,7 @@ impl DeleteRelatedReservationsApi {
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can delete a reservation record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to delete reservation {} in tenant {}.", req.resid, req.tenant);
             error!("{}", msg);

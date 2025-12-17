@@ -113,7 +113,7 @@ impl ListUserMfaApi {
         // -------------------- Authorize ----------------------------
         // Only the tenant admin can query user records.
         let allowed = [AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to list user MFA information in tenant {}.", req.tenant);
             error!("{}", msg);
