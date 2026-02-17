@@ -112,7 +112,7 @@ async fn main() -> Result<(), std::io::Error> {
          CreateHostsApi, GetHostsApi, DeleteHostsApi, ListHostsApi,
          GetReservationApi, DeleteReservationApi, CreateReservationsApi, ExtendReservationsApi, DeleteRelatedReservationsApi);
     let mut api_service = 
-        OpenApiService::new(endpoints, "TMS Server", "0.1.0");
+        OpenApiService::new(endpoints, "TMS Server", "0.2.0");
     let urls = &RUNTIME_CTX.parms.config.server_urls;
     for url in urls.iter() {
         api_service = api_service.server(url);

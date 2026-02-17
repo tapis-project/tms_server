@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::UPDATE_TENANTS_ENABLED;
@@ -107,7 +106,7 @@ async fn update_tenant_api(&self, http_req: &Request, req: Json<ReqUpdateTenants
         }
 
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
@@ -116,7 +115,7 @@ async fn update_tenant_api(&self, http_req: &Request, req: Json<ReqUpdateTenants
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to update tenant {}.", req.tenant);
             error!("{}", msg);
@@ -125,7 +124,7 @@ async fn update_tenant_api(&self, http_req: &Request, req: Json<ReqUpdateTenants
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespUpdateTenants::process(http_req, &req) {
+        match RespUpdateTenants::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -145,12 +144,12 @@ impl RespUpdateTenants {
         Self {result_code: result_code.to_string(), result_msg, fields_updated: num_updates}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqUpdateTenants) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqUpdateTenants) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Insert the new key record.
-        let updates = block_on(update_tenant(req))?;
+        let updates = update_tenant(req).await?;
         
         // Log result and return response.
         let msg = format!("{} update(s) to tenant {} completed, enabled = {}", updates, req.tenant, req.enabled);

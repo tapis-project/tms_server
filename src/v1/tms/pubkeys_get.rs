@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::{Result, anyhow};
-use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -16,12 +15,12 @@ use log::error;
 use crate::RUNTIME_CTX;
 
 // ***************************************************************************
-//                          Request/Response Definiions
+//                          Request/Response Definitions
 // ***************************************************************************
 pub struct GetPubkeysApi;
 
 // ***************************************************************************
-//                          Request/Response Definiions
+//                          Request/Response Definiitions
 // ***************************************************************************
 #[derive(Object)]
 struct ReqGetPubkeys
@@ -113,7 +112,7 @@ impl GetPubkeysApi {
         };
         
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
@@ -124,7 +123,7 @@ impl GetPubkeysApi {
         // Only the tenant admin can query all client records; 
         // a client can query their own records.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to view pubkey #{} in tenant {}.", req.seqno, req.tenant);
             error!("{}", msg);
@@ -133,7 +132,7 @@ impl GetPubkeysApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespGetPubkeys::process(http_req, &req, &authz_result) {
+        match RespGetPubkeys::process(http_req, &req, &authz_result).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -178,13 +177,13 @@ impl RespGetPubkeys {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqGetPubkeys, authz_result: &AuthzResult) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqGetPubkeys, authz_result: &AuthzResult) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
-        match block_on(get_pubkey(authz_result, req)) {
+        match get_pubkey(authz_result, req).await {
             Ok(pubkey) => 
                 Ok(make_http_200(Self::new("0", "success".to_string(), pubkey.id, 
                     pubkey.tenant, pubkey.client_id,pubkey.client_user_id, pubkey.host, pubkey.host_account, 

@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::DELETE_HOST;
@@ -107,7 +106,7 @@ impl DeleteHostsApi {
         }
     
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
@@ -116,7 +115,7 @@ impl DeleteHostsApi {
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to delete host mapping {} -> {} in tenant {}.", 
                                       req.host, req.addr, req.tenant);
@@ -126,7 +125,7 @@ impl DeleteHostsApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespDeleteHosts::process(http_req, &req) {
+        match RespDeleteHosts::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -146,12 +145,12 @@ impl RespDeleteHosts {
         Self {result_code: result_code.to_string(), result_msg, num_deleted}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqDeleteHosts) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqDeleteHosts) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Insert the new key record.
-        let deletes = block_on(delete_host(req))?;
+        let deletes = delete_host(req).await?;
         
         // Log result and return response.
         let msg = 

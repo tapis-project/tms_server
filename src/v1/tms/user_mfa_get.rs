@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::{Result, anyhow};
-use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -104,7 +103,7 @@ impl GetUserMfaApi {
         };
         
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
@@ -116,7 +115,7 @@ impl GetUserMfaApi {
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to view mfa information for record #{} in tenant {}", 
                                       req.tms_user_id, req.tenant);
@@ -126,7 +125,7 @@ impl GetUserMfaApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespGetUserMfa::process(http_req, &req) {
+        match RespGetUserMfa::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -151,13 +150,13 @@ impl RespGetUserMfa {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqGetUserMfa) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqGetUserMfa) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
-        let db_result = block_on(get_user_mfa(req));
+        let db_result = get_user_mfa(req).await;
         match db_result {
             Ok(u) => Ok(make_http_200(Self::new("0", "success".to_string(), u.id, u.tenant, 
                                         u.tms_user_id, u.expires_at, u.enabled, u.created, u.updated))),

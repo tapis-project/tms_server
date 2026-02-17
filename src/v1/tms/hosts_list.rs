@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -102,7 +101,7 @@ impl ListHostsApi {
         };
         
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
@@ -112,7 +111,7 @@ impl ListHostsApi {
         // -------------------- Authorize ----------------------------
         // Only the tenant admin can query a user host record.
         let allowed = [AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to list user host information in tenant {}.", req.tenant);
             error!("{}", msg);
@@ -121,7 +120,7 @@ impl ListHostsApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespListHosts::process(http_req, &req) {
+        match RespListHosts::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -153,13 +152,13 @@ impl RespListHosts {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqListHosts) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqListHosts) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
-        let clients = block_on(list_hosts_users(req))?;
+        let clients = list_hosts_users(req).await?;
         Ok(make_http_200(Self::new("0", "success".to_string(), 
                                         clients.len() as i32, clients)))
     }

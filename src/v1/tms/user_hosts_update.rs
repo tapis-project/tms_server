@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::UPDATE_USER_HOST_EXPIRY;
@@ -114,7 +113,7 @@ async fn update_client(&self, http_req: &Request, req: Json<ReqUpdateUserHosts>)
         }
     
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
@@ -123,7 +122,7 @@ async fn update_client(&self, http_req: &Request, req: Json<ReqUpdateUserHosts>)
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to update host for user {} in tenant {}.", req.tms_user_id, req.tenant);
             error!("{}", msg);
@@ -132,7 +131,7 @@ async fn update_client(&self, http_req: &Request, req: Json<ReqUpdateUserHosts>)
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespUpdateUserHosts::process(http_req, &req) {
+        match RespUpdateUserHosts::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -152,12 +151,12 @@ impl RespUpdateUserHosts {
         Self {result_code: result_code.to_string(), result_msg, fields_updated: num_updates, expires_at}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqUpdateUserHosts) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqUpdateUserHosts) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Insert the new key record.
-        let (updates, expires_at) = block_on(update_user_host(req))?;
+        let (updates, expires_at) = update_user_host(req).await?;
         
         // Log result and return response.
         let msg = format!("{} update(s) to tms_user_id {} completed", updates, req.tms_user_id);

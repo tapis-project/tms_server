@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::{Result, anyhow};
-use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -104,7 +103,7 @@ impl GetDelegationsApi {
         };
         
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
@@ -116,7 +115,7 @@ impl GetDelegationsApi {
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to view client delegation information for record #{} in tenant {}", 
                                       req.id, req.tenant);
@@ -126,7 +125,7 @@ impl GetDelegationsApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespGetDelegations::process(http_req, &req) {
+        match RespGetDelegations::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -151,13 +150,13 @@ impl RespGetDelegations {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqGetDelegations) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqGetDelegations) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
-        let db_result = block_on(get_delegation(req));
+        let db_result = get_delegation(req).await;
         match db_result {
             Ok(u) => Ok(make_http_200(Self::new("0", "success".to_string(), u.id, u.tenant, 
                                         u.client_id, u.client_user_id, u.expires_at, u.created, u.updated))),

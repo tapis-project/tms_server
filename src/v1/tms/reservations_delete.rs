@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
@@ -100,7 +99,7 @@ impl DeleteReservationApi {
         };
         
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
@@ -111,7 +110,7 @@ impl DeleteReservationApi {
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can delete a reservation record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to delete reservation {} in tenant {}.", req.resid, req.tenant);
             error!("{}", msg);
@@ -130,7 +129,7 @@ impl DeleteReservationApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespDeleteReservation::process(http_req, &req) {
+        match RespDeleteReservation::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -150,12 +149,12 @@ impl RespDeleteReservation {
         Self {result_code: result_code.to_string(), result_msg, num_deleted,}}
 
     // Process the request.
-    fn process(http_req: &Request, req: &ReqDeleteReservation) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqDeleteReservation) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Insert the new key record.
-        let deletes = block_on(delete_reservation(req))?;
+        let deletes = delete_reservation(req).await?;
         
         // Log result and return response.
         let msg = 

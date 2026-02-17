@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{INSERT_TENANT, INSERT_ADMIN};
@@ -106,7 +105,7 @@ impl CreateTenantsApi {
         }
 
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
@@ -118,7 +117,7 @@ impl CreateTenantsApi {
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = "ERROR: NOT AUTHORIZED to add a new tenant.".to_string();
             error!("{}", msg);
@@ -126,7 +125,7 @@ impl CreateTenantsApi {
         }
 
         // -------------------- Process Request ----------------------
-        match RespCreateTenants::process(http_req, &req) {
+        match RespCreateTenants::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -147,7 +146,7 @@ impl RespCreateTenants {
         Self {result_code: result_code.to_string(), result_msg, enabled, tenant, admin_id, admin_secret}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqCreateTenants) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqCreateTenants) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -170,7 +169,7 @@ impl RespCreateTenants {
         );
 
         // Insert the new key record.
-        block_on(insert_tenant(input_record))?;
+        insert_tenant(input_record).await?;
         info!("New tenant '{}' created and enabled.", &req.tenant);
         
         // Return the secret represented in hex.

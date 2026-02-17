@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::{Result, anyhow};
-use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -117,7 +116,7 @@ impl GetReservationApi {
         };
         
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
@@ -128,7 +127,7 @@ impl GetReservationApi {
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a reservation record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to view reservation {} in tenant {}.", req.resid, req.tenant);
             error!("{}", msg);
@@ -147,7 +146,7 @@ impl GetReservationApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespGetReservation::process(http_req, &req) {
+        match RespGetReservation::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -174,12 +173,12 @@ impl RespGetReservation {
         }
 
     // Process the request.
-    fn process(http_req: &Request, req: &ReqGetReservation) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqGetReservation) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/resid in the database.  Not found was already 
-        let db_result = block_on(get_reservation(req));
+        let db_result = get_reservation(req).await;
         match db_result {
             Ok(res) => Ok(make_http_200(Self::new("0", "success".to_string(), 
                                     res.id, res.resid, res.parent_resid, res.tenant, res.client_id, 

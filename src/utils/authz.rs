@@ -1,7 +1,6 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use futures::executor::block_on;
 use sqlx::Row;
 use anyhow::{Result, anyhow};
 
@@ -160,7 +159,7 @@ pub fn get_client_id_header_string(http_req: &Request) -> String {
 // ---------------------------------------------------------------------------
 // authorize:
 // ---------------------------------------------------------------------------
-pub fn authorize(http_req: &Request, allowed: &[AuthzTypes]) -> AuthzResult {
+pub async fn authorize(http_req: &Request, allowed: &[AuthzTypes]) -> AuthzResult {
     // Get the required tenant header once.
     let hdr_tenant = match get_tenant_header_str(http_req) {
         Ok(t) => t,
@@ -170,14 +169,14 @@ pub fn authorize(http_req: &Request, allowed: &[AuthzTypes]) -> AuthzResult {
     // For each authz type, validate the required headers.
     for authz_type in allowed {
         let result = match authz_type {
-            AuthzTypes::ClientOwn => authorize_by_type(http_req, hdr_tenant, AuthzTypes::ClientOwn),
-            AuthzTypes::TenantAdmin => authorize_by_type(http_req, hdr_tenant, AuthzTypes::TenantAdmin),
-            AuthzTypes::TmsctlHost => authorize_by_type(http_req, hdr_tenant, AuthzTypes::TmsctlHost),
-            AuthzTypes::UserOwn => authorize_by_type(http_req, hdr_tenant, AuthzTypes::UserOwn),
+            AuthzTypes::ClientOwn => authorize_by_type(http_req, hdr_tenant, AuthzTypes::ClientOwn).await,
+            AuthzTypes::TenantAdmin => authorize_by_type(http_req, hdr_tenant, AuthzTypes::TenantAdmin).await,
+            AuthzTypes::TmsctlHost => authorize_by_type(http_req, hdr_tenant, AuthzTypes::TmsctlHost).await,
+            AuthzTypes::UserOwn => authorize_by_type(http_req, hdr_tenant, AuthzTypes::UserOwn).await,
         };
 
         // The first successful authorization terminates checking.
-        if result.is_authorized() {return result;}
+        if result.is_authorized(){return result;}
     }
 
     // If we get here, no authorization checks succeeded.
@@ -216,7 +215,7 @@ fn get_header(http_req: &Request, header_key: &str) -> Result<String> {
 // ---------------------------------------------------------------------------
 // authorize_by_type:
 // ---------------------------------------------------------------------------
-fn authorize_by_type(http_req: &Request, hdr_tenant: &str, authz_type: AuthzTypes) -> AuthzResult {
+async fn authorize_by_type(http_req: &Request, hdr_tenant: &str, authz_type: AuthzTypes) -> AuthzResult {
     // Get the runtime parameters for this authz type.  If the spec isn't found in the 
     // RUNTIME environment, then a compile time initialization value is missing.
     let spec = match RUNTIME_CTX.authz.specs.get(&authz_type) {
@@ -264,7 +263,7 @@ fn authorize_by_type(http_req: &Request, hdr_tenant: &str, authz_type: AuthzType
     }
 
     // Query the database for the client secret.
-    let db_secret_hash = match block_on(get_authz_secret(hdr_id, hdr_tenant, spec.sql_query)) {
+    let db_secret_hash = match get_authz_secret(hdr_id, hdr_tenant, spec.sql_query).await {
         Ok(s) => s,
         Err(e) => {
             error!("Unable to retrieve secret for {} ID '{}': {}", spec.display_name, hdr_id, e);

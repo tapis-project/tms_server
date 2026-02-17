@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -111,7 +110,7 @@ impl ListPubkeysApi {
         };
         
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
@@ -122,7 +121,7 @@ impl ListPubkeysApi {
         // Only the tenant admin can query all client records; 
         // a client can query their own records.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to list clients in tenant {}.", req.tenant);
             error!("{}", msg);
@@ -131,7 +130,7 @@ impl ListPubkeysApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespListPubkeys::process(http_req, &req, &authz_result) {
+        match RespListPubkeys::process(http_req, &req, &authz_result).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -168,12 +167,12 @@ impl RespListPubkeys {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqListPubkeys, authz_result: &AuthzResult) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqListPubkeys, authz_result: &AuthzResult) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/client ids in the database.  
-        let keys = block_on(list_pubkeys(authz_result, req))?;
+        let keys = list_pubkeys(authz_result, req).await?;
         Ok(make_http_200(Self::new("0", "success".to_string(), keys.len() as i32, keys)))
     }
 }

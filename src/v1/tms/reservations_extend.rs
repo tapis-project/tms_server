@@ -5,8 +5,6 @@ use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
 use uuid::Uuid;
 
-use futures::executor::block_on;
-
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, get_client_id_header};
 use crate::utils::errors::HttpResult;
 use crate::utils::db_types::ReservationInput;
@@ -120,7 +118,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 impl ExtendReservationsApi {
     #[oai(path = "/tms/reservations/extend", method = "post")]
     async fn extend_reservation_api(&self, http_req: &Request, req: Json<ReqExtendReservation>) -> TmsResponse {
-        match RespExtendReservation::process(http_req, &req) {
+        match RespExtendReservation::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 // Assume a server fault if a raw error came through.
@@ -143,7 +141,7 @@ impl RespExtendReservation {
         }
     }
 
-    fn process(http_req: &Request, req: &ReqExtendReservation) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqExtendReservation) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -157,14 +155,14 @@ impl RespExtendReservation {
         };
 
         // Check tenant.
-        if !check_tenant_enabled(&req_ext.tenant) {
+        if !check_tenant_enabled(&req_ext.tenant).await {
             return Ok(make_http_400("Tenant not enabled.".to_string()));
         }
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
         let allowed = [AuthzTypes::ClientOwn];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED Credential mismatch for client {} in tenant {}.", 
                                       req_ext.client_id, req_ext.tenant);
@@ -175,8 +173,8 @@ impl RespExtendReservation {
         // ------------------ Get Parent Reservation -------------------
         // Check that the designated parent reservation can be extended
         // and retrieve that reservation's experation time.
-        let expires_at = match block_on(check_parent_reservation(&req.parent_resid, &req_ext.tenant, 
-                        &req_ext.client_id, &req.client_user_id, &req.host, &req.public_key_fingerprint)) 
+        let expires_at = match check_parent_reservation(&req.parent_resid, &req_ext.tenant,
+                        &req_ext.client_id, &req.client_user_id, &req.host, &req.public_key_fingerprint).await
         {
             Ok(expiry) => expiry,
             Err(e) => {
@@ -214,7 +212,7 @@ impl RespExtendReservation {
         );
 
         // Insert the new key record.
-        block_on(extend_reservation(input_record))?;
+        extend_reservation(input_record).await?;
         info!("Reservation '{}' created for '{}@{}' for host '{}' expires at {}.", 
               resid, req.client_user_id, req_ext.tenant, req.host, expires_at);
 

@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::UPDATE_DELEGATION_EXPIRY;
@@ -111,7 +110,7 @@ async fn update_client_delegation(&self, http_req: &Request, req: Json<ReqUpdate
         }
     
         // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant) {
+        if !check_tenant_enabled(&hdr_tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
@@ -120,7 +119,7 @@ async fn update_client_delegation(&self, http_req: &Request, req: Json<ReqUpdate
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to update delegation for client {} and user {} in tenant {}.", req.client_id, req.client_user_id, req.tenant);
             error!("{}", msg);
@@ -129,7 +128,7 @@ async fn update_client_delegation(&self, http_req: &Request, req: Json<ReqUpdate
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespUpdateDelegations::process(http_req, &req) {
+        match RespUpdateDelegations::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -149,12 +148,12 @@ impl RespUpdateDelegations {
         Self {result_code: result_code.to_string(), result_msg, fields_updated: num_updates, expires_at}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqUpdateDelegations) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqUpdateDelegations) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Insert the new key record.
-        let (updates, expires_at) = block_on(update_user_host(req))?;
+        let (updates, expires_at) = update_user_host(req).await?;
         
         // Log result and return response.
         let msg = format!("{} update(s) to user {} and client {} completed", updates, req.client_user_id, req.client_id);

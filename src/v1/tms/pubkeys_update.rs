@@ -5,7 +5,6 @@ use std::cmp::max;
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::{anyhow, Result};
-use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -132,7 +131,7 @@ impl UpdatePubkeyApi {
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR NOT AUTHORIZED to update client {} in tenant {}.", req.client_id, req.tenant);
             error!("{}", msg);
@@ -148,13 +147,13 @@ impl UpdatePubkeyApi {
         }
 
         // Check tenant.
-        if !check_tenant_enabled(&req.tenant) {
+        if !check_tenant_enabled(&req.tenant).await {
             return make_http_400("Tenant not enabled.".to_string());
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespUpdatePubkey::process(http_req, &req) {
+        match RespUpdatePubkey::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -174,7 +173,7 @@ impl RespUpdatePubkey {
         Self {result_code: result_code.to_string(), result_msg, fields_updated: num_updates}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqUpdatePubkey) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqUpdatePubkey) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -185,7 +184,7 @@ impl RespUpdatePubkey {
         } 
 
         // Insert the new key record.
-        let updates = match block_on(update_pubkey(req)) {
+        let updates = match update_pubkey(req).await {
             Ok(u) => u,
             Err(e) => {
                 // Determine if this is a real db error or just record not found.

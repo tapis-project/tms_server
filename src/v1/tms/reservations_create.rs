@@ -7,8 +7,6 @@ use sqlx::Row;
 use std::cmp::min;
 use uuid::Uuid;
 
-use futures::executor::block_on;
-
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, get_client_id_header};
 use crate::utils::errors::HttpResult;
 use crate::utils::db_types::ReservationInput;
@@ -134,7 +132,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 impl CreateReservationsApi {
     #[oai(path = "/tms/reservations", method = "post")]
     async fn create_reservation_api(&self, http_req: &Request, req: Json<ReqCreateReservation>) -> TmsResponse {
-        match RespCreateReservation::process(http_req, &req) {
+        match RespCreateReservation::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 // Assume a server fault if a raw error came through.
@@ -157,7 +155,7 @@ impl RespCreateReservation {
         }
     }
 
-    fn process(http_req: &Request, req: &ReqCreateReservation) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqCreateReservation) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -171,14 +169,14 @@ impl RespCreateReservation {
         };
 
         // Check tenant.
-        if !check_tenant_enabled(&req_ext.tenant) {
+        if !check_tenant_enabled(&req_ext.tenant).await {
             return Ok(make_http_400("Tenant not enabled.".to_string()));
         }
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
         let allowed = [AuthzTypes::ClientOwn];
-        let authz_result = authorize(http_req, &allowed);
+        let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED Credential mismatch for client {} in tenant {}.", 
                                       req_ext.client_id, req_ext.tenant);
@@ -189,7 +187,7 @@ impl RespCreateReservation {
         // --------------------- Check Pubkey Info -----------------------
         // Get the remaining uses and expires_at time of the public key.
         let pubkey_info = 
-            match block_on(get_pubkey_status(&req_ext.client_id, &req_ext.tenant, &req.host, &req.public_key_fingerprint)) {
+            match get_pubkey_status(&req_ext.client_id, &req_ext.tenant, &req.host, &req.public_key_fingerprint).await {
                 Ok(info) => info,
                 Err(e) => {
                     if e.to_string().contains("NOT_FOUND") {
@@ -253,8 +251,8 @@ impl RespCreateReservation {
         // This method returns an detailed error message that indicates which table did not
         // contain the required values and whether the error resulted from a missing or 
         // expired record.  
-        match block_on(check_pubkey_dependencies(&req_ext.tenant, &req_ext.client_id, 
-                                        &req.client_user_id, &req.host, &pubkey_info.host_account))
+        match check_pubkey_dependencies(&req_ext.tenant, &req_ext.client_id,
+                                        &req.client_user_id, &req.host, &pubkey_info.host_account).await
         {
             Ok(_) => (),
             Err(e) => {
@@ -296,7 +294,7 @@ impl RespCreateReservation {
         );
 
         // Insert the new key record.
-        block_on(create_reservation(input_record))?;
+        create_reservation(input_record).await?;
         info!("Reservation '{}' created for '{}@{}' for host '{}' expires at {}.", 
               resid, req.client_user_id, req_ext.tenant, req.host, expires_at);
 

@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::INSERT_CLIENTS;
@@ -87,7 +86,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 impl CreateClientApi {
     #[oai(path = "/tms/client", method = "post")]
     async fn create_client(&self, http_req: &Request, req: Json<ReqCreateClient>) -> TmsResponse {
-        match RespCreateClient::process(http_req, &req) {
+        match RespCreateClient::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 // Assume a server fault if a raw error came through.
@@ -113,12 +112,12 @@ impl RespCreateClient {
     }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqCreateClient) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqCreateClient) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // -------------------- Validate Tenant ------------------------
-        if !check_tenant_enabled(&req.tenant) {
+        if !check_tenant_enabled(&req.tenant).await {
             return Ok(make_http_400("Tenant not enabled.".to_string()));
         }
 
@@ -167,7 +166,7 @@ impl RespCreateClient {
         );
 
         // Insert the new key record.
-        block_on(insert_new_client(input_record))?;
+        insert_new_client(input_record).await?;
         info!("Client '{}' created for application '{}:{}' in tenant '{}'.", 
               req.client_id, req.app_name, req.app_version, req.tenant);
         
