@@ -148,7 +148,6 @@ fn print_admin_secret_message(dft_key_str: &String, tst_key_str: &String) -> Res
 // check_test_data:
 // ---------------------------------------------------------------------------
 pub fn check_test_data() {
-
     // Assume we are initializing for the first time and need
     // to populate the test tenant with some dummy data.
     match block_on(create_test_data()) {

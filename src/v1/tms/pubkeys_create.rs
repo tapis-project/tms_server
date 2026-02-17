@@ -4,8 +4,6 @@ use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::{Result, anyhow};
 
-use futures::executor::block_on;
-
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, get_client_id_header};
 use crate::utils::errors::HttpResult;
 use crate::utils::keygen::{self, KeyType};
@@ -195,7 +193,7 @@ impl RespNewSshKeys {
 
             // Insert records into the user_mfa, user_hosts and delegations tables
             // that the key pair we are about to create depends on.
-            match create_pubkey_dependencies(mvp_inputs) {
+            match create_pubkey_dependencies(mvp_inputs).await {
                 Ok(inserts) => info!("{} MVP dependency records inserted.", inserts),
                 Err(e) => {
                     let msg = format!("MVP ERROR: Unable to create MVP dependencies: {}", e); 
@@ -221,8 +219,8 @@ impl RespNewSshKeys {
         // This method returns an detailed error message that indicates which table did not
         // contain the required values and whether the error resulted from a missing or 
         // expired record.  
-        match block_on(check_pubkey_dependencies(&req_ext.tenant, &req_ext.client_id, 
-                                        &req.client_user_id, &req.host, &req.host_account))
+        match check_pubkey_dependencies(&req_ext.tenant, &req_ext.client_id,
+                                        &req.client_user_id, &req.host, &req.host_account).await
         {
             Ok(_) => (),
             Err(e) => {
@@ -292,7 +290,7 @@ impl RespNewSshKeys {
         );
 
         // Insert the new key record.
-        block_on(insert_new_key(input_record))?;
+        insert_new_key(input_record).await?;
         info!("A key of type '{}' created for '{}@{}' for host '{}' expires at {} and has {} remaining uses.", 
             keyinfo.key_type.clone(), req.client_user_id, req_ext.tenant, req.host, expires_at, remaining_uses);
 

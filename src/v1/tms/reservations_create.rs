@@ -7,8 +7,6 @@ use sqlx::Row;
 use std::cmp::min;
 use uuid::Uuid;
 
-use futures::executor::block_on;
-
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, get_client_id_header};
 use crate::utils::errors::HttpResult;
 use crate::utils::db_types::ReservationInput;
@@ -189,7 +187,7 @@ impl RespCreateReservation {
         // --------------------- Check Pubkey Info -----------------------
         // Get the remaining uses and expires_at time of the public key.
         let pubkey_info = 
-            match block_on(get_pubkey_status(&req_ext.client_id, &req_ext.tenant, &req.host, &req.public_key_fingerprint)) {
+            match get_pubkey_status(&req_ext.client_id, &req_ext.tenant, &req.host, &req.public_key_fingerprint).await {
                 Ok(info) => info,
                 Err(e) => {
                     if e.to_string().contains("NOT_FOUND") {
@@ -253,8 +251,8 @@ impl RespCreateReservation {
         // This method returns an detailed error message that indicates which table did not
         // contain the required values and whether the error resulted from a missing or 
         // expired record.  
-        match block_on(check_pubkey_dependencies(&req_ext.tenant, &req_ext.client_id, 
-                                        &req.client_user_id, &req.host, &pubkey_info.host_account))
+        match check_pubkey_dependencies(&req_ext.tenant, &req_ext.client_id,
+                                        &req.client_user_id, &req.host, &pubkey_info.host_account).await
         {
             Ok(_) => (),
             Err(e) => {
@@ -296,7 +294,7 @@ impl RespCreateReservation {
         );
 
         // Insert the new key record.
-        block_on(create_reservation(input_record))?;
+        create_reservation(input_record).await?;
         info!("Reservation '{}' created for '{}@{}' for host '{}' expires at {}.", 
               resid, req.client_user_id, req_ext.tenant, req.host, expires_at);
 

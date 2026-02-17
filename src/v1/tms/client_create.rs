@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::INSERT_CLIENTS;
@@ -167,7 +166,7 @@ impl RespCreateClient {
         );
 
         // Insert the new key record.
-        block_on(insert_new_client(input_record))?;
+        insert_new_client(input_record).await?;
         info!("Client '{}' created for application '{}:{}' in tenant '{}'.", 
               req.client_id, req.app_name, req.app_version, req.tenant);
         

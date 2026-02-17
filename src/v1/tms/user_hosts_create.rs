@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{INSERT_USER_HOSTS, INSERT_USER_HOSTS_NOT_STRICT};
@@ -137,7 +136,7 @@ impl CreateUserHostsApi {
         }
 
         // -------------------- Process Request ----------------------
-        match RespCreateUserHosts::process(http_req, &req) {
+        match RespCreateUserHosts::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -158,7 +157,7 @@ impl RespCreateUserHosts {
         Self {result_code: result_code.to_string(), result_msg, tms_user_id, host, host_account, expires_at,}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqCreateUserHosts) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqCreateUserHosts) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -184,7 +183,7 @@ impl RespCreateUserHosts {
         );
 
         // Insert the new key record.
-        block_on(insert_user_host(input_record, STRICT))?;
+        insert_user_host(input_record, STRICT).await?;
         info!("Host mapping for user '{}' created in tenant '{}' with experation at {}.", 
               req.tms_user_id, req.tenant, expires_at.clone());
         

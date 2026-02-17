@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::INSERT_HOSTS;
@@ -127,7 +126,7 @@ impl CreateHostsApi {
         }
 
         // -------------------- Process Request ----------------------
-        match RespCreateHost::process(http_req, &req) {
+        match RespCreateHost::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -147,7 +146,7 @@ impl RespCreateHost {
         -> Self {Self {result_code: result_code.to_string(), result_msg, tenant, host, addr}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqCreateHost) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqCreateHost) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -166,7 +165,7 @@ impl RespCreateHost {
         );
 
         // Insert the new key record.
-        block_on(insert_tenant(input_record))?;
+        insert_tenant(input_record).await?;
         info!("New host mapping in tenant '{}' created, {} -> {}.", &req.tenant, &req.host, &req.addr);
         
         // Return the secret represented in hex.

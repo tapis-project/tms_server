@@ -1,7 +1,6 @@
 #![forbid(unsafe_code)]
 
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::db_types::{DelegationInput, UserMfaInput, UserHostInput};
 use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_to_str, MAX_TMS_UTC};
@@ -35,13 +34,12 @@ pub struct MVPDependencyParms
  *      - user_host - user binding created to host_account
  *  
  * When the enable_mvp flag is turned on in the configuration file, clients can
- * create keys without prior configuration in the above 3 tables.  TMS will 
+ * create keys without prior configuration in the above 3 tables. TMS will
  * automatically create those records based on the input to the key create call,
  * eliminating the possibility that missing dependency records will cause key
- * creation to fail.  If a record already exists, TMS accepts accepts that 
- * record as is. 
+ * creation to fail. If a record already exists, TMS accepts that record as is.
  */
-pub fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64> {
+pub async fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64> {
 
     // --------------------- Variables used throughout ---------------------
     let expires_at = MAX_TMS_UTC;
@@ -66,10 +64,10 @@ pub fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64> {
     );
 
     // Insert the new record if it doesn't already exist.
-    let count = block_on(insert_user_mfa(input_record, NOT_STRICT))?;
+    let count = insert_user_mfa(input_record, NOT_STRICT).await?;
     if count > 0 {
         insert_count += count;
-        info!("MVP: MFA for user '{}' created in tenant '{}' with experation at {}.", 
+        info!("MVP: MFA for user '{}' created in tenant '{}' with expiration at {}.",
             parms.client_user_id, parms.tenant, expires_at);
     }
 
@@ -88,7 +86,7 @@ pub fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64> {
     );
 
     // Insert the new record if it doesn't already exist.
-    let count = block_on(insert_delegation(input_record, NOT_STRICT))?;
+    let count = insert_delegation(input_record, NOT_STRICT).await?;
     if count > 0 {
         insert_count += count;
         info!("MVP: Delegation for user '{}' to client '{}' created in tenant '{}' with expiration at {}.", 
@@ -111,7 +109,7 @@ pub fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64> {
     );
 
     // Insert the new record if it doesn't already exist.
-    let count = block_on(insert_user_host(input_record, NOT_STRICT))?;
+    let count = insert_user_host(input_record, NOT_STRICT).await?;
     if count > 0 {
         insert_count += count;
         info!("MVP: Host mapping for user '{}' created in tenant '{}' with experation at {}.", 
