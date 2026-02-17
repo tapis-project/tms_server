@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::UPDATE_CLIENT_SECRET;
@@ -126,7 +125,7 @@ impl UpdateClientSecretApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespUpdateClientSecret::process(http_req, &req) {
+        match RespUpdateClientSecret::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -147,7 +146,7 @@ impl RespUpdateClientSecret {
     }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqUpdateClientSecret) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqUpdateClientSecret) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -156,7 +155,7 @@ impl RespUpdateClientSecret {
         let client_secret_hash = hash_hex_secret(&client_secret_str);
 
         // Insert the new key record.
-        block_on(update_client_secret(req, client_secret_hash))?;
+        update_client_secret(req, client_secret_hash).await?;
         
         // Log result and return response.
         let msg = format!("Secret updated for client {}", req.client_id);

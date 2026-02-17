@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::{Result, anyhow};
-use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -85,7 +84,7 @@ impl GetTenantsApi {
         
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespGetTenants::process(http_req, &req) {
+        match RespGetTenants::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -110,13 +109,13 @@ impl RespGetTenants {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqGetTenants) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqGetTenants) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/client id in the database. Note that even disabled
         // tenants can see tenant definitions. The client_secret is never part of the response.
-        let db_result = block_on(get_tenant_by_name(req));
+        let db_result = get_tenant_by_name(req).await;
         match db_result {
             Ok(u) => Ok(make_http_200(Self::new("0", "success".to_string(), u.id, u.tenant, 
                                                              u.enabled, u.created, u.updated))),

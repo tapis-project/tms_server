@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::{Result, anyhow};
-use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -127,7 +126,7 @@ impl GetUserHostsApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespGetUserHosts::process(http_req, &req) {
+        match RespGetUserHosts::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -152,13 +151,13 @@ impl RespGetUserHosts {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqGetUserHosts) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqGetUserHosts) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
-        let db_result = block_on(get_user_host(req));
+        let db_result = get_user_host(req).await;
         match db_result {
             Ok(u) => Ok(make_http_200(Self::new("0", "success".to_string(), u.id, u.tenant, 
                                         u.tms_user_id, u.host, u.host_account, 

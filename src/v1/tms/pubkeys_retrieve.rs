@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{  OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::{anyhow, Result};
-use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -93,7 +92,7 @@ fn make_http_500(msg: String) -> TmsResponse {
 impl PublicKeyApi {
     #[oai(path = "/tms/pubkeys/creds/retrieve", method = "post")]
     async fn get_public_key(&self, http_req: &Request, req: Json<ReqPublicKey>) -> TmsResponse {
-        match RespPublicKey::process(http_req, &req) {
+        match RespPublicKey::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -114,12 +113,12 @@ impl RespPublicKey {
               public_key: key.to_string()}
     }
 
-    fn process(http_req: &Request, req: &ReqPublicKey) -> Result<TmsResponse> {
+    async fn process(http_req: &Request, req: &ReqPublicKey) -> Result<TmsResponse> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Look for the key in the database.
-        let db_result = block_on(get_public_key(req));
+        let db_result = get_public_key(req).await;
         match db_result {
             Ok(result) => {
                 Ok(make_http_200(Self::new("0", "success", result.public_key.as_str())))

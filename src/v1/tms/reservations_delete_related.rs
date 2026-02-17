@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
@@ -133,7 +132,7 @@ impl DeleteRelatedReservationsApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespDeleteRelatedReservations::process(http_req, &req) {
+        match RespDeleteRelatedReservations::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -153,12 +152,12 @@ impl RespDeleteRelatedReservations {
         Self {result_code: result_code.to_string(), result_msg, num_deleted,}}
 
     // Process the request.
-    fn process(http_req: &Request, req: &ReqDeleteRelatedReservations) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqDeleteRelatedReservations) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Insert the new key record.
-        let deletes = block_on(delete_reservations(req))?;
+        let deletes = delete_reservations(req).await?;
         
         // Log result and return response.
         let msg = 

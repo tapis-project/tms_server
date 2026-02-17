@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{DELETE_TENANT, DELETE_ADMINS_FOR_TENANT, DELETE_RESERVATIONS_FOR_TENANT,
@@ -122,7 +121,7 @@ impl WipeTenantsApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespWipeTenants::process(http_req, &req) {
+        match RespWipeTenants::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -142,12 +141,12 @@ impl RespWipeTenants {
         Self {result_code: result_code.to_string(), result_msg, num_deleted}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqWipeTenants) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqWipeTenants) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Insert the new key record.
-        let deletes = block_on(wipe_tenant(req))?;
+        let deletes = wipe_tenant(req).await?;
         
         // Log result and return response.
         let msg = 

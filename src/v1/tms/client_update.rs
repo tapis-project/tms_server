@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, param::Query, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{UPDATE_CLIENT_APP_VERSION, UPDATE_CLIENT_ENABLED};
@@ -138,7 +137,7 @@ impl UpdateClientApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespUpdateClient::process(http_req, &req) {
+        match RespUpdateClient::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -158,7 +157,7 @@ impl RespUpdateClient {
         Self {result_code: result_code.to_string(), result_msg, fields_updated: num_updates}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqUpdateClient) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqUpdateClient) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
@@ -168,7 +167,7 @@ impl RespUpdateClient {
         } 
 
         // Insert the new key record.
-        let updates = block_on(update_client(req))?;
+        let updates = update_client(req).await?;
         
         // Log result and return response.
         let msg = format!("{} update(s) to client {} completed", updates, req.client_id);

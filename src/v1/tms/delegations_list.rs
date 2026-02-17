@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -122,7 +121,7 @@ impl ListDelegationsApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespListDelegations::process(http_req, &req) {
+        match RespListDelegations::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -154,13 +153,13 @@ impl RespListDelegations {
         }
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqListDelegations) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqListDelegations) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Search for the tenant/client id in the database.  Not found was already 
         // The client_secret is never part of the response.
-        let clients = block_on(list_delegations(req))?;
+        let clients = list_delegations(req).await?;
         Ok(make_http_200(Self::new("0", "success".to_string(), 
                                         clients.len() as i32, clients)))
     }

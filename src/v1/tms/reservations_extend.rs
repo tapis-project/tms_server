@@ -5,8 +5,6 @@ use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
 use uuid::Uuid;
 
-use futures::executor::block_on;
-
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, get_client_id_header};
 use crate::utils::errors::HttpResult;
 use crate::utils::db_types::ReservationInput;
@@ -175,8 +173,8 @@ impl RespExtendReservation {
         // ------------------ Get Parent Reservation -------------------
         // Check that the designated parent reservation can be extended
         // and retrieve that reservation's experation time.
-        let expires_at = match block_on(check_parent_reservation(&req.parent_resid, &req_ext.tenant, 
-                        &req_ext.client_id, &req.client_user_id, &req.host, &req.public_key_fingerprint)) 
+        let expires_at = match check_parent_reservation(&req.parent_resid, &req_ext.tenant,
+                        &req_ext.client_id, &req.client_user_id, &req.host, &req.public_key_fingerprint).await
         {
             Ok(expiry) => expiry,
             Err(e) => {
@@ -214,7 +212,7 @@ impl RespExtendReservation {
         );
 
         // Insert the new key record.
-        block_on(extend_reservation(input_record))?;
+        extend_reservation(input_record).await?;
         info!("Reservation '{}' created for '{}@{}' for host '{}' expires at {}.", 
               resid, req.client_user_id, req_ext.tenant, req.host, expires_at);
 

@@ -3,7 +3,6 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
-use futures::executor::block_on;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::DELETE_PUBKEY;
@@ -119,7 +118,7 @@ impl DeletePubkeysApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespDeletePubkey::process(http_req, &req) {
+        match RespDeletePubkey::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -139,12 +138,12 @@ impl RespDeletePubkey {
         Self {result_code: result_code.to_string(), result_msg, num_deleted}}
 
     /// Process the request.
-    fn process(http_req: &Request, req: &ReqDeletePubkey) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqDeletePubkey) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
         // Insert the new key record.
-        let deletes = block_on(delete_pubkey(req))?;
+        let deletes = delete_pubkey(req).await?;
         
         // Log result and return response.
         let msg = 
