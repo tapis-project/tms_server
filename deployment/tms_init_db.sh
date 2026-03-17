@@ -48,3 +48,10 @@ GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${TMS_DB_USER};
 CREATE SCHEMA IF NOT EXISTS ${TMS_DB_SCHEMA} AUTHORIZATION ${TMS_DB_USER};
 ALTER ROLE ${TMS_DB_USER} SET search_path = '${TMS_DB_SCHEMA}';
 EOB
+
+## Test SQL
+## Run sql to create a test table
+#$PSQL_CMD --username=${DB_USER} --dbname=${DB_NAME} -q << EOB2
+#CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT NOT NULL);
+#INSERT INTO users (name) VALUES ('Alice'), ('Bob');
+#EOB2
