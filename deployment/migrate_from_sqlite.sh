@@ -33,6 +33,11 @@ if [ -z "${POSTGRES_PASSWORD}" ]; then
   exit 1
 fi
 
+if ! command -v pgloader &> /dev/null; then
+  echo "Please install pgloader utility before running this script"
+  exit 1
+fi
+
 # Put PGPASSWORD in environment for psql to pick up
 export PGPASSWORD=${POSTGRES_PASSWORD}
 # Migrate using pgloader
@@ -43,8 +48,8 @@ export PGPASSWORD=${POSTGRES_PASSWORD}
 #   docker run --network=host -e PGPASSWORD="${POSTGRES_PASSWORD}" --rm --name pgloader \
 #     -v "$PRG_PATH":/load -v "$TMS_HOME":/data \
 #     dimitri/pgloader:v3.6.7 pgloader /load/migrate_sqlite_psql.load
-# If necessary, in the future we can always build or own docker image using latest pgloader source and sqlite3 library.
-# For now, this:
+# If necessary, in the future we can always build our own docker image using latest pgloader source and sqlite3 library.
+# For now, assume pgloader is installed when we run.
 
 # Create a pgloader load file at a temporary location
 TMP_FILE=$(mktemp)
@@ -56,8 +61,9 @@ load database
   set work_mem to '16MB', maintenance_work_mem to '512 MB';
 EOB
 
+# Run pgloader to migrate everything, including schema and data
 pgloader $TMP_FILE
 
 # Clean up
-#rm -f $TMP_FILE
+rm -f $TMP_FILE
 cd $RUN_DIR
