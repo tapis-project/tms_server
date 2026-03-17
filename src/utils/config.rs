@@ -12,11 +12,12 @@ use lazy_static::lazy_static;
 use tera::Tera;
 use structopt::StructOpt;
 use users::get_effective_uid;
+use poem::web::{Data};
 
 // See https://users.rust-lang.org/t/relationship-between-std-futures-futures-and-tokio/38077
 // for a cogent explanation on dealing with futures and async programming in Rust.  More 
 // background can be found at https://rust-lang.github.io/async-book/.
-use sqlx::{Sqlite, Pool};
+use sqlx::{Pool, Postgres};
 use futures::executor::block_on;
 
 // TMS Utilities
@@ -66,10 +67,10 @@ pub const NEW_CLIENTS_DISALLOW: &str = "disallow";
 pub const NEW_CLIENTS_ON_APPROVAL: &str = "on_approval";
 pub const DEFAULT_NEW_CLIENTS: &str = NEW_CLIENTS_ALLOW;
 
-// Database constants.
-pub const SQLITE_TRUE      : i32 = 1;
-#[allow(dead_code)]
-pub const SQLITE_FALSE     : i32 = 0;
+//TODO Database constants.
+//pub const SQLITE_TRUE      : i32 = 1;
+//#[allow(dead_code)]
+//pub const SQLITE_FALSE     : i32 = 0;
 
 // ***************************************************************************
 //                             Static Variables
@@ -155,7 +156,7 @@ pub struct Parms {
 pub struct AuthzSpec<'a>{
     pub id: &'a str,           // HTTP header for subject being authorized
     pub secret: &'a str,       // HTTP header for secret used to authorize
-    pub display_name: &'a str, // User friendly name of subject being authorized
+    pub display_name: &'a str, // User-friendly name of subject being authorized
     pub sql_query: &'a str,    // SQL query with required signature for secret retrieval 
 }
 
@@ -171,7 +172,7 @@ pub struct AuthzArgs {
 #[allow(dead_code)]
 pub struct RuntimeCtx {
     pub parms: Parms,
-    pub db: Pool<Sqlite>,
+    pub db: Pool<Postgres>,
     pub authz: &'static AuthzArgs,
     pub tms_args: &'static TmsArgs,
     pub tms_dirs: &'static TmsDirs,

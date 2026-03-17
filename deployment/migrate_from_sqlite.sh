@@ -44,7 +44,7 @@ export PGPASSWORD=${POSTGRES_PASSWORD}
 # NOTE The following 2 approaches work:
 #   pgloader $PRG_PATH/migrate_sqlite_psql.load
 #   pgloader sqlite:///home/scblack/.tms/database/tms.db pgsql://tms@localhost:5431/tmsdb
-# NOTE This approach does not, because the sqlite3 library in the docker images is older
+# NOTE This approach does not, because the sqlite3 library in the docker image is older
 #   docker run --network=host -e PGPASSWORD="${POSTGRES_PASSWORD}" --rm --name pgloader \
 #     -v "$PRG_PATH":/load -v "$TMS_HOME":/data \
 #     dimitri/pgloader:v3.6.7 pgloader /load/migrate_sqlite_psql.load

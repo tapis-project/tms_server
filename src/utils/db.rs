@@ -9,7 +9,7 @@ use futures::executor::block_on;
 use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime, 
                               create_hex_secret, hash_hex_secret, MAX_TMS_UTC};
 use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_STD_TENANTS, INSERT_USER_HOSTS, INSERT_USER_MFA};
-use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, SQLITE_TRUE, DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_ARGS};
+use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_ARGS};
 use log::error;
 
 use crate::RUNTIME_CTX;
@@ -52,7 +52,6 @@ pub async fn create_std_tenants() -> Result<u64> {
     // -------- Insert the two standard tenants.
     let dft_result = sqlx::query(INSERT_STD_TENANTS)
         .bind(DEFAULT_TENANT)
-        .bind(SQLITE_TRUE)
         .bind(&current_ts)
         .bind(&current_ts)
         .execute(&mut *tx)
@@ -60,7 +59,6 @@ pub async fn create_std_tenants() -> Result<u64> {
 
     let tst_result = sqlx::query(INSERT_STD_TENANTS)
         .bind(TEST_TENANT)
-        .bind(SQLITE_TRUE)
         .bind(&current_ts)
         .bind(&current_ts)
         .execute(&mut *tx)
@@ -188,7 +186,6 @@ async fn create_test_data() -> Result<bool> {
         .bind(TEST_APP_VERS)
         .bind(TEST_CLIENT)
         .bind(test_secret)
-        .bind(SQLITE_TRUE)
         .bind(&current_ts)
         .bind(&current_ts)
         .execute(&mut *tx)
@@ -199,7 +196,6 @@ async fn create_test_data() -> Result<bool> {
         .bind(TEST_TENANT)
         .bind(TEST_USER)
         .bind(MAX_TMS_UTC)
-        .bind(SQLITE_TRUE)
         .bind(&current_ts)
         .bind(&current_ts)
         .execute(&mut *tx)
@@ -272,7 +268,7 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
             let enabled: i32 = row.get(1);
 
             // Check whether the user's mfa is enabled.
-            if enabled != SQLITE_TRUE {
+            if enabled != 1 {
                 let msg = format!("Required user MFA record for user ID {} in tenant {} is disabled.",
                                           client_user_id, tenant);
                 error!("{}", msg);
