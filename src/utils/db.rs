@@ -9,7 +9,7 @@ use futures::executor::block_on;
 use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime, 
                               create_hex_secret, hash_hex_secret, MAX_TMS_UTC};
 use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_STD_TENANTS, INSERT_USER_HOSTS, INSERT_USER_MFA};
-use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_ARGS};
+use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_ARGS, DB_TRUE};
 use log::error;
 
 use crate::RUNTIME_CTX;
@@ -43,8 +43,8 @@ pub async fn create_std_tenants() -> Result<u64> {
     }
 
     // Get the timestamp string.
-    let now = timestamp_utc();
-    let current_ts = timestamp_utc_secs_to_str(now);
+    let now = timestamp_utc().naive_utc();
+//    let now_ts = timestamp_utc_secs_to_str(now);
 
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
@@ -52,15 +52,12 @@ pub async fn create_std_tenants() -> Result<u64> {
     // -------- Insert the two standard tenants.
     let dft_result = sqlx::query(INSERT_STD_TENANTS)
         .bind(DEFAULT_TENANT)
-        .bind(&current_ts)
-        .bind(&current_ts)
+        .bind(&DB_TRUE)
         .execute(&mut *tx)
         .await?;
-
     let tst_result = sqlx::query(INSERT_STD_TENANTS)
         .bind(TEST_TENANT)
-        .bind(&current_ts)
-        .bind(&current_ts)
+        .bind(&DB_TRUE)
         .execute(&mut *tx)
         .await?;
 
@@ -72,32 +69,33 @@ pub async fn create_std_tenants() -> Result<u64> {
         .bind(DEFAULT_ADMIN_ID)
         .bind(&dft_key_hash)
         .bind(PERM_ADMIN)
-        .bind(&current_ts)
-        .bind(&current_ts)
+        .bind(now)
+        .bind(now)
         .execute(&mut *tx)
         .await?;
-
-    let tst_key_str = create_hex_secret();
-    let tst_key_hash = hash_hex_secret(&tst_key_str);
-    let _tst_admin_result = sqlx::query(INSERT_ADMIN)
-        .bind(TEST_TENANT)
-        .bind(DEFAULT_ADMIN_ID)
-        .bind(&tst_key_hash)
-        .bind(PERM_ADMIN)
-        .bind(&current_ts)
-        .bind(&current_ts)
-        .execute(&mut *tx)
-        .await?;
-
+//
+//     let tst_key_str = create_hex_secret();
+//     let tst_key_hash = hash_hex_secret(&tst_key_str);
+//     let _tst_admin_result = sqlx::query(INSERT_ADMIN)
+//         .bind(TEST_TENANT)
+//         .bind(DEFAULT_ADMIN_ID)
+//         .bind(&tst_key_hash)
+//         .bind(PERM_ADMIN)
+//         .bind(&current_ts)
+//         .bind(&current_ts)
+//         .execute(&mut *tx)
+//         .await?;
+//
     // Commit the transaction.
     tx.commit().await?;
 
-    // --- MOST IMPORTANT ---
-    // One time printout of the admin secrets for the two tenants.
-    print_admin_secret_message(&dft_key_str, &tst_key_str)?; 
-
+    // TODO
+    // // --- MOST IMPORTANT ---
+    // // One time printout of the admin secrets for the two tenants.
+    // print_admin_secret_message(&dft_key_str, &tst_key_str)?;
+    //
     // Return the number of tenant insertions that took place.
-    Ok(dft_result.rows_affected() + tst_result.rows_affected())
+    Ok(dft_result.rows_affected()/* TODO + tst_result.rows_affected()*/)
 }
 
 // ---------------------------------------------------------------------------

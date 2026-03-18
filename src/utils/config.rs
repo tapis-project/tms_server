@@ -13,11 +13,10 @@ use tera::Tera;
 use structopt::StructOpt;
 use users::get_effective_uid;
 use poem::web::{Data};
-
+use sqlx::{Pool, Postgres};
 // See https://users.rust-lang.org/t/relationship-between-std-futures-futures-and-tokio/38077
 // for a cogent explanation on dealing with futures and async programming in Rust.  More 
 // background can be found at https://rust-lang.github.io/async-book/.
-use sqlx::{Pool, Postgres};
 use futures::executor::block_on;
 
 // TMS Utilities
@@ -67,10 +66,10 @@ pub const NEW_CLIENTS_DISALLOW: &str = "disallow";
 pub const NEW_CLIENTS_ON_APPROVAL: &str = "on_approval";
 pub const DEFAULT_NEW_CLIENTS: &str = NEW_CLIENTS_ALLOW;
 
-//TODO Database constants.
-//pub const SQLITE_TRUE      : i32 = 1;
-//#[allow(dead_code)]
-//pub const SQLITE_FALSE     : i32 = 0;
+// Database constants.
+pub const DB_TRUE : bool = true;
+#[allow(dead_code)]
+pub const DB_FALSE : bool = false;
 
 // ***************************************************************************
 //                             Static Variables
@@ -486,9 +485,10 @@ fn copy_resource_files(target_dir: &String, dir_suffix: &str, root_dir: &String)
 // ---------------------------------------------------------------------------
 // check_resource_files:
 // ---------------------------------------------------------------------------
-/** Make sure all required configuration files are present in the tms directory
- * subtree.  The log4rs.yml and tms.toml files have already been checked and 
- * read, so we don't need to do that here (see init_log() and get_parms()).  
+/**
+ * Make sure all required configuration files are present in the tms directory subtree.
+ * The log4rs.yml and tms.toml files have already been checked and read, so no need to do
+ * that here, see init_log() and get_parms().
  * 
  * We panic if either of the pem files are not found or don't have the proper permissions.
  */
@@ -544,7 +544,6 @@ fn check_resource_files() {
     if !found {
         panic!("No migration files found in TMS migration directory: {}", migration_path.to_string_lossy());
     }
-
 }
 
 // ---------------------------------------------------------------------------
@@ -688,15 +687,14 @@ fn init_authz_args() -> AuthzArgs {
 // init_runtime_context:
 // ---------------------------------------------------------------------------
 pub fn init_runtime_context() -> RuntimeCtx {
-    // Make sure the 2 pem files are installed in the configured directory.
+    // Make sure all required configuration files are present in the tms directory,
+    //   including the 2 pem files that should be installed in the configured directory.
     check_resource_files();
 
     // If either of these fail the application aborts.
     let parms = get_parms().expect("FAILED to read configuration file.");
-    let db = block_on(db_init::init_db());
+    let db :Pool<Postgres> = block_on(db_init::init_db());
     
-    // Reset the test tenant's enable flag.
-
     // Return the runtime context.
     RuntimeCtx {parms, db, authz: &AUTHZ_ARGS, tms_args: &TMS_ARGS, tms_dirs: &TMS_DIRS}
 }

@@ -5,18 +5,18 @@ pub const PLACEHOLDER: &str = "${PLACEHOLDER}";
 
 // ========================= tenants table =========================
 pub const INSERT_STD_TENANTS: &str = concat!(
-    "INSERT OR IGNORE INTO tenants (tenant, enabled, created, updated) ",
-    "VALUES (?, ?, ?, ?)",
+    "INSERT INTO tenants (tenant, enabled) ",
+    "VALUES ($1, $2) ON CONFLICT DO NOTHING",
 );
 
 pub const INSERT_TENANT: &str = concat!(
     "INSERT INTO tenants (tenant, enabled, created, updated) ",
-    "VALUES (?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4)",
 );
 
 pub const GET_TENANT: &str = concat!(
     "SELECT id, tenant, enabled, created, updated ",
-    "FROM tenants WHERE tenant = ?"
+    "FROM tenants WHERE tenant = $1"
 );
 
 // Secret elided.
@@ -26,7 +26,7 @@ pub const LIST_TENANTS: &str = concat!(
 );
 
 pub const UPDATE_TENANTS_ENABLED: &str = concat!(
-    "UPDATE tenants SET enabled = ?, updated = ? WHERE tenant = ?"
+    "UPDATE tenants SET enabled = $1, updated = $2 WHERE tenant = $3"
 );
 
 // Used to enforce enable_test_tenant configuation value at start up.
@@ -96,7 +96,7 @@ pub const DELETE_TENANT: &str = concat!(
 // ========================= clients table =========================
 pub const INSERT_CLIENTS: &str = concat!(
     "INSERT INTO clients (tenant, app_name, app_version, client_id, client_secret, enabled, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 );
 
 pub const GET_CLIENT: &str = concat!(
@@ -135,12 +135,12 @@ pub const DELETE_CLIENT: &str = concat!(
 // ========================= user_mfa table ========================
 pub const INSERT_USER_MFA: &str = concat!(
     "INSERT INTO user_mfa (tenant, tms_user_id, expires_at, enabled, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6)",
 );
 
 pub const INSERT_USER_MFA_NOT_STRICT: &str = concat!(
     "INSERT INTO user_mfa (tenant, tms_user_id, expires_at, enabled, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+    "VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING",
 );
 
 pub const GET_USER_MFA: &str = concat!(
@@ -174,12 +174,12 @@ pub const LIST_USER_MFA: &str = concat!(
 // ========================= user_hosts table =======================
 pub const INSERT_USER_HOSTS: &str = concat!(
     "INSERT INTO user_hosts (tenant, tms_user_id, host, host_account, expires_at, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6, $7)",
 );
 
 pub const INSERT_USER_HOSTS_NOT_STRICT: &str = concat!(
     "INSERT INTO user_hosts (tenant, tms_user_id, host, host_account, expires_at, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+    "VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING",
 );
 
 pub const GET_USER_HOST: &str = concat!(
@@ -213,12 +213,12 @@ pub const UPDATE_USER_HOST_EXPIRY: &str = concat!(
 // ========================= user_delegations table =================
 pub const INSERT_DELEGATIONS: &str = concat!(
     "INSERT INTO delegations (tenant, client_id, client_user_id, expires_at, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6)",
 );
 
 pub const INSERT_DELEGATIONS_NOT_STRICT: &str = concat!(
     "INSERT INTO delegations (tenant, client_id, client_user_id, expires_at, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+    "VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING",
 );
 
 pub const GET_DELEGATION: &str = concat!(
@@ -253,7 +253,7 @@ pub const UPDATE_DELEGATION_EXPIRY: &str = concat!(
 pub const INSERT_PUBKEYS: &str = concat!(
     "INSERT INTO pubkeys (tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",
     "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated) ", 
-    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
 );
 
 pub const SELECT_PUBKEY: &str = concat!(
@@ -305,7 +305,7 @@ pub const DELETE_PUBKEY: &str = concat!(
 // ========================= admin table ===========================
 pub const INSERT_ADMIN: &str = concat!(
     "INSERT INTO admin (tenant, admin_user, admin_secret, privilege, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6)",
 );
 
 // Conforms to the signature required for secret retrieval queries as defined by 
@@ -317,7 +317,7 @@ pub const GET_ADMIN_SECRET: &str = concat!(
 // ========================= hosts table ===========================
 pub const INSERT_HOSTS: &str = concat!(
     "INSERT INTO hosts (tenant, host, addr, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?)", 
+    "VALUES ($1, $2, $3, $4, $5)",
 );
 
 pub const GET_HOST: &str = concat!(
@@ -338,7 +338,7 @@ pub const LIST_HOSTS: &str = concat!(
 pub const INSERT_RESERVATIONS: &str = concat!(
     "INSERT INTO reservations (resid, parent_resid, tenant, client_id, client_user_id, ", 
     "host, public_key_fingerprint, expires_at, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
 );
 
 pub const GET_RESERVATION: &str = concat!(

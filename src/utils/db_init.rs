@@ -3,7 +3,8 @@
 //use sqlx::{migrate::MigrateDatabase, Sqlite, Pool, PgPool, Postgres};
 //use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use std::str::FromStr;
-use sqlx::{Pool, Postgres, PgPool};
+use sqlx::{Pool, Postgres};
+use sqlx::postgres::PgPoolOptions;
 
 use log::{info, error};
 use crate::utils::errors::Errors;
@@ -59,7 +60,10 @@ pub async fn init_db() -> Pool<Postgres> {
     //     .pragma("synchronous", "3")
     //     .foreign_keys(true);
 
-    let db = PgPool::connect(url).await.expect("Failed to connect to Postgres");
+    // Create the DB connection pool
+    let db :Pool<Postgres> = PgPoolOptions::new()
+        .min_connections(POOL_MIN_CONNECTIONS).max_connections(POOL_MAX_CONNECTIONS)
+        .connect(url).await.expect("Failed to connect to Postgres");
 
     // // Create the database connection pool.
     // let db = SqlitePoolOptions::new()
@@ -68,24 +72,22 @@ pub async fn init_db() -> Pool<Postgres> {
     //     .connect_with(options).await
     //     .expect("Unable to create connection db");
     //
-    // // Locate the migration files.
-    // let tdir = &TMS_DIRS.migrations_dir;
-    // let migrations = std::path::Path::new(tdir);
-    //
-    // // Run the migrations.
-    // let migration_results = sqlx::migrate::Migrator::new(migrations)
-    //     .await
-    //     .expect("Migration failed")
-    //     .run(&db)
-    //     .await;
-    //
-    // match migration_results {
-    //     Ok(_) => info!("Migration success"),
-    //     Err(error) => {
-    //         panic!("Migration run error: {}", error);
-    //     }
-    // }
-    //
-    // info!("migration: {:?}", migration_results);
+    // Locate the migration files.
+    let tdir = &TMS_DIRS.migrations_dir;
+    let migrations = std::path::Path::new(tdir);
+
+    // Run the migrations.
+    let migration_results = sqlx::migrate::Migrator::new(migrations)
+        .await
+        .expect("Migration failed")
+        .run(&db)
+        .await;
+    match migration_results {
+        Ok(_) => info!("Migration success"),
+        Err(error) => {
+            panic!("Migration run error: {}", error);
+        }
+    }
+    info!("migration: {:?}", migration_results);
     db
 }
