@@ -43,8 +43,7 @@ pub async fn create_std_tenants() -> Result<u64> {
     }
 
     // Get the timestamp string.
-    let now = timestamp_utc().naive_utc();
-//    let now_ts = timestamp_utc_secs_to_str(now);
+    let now = timestamp_utc();
 
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
@@ -81,8 +80,8 @@ pub async fn create_std_tenants() -> Result<u64> {
 //         .bind(DEFAULT_ADMIN_ID)
 //         .bind(&tst_key_hash)
 //         .bind(PERM_ADMIN)
-//         .bind(&current_ts)
-//         .bind(&current_ts)
+//         .bind(now)
+//         .bind(now)
 //         .execute(&mut *tx)
 //         .await?;
 //
@@ -172,7 +171,6 @@ async fn create_test_data() -> Result<bool> {
 
     // Get the timestamp string.
     let now = timestamp_utc();
-    let current_ts = timestamp_utc_secs_to_str(now);
 
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
@@ -184,8 +182,9 @@ async fn create_test_data() -> Result<bool> {
         .bind(TEST_APP_VERS)
         .bind(TEST_CLIENT)
         .bind(test_secret)
-        .bind(&current_ts)
-        .bind(&current_ts)
+        .bind(DB_TRUE)
+        .bind(now)
+        .bind(now)
         .execute(&mut *tx)
         .await?;
 
@@ -194,8 +193,9 @@ async fn create_test_data() -> Result<bool> {
         .bind(TEST_TENANT)
         .bind(TEST_USER)
         .bind(MAX_TMS_UTC)
-        .bind(&current_ts)
-        .bind(&current_ts)
+        .bind(DB_TRUE)
+        .bind(now)
+        .bind(now)
         .execute(&mut *tx)
         .await?;
 
@@ -206,8 +206,8 @@ async fn create_test_data() -> Result<bool> {
         .bind(TEST_HOST)
         .bind(TEST_HOST_ACCOUNT)
         .bind(MAX_TMS_UTC)
-        .bind(&current_ts)
-        .bind(&current_ts)
+        .bind(now)
+        .bind(now)
         .execute(&mut *tx)
         .await?;
 
@@ -217,8 +217,8 @@ async fn create_test_data() -> Result<bool> {
         .bind(TEST_CLIENT)
         .bind(TEST_USER)
         .bind(MAX_TMS_UTC)
-        .bind(&current_ts)
-        .bind(&current_ts)
+        .bind(now)
+        .bind(now)
         .execute(&mut *tx)
         .await?;
 
@@ -266,7 +266,7 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
             let enabled: i32 = row.get(1);
 
             // Check whether the user's mfa is enabled.
-            if enabled != 1 {
+            if enabled != 1 { //TODO DB_TRUE {
                 let msg = format!("Required user MFA record for user ID {} in tenant {} is disabled.",
                                           client_user_id, tenant);
                 error!("{}", msg);

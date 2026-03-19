@@ -42,8 +42,8 @@ CREATE TABLE IF NOT EXISTS tenants
   id SERIAL PRIMARY KEY,
   tenant  TEXT NOT NULL UNIQUE,
   enabled BOOLEAN NOT NULL,
-  created TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-  updated TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc')
+  created TIMESTAMPTZ,
+  updated TIMESTAMPTZ
 );
 ALTER TABLE tenants OWNER TO tms;
 
@@ -52,15 +52,15 @@ ALTER TABLE tenants OWNER TO tms;
 -- ---------------------------------------
 CREATE TABLE IF NOT EXISTS clients
 (
-    id            INTEGER PRIMARY KEY NOT NULL,
+    id SERIAL PRIMARY KEY,
     tenant        TEXT REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
     app_name      TEXT NOT NULL,
     app_version   TEXT NOT NULL,
     client_id     TEXT NOT NULL,
     client_secret TEXT NOT NULL,
     enabled       BOOLEAN NOT NULL,
-    created       TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    updated       TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    created       TIMESTAMPTZ,
+    updated       TIMESTAMPTZ,
     UNIQUE (tenant, app_name, app_version)
 );
 ALTER TABLE clients OWNER TO tms;
@@ -72,13 +72,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS clients_tenant_client_idx ON clients (tenant, 
 -- This table records when a user's MFA validation will expire.
 CREATE TABLE IF NOT EXISTS user_mfa
 (
-    id                     INTEGER PRIMARY KEY NOT NULL,
+    id                     SERIAL PRIMARY KEY,
     tenant                 TEXT REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
     tms_user_id            TEXT NOT NULL,
     expires_at             TEXT NOT NULL,
     enabled                BOOLEAN NOT NULL,
-    created                TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    updated                TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    created                TIMESTAMPTZ,
+    updated                TIMESTAMPTZ,
     UNIQUE (tenant, tms_user_id)
 );
 ALTER TABLE user_mfa OWNER TO tms;
@@ -90,14 +90,14 @@ ALTER TABLE user_mfa OWNER TO tms;
 -- then all users have their identity linked on host.
 CREATE TABLE IF NOT EXISTS user_hosts
 (
-    id                INTEGER PRIMARY KEY NOT NULL,
+    id                SERIAL PRIMARY KEY,
     tenant            TEXT REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
     tms_user_id       TEXT NOT NULL,
     host              TEXT NOT NULL,
     host_account      TEXT NOT NULL,
     expires_at        TEXT NOT NULL,
-    created           TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    updated           TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    created           TIMESTAMPTZ,
+    updated           TIMESTAMPTZ,
     UNIQUE (tenant, tms_user_id, host, host_account),
     FOREIGN KEY(tenant, tms_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
@@ -109,13 +109,13 @@ ALTER TABLE user_hosts OWNER TO tms;
 -- If client_user_id "*", then the delegation applies to all users.
 CREATE TABLE IF NOT EXISTS delegations
 (
-    id                INTEGER PRIMARY KEY NOT NULL,
+    id                SERIAL PRIMARY KEY,
     tenant            TEXT REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
     client_id         TEXT NOT NULL,
     client_user_id    TEXT NOT NULL,
     expires_at        TEXT NOT NULL,
-    created           TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    updated           TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    created           TIMESTAMPTZ,
+    updated           TIMESTAMPTZ,
     UNIQUE (tenant, client_id, client_user_id),
     FOREIGN KEY(tenant, client_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY(tenant, client_id) REFERENCES clients(tenant, client_id) ON UPDATE CASCADE ON DELETE CASCADE
@@ -134,7 +134,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS delg_user_client_idx ON delegations (tenant, c
 --   for the foreign key of the reservations table to be defined.
 CREATE TABLE IF NOT EXISTS pubkeys
 (
-    id                     INTEGER PRIMARY KEY NOT NULL,
+    id                     SERIAL PRIMARY KEY,
     tenant                 TEXT REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
     client_id              TEXT NOT NULL,
     client_user_id         TEXT NOT NULL,
@@ -148,8 +148,8 @@ CREATE TABLE IF NOT EXISTS pubkeys
     remaining_uses         INT  NOT NULL CHECK (remaining_uses >= 0),
     initial_ttl_minutes    INT  NOT NULL CHECK (initial_ttl_minutes >= 0),
     expires_at             TEXT NOT NULL,
-    created                TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    updated                TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    created                TIMESTAMPTZ,
+    updated                TIMESTAMPTZ,
     UNIQUE (public_key_fingerprint, host),
     FOREIGN KEY(tenant, client_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY(tenant, client_id) REFERENCES clients(tenant, client_id) ON UPDATE CASCADE ON DELETE CASCADE,
@@ -165,7 +165,7 @@ ALTER TABLE pubkeys OWNER TO tms;
 --   In other words, resid is unique.
 CREATE TABLE IF NOT EXISTS reservations
 (
-    id                     INTEGER PRIMARY KEY NOT NULL,
+    id                     SERIAL PRIMARY KEY,
     resid                  TEXT NOT NULL UNIQUE,
     parent_resid           TEXT NOT NULL,
     tenant                 TEXT REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -174,8 +174,8 @@ CREATE TABLE IF NOT EXISTS reservations
     host                   TEXT NOT NULL,
     public_key_fingerprint TEXT NOT NULL,
     expires_at             TEXT NOT NULL,
-    created                TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    updated                TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    created                TIMESTAMPTZ,
+    updated                TIMESTAMPTZ,
     FOREIGN KEY(tenant, client_user_id) REFERENCES user_mfa(tenant, tms_user_id) ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY(tenant, client_id) REFERENCES clients(tenant, client_id) ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY(public_key_fingerprint, host) REFERENCES pubkeys(public_key_fingerprint, host) ON UPDATE CASCADE ON DELETE CASCADE
@@ -190,13 +190,13 @@ ALTER TABLE reservations OWNER TO tms;
 -- tms_user_id's are actual users of TMS.
 CREATE TABLE IF NOT EXISTS admin
 (
-    id                INTEGER PRIMARY KEY NOT NULL,
+    id                SERIAL PRIMARY KEY,
     tenant            TEXT REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
     admin_user        TEXT NOT NULL,
     admin_secret      TEXT NOT NULL,
     privilege         TEXT NOT NULL,
-    created           TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    updated           TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    created           TIMESTAMPTZ,
+    updated           TIMESTAMPTZ,
     UNIQUE (tenant, admin_user)
 );
 ALTER TABLE admin OWNER TO tms;
@@ -210,12 +210,12 @@ ALTER TABLE admin OWNER TO tms;
 --  IPv4 range [addr1, addr2] where both addresses are full IPv4 addresses 
 CREATE TABLE IF NOT EXISTS hosts
 (
-    id                INTEGER PRIMARY KEY NOT NULL,
+    id                SERIAL PRIMARY KEY,
     tenant            TEXT REFERENCES tenants(tenant) ON UPDATE CASCADE ON DELETE RESTRICT,
     host              TEXT NOT NULL,
     addr              TEXT NOT NULL,
-    created           TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    updated           TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    created           TIMESTAMPTZ,
+    updated           TIMESTAMPTZ,
     UNIQUE (tenant, host, addr)
 );
 ALTER TABLE hosts OWNER TO tms;

@@ -191,11 +191,6 @@ fn tms_init() -> bool {
 
     // Log build info.
     print_version_info();
-// // TODO remove
-// // TODO/TBD Check that we have access to the DB
-//     let tenant = "test".to_string();
-//     let tenant_is_enabled = block_on(db::is_tenant_enabled(&tenant));
-// // TODO remove
     // Insert default records into database if they don't already exist.
     // This call is a no-op except when the --install option is set.
     let inserts = block_on(db::create_std_tenants())
