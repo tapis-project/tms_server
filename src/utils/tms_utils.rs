@@ -1,11 +1,11 @@
 #![forbid(unsafe_code)]
 
-use path_absolutize::Absolutize;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use glob::glob;
 use std::process::{Command, ExitStatus, Output, Stdio};
 use std::os::unix::fs::MetadataExt;
+use path_absolutize::Absolutize;
+use glob::glob;
 use execute::Execute;
 use chrono::{Utc, DateTime, SecondsFormat, FixedOffset, ParseError, Duration};
 use semver::VersionReq;
@@ -17,6 +17,7 @@ use hex;
 use sha2::{Sha512, Digest};
 
 use anyhow::{Result, anyhow};
+use lazy_static::lazy_static;
 use log::{error, debug, LevelFilter};
 
 use crate::utils::db_statements::PLACEHOLDER;
@@ -24,10 +25,9 @@ use crate::utils::authz::{AuthzResult, AuthzTypes};
 use crate::utils::db::is_tenant_enabled;
 
 // ----------- Constants
-// The chrono library's MAX_UTC causes overflow during string
-// converstions because year is more than 4 digits.  Use this
-// value instead for long durations or timeouts.
-pub const MAX_TMS_UTC: &str = "9999-12-31T23:59:59Z";
+// The chrono library's MAX_UTC causes overflow during string conversions because year is more
+//   than 4 digits.  Use this value instead for long durations or timeouts.
+pub const MAX_TMS_UTC_STR: &str = "9999-12-31T23:59:59Z";
 
 // ***************************************************************************
 // GENERAL PUBLIC FUNCTIONS
@@ -112,11 +112,11 @@ pub fn get_files_in_dir(dir: &str) -> Result<Vec<PathBuf>> {
 // calc_expires_at:
 // ---------------------------------------------------------------------------
 /** The ttl should never be negative, but we handle it if it is. */
-pub fn calc_expires_at(now : DateTime<Utc>, ttl_minutes : i32) -> String {
+pub fn calc_expires_at(now : DateTime<Utc>, ttl_minutes : i32) -> DateTime<Utc> {
     if ttl_minutes < 0 {
-        MAX_TMS_UTC.to_string()
+        DateTime::parse_from_rfc3339(MAX_TMS_UTC_STR).unwrap().with_timezone(&Utc)
     } else {
-        timestamp_utc_secs_to_str(now + Duration::minutes(ttl_minutes as i64))
+        now + Duration::minutes(ttl_minutes as i64)
     }
 }
 

@@ -19,6 +19,12 @@ echo "   Rebuilding TMS server"
 echo "**********************************************************************"
 cd ..
 cargo build
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+  echo "TMS server build failed"
+  echo "Exiting ..."
+  exit $RET_CODE
+fi
 
 #  Reset the DB
 ./deployment/tms_drop_db.sh
@@ -35,4 +41,3 @@ echo "**********************************************************************"
 echo "   Updating configuration for local testing"
 echo "**********************************************************************"
 /bin/cp -f $PRG_PATH/tms_test_local.toml ~/.tms/config/tms.toml
-

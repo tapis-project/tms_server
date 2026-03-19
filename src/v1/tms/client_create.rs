@@ -7,7 +7,7 @@ use anyhow::Result;
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::INSERT_CLIENTS;
 use crate::utils::db_types::ClientInput; 
-use crate::utils::config::NEW_CLIENTS_DISALLOW;
+use crate::utils::config::{DB_TRUE, NEW_CLIENTS_DISALLOW};
 use crate::utils::tms_utils::{self, create_hex_secret, hash_hex_secret, timestamp_utc, timestamp_utc_to_str, 
                               RequestDebug, validate_semver, check_tenant_enabled};
 use log::{error, info};
@@ -150,19 +150,17 @@ impl RespCreateClient {
 
         // ------------------------ Update Database --------------------
         let now = timestamp_utc();
-        let current_ts = timestamp_utc_to_str(now);
 
-        // Create the input record.  Note that we save the hash of
-        // the hex secret, but never the secret itself.  
+        // Create the input record. Note we save the hash of the hex secret, but never the secret.
         let input_record = ClientInput::new(
             req.tenant.clone(),
             req.app_name.clone(),
             req.app_version.clone(),
             req.client_id.clone(),
             client_secret_hash, 
-            1,
-            current_ts.clone(), 
-            current_ts,
+            DB_TRUE,
+            now.clone(),
+            now.clone(),
         );
 
         // Insert the new key record.

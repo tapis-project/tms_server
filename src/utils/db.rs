@@ -7,8 +7,8 @@ use chrono::{Utc, DateTime};
 use sqlx::Row;
 
 use futures::executor::block_on;
-use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime, 
-                              create_hex_secret, hash_hex_secret, MAX_TMS_UTC};
+use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime,
+                              create_hex_secret, hash_hex_secret, MAX_TMS_UTC_STR};
 use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_STD_TENANTS, INSERT_USER_HOSTS, INSERT_USER_MFA};
 use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_ARGS, DB_TRUE};
 use log::error;
@@ -173,6 +173,9 @@ async fn create_test_data() -> Result<bool> {
     const TEST_HOST: &str = "testhost1";
     const TEST_HOST_ACCOUNT: &str = "testhostaccount1";
 
+    // Max expires_at
+    let max_tms_utc = DateTime::parse_from_rfc3339(MAX_TMS_UTC_STR).unwrap().with_timezone(&Utc);
+
     // Get the timestamp string.
     let now = timestamp_utc();
 
@@ -196,7 +199,7 @@ async fn create_test_data() -> Result<bool> {
     sqlx::query(INSERT_USER_MFA)
         .bind(TEST_TENANT)
         .bind(TEST_USER)
-        .bind(MAX_TMS_UTC)
+        .bind(max_tms_utc)
         .bind(DB_TRUE)
         .bind(now)
         .bind(now)
@@ -209,7 +212,7 @@ async fn create_test_data() -> Result<bool> {
         .bind(TEST_USER)
         .bind(TEST_HOST)
         .bind(TEST_HOST_ACCOUNT)
-        .bind(MAX_TMS_UTC)
+        .bind(max_tms_utc)
         .bind(now)
         .bind(now)
         .execute(&mut *tx)
@@ -220,7 +223,7 @@ async fn create_test_data() -> Result<bool> {
         .bind(TEST_TENANT)
         .bind(TEST_CLIENT)
         .bind(TEST_USER)
-        .bind(MAX_TMS_UTC)
+        .bind(max_tms_utc)
         .bind(now)
         .bind(now)
         .execute(&mut *tx)

@@ -19,7 +19,7 @@ log4rs = "1.3"
 path-absolutize = "3.1"
 poem = { version = "3", features = ["openssl-tls"] }
 poem-extensions = "0.9"
-poem-openapi = { version = "5", features = ["swagger-ui"] }
+poem-openapi = { version = "5", features = ["swagger-ui", "chrono"] }
 rand = { version = "0.8" }
 rand_core = "0.6"
 rustls-pemfile = { version = "2.2" }

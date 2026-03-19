@@ -136,7 +136,7 @@ pub struct Client {
     pub app_version: String,
     pub client_id: String,
     pub client_secret: String,
-    pub enabled: i32,
+    pub enabled: bool,
     pub created: DateTime<Utc>,
     pub updated: DateTime<Utc>,
 }
@@ -148,7 +148,7 @@ pub struct ClientInput {
     pub app_version: String,
     pub client_id: String,
     pub client_secret: String,
-    pub enabled: i32,
+    pub enabled: bool,
     pub created: DateTime<Utc>,
     pub updated: DateTime<Utc>,
 }
@@ -162,7 +162,7 @@ impl Client {
         app_version: String,
         client_id: String,
         client_secret: String,
-        enabled: i32,
+        enabled: bool,
         created: DateTime<Utc>,
         updated: DateTime<Utc>,
     ) 
@@ -181,7 +181,7 @@ impl ClientInput {
             app_version: String,
             client_id: String,
             client_secret: String,
-            enabled: i32,
+            enabled: bool,
             created: DateTime<Utc>,
             updated: DateTime<Utc>,
         ) 
@@ -202,7 +202,7 @@ pub struct UserMfa {
     pub tenant: String,
     pub tms_user_id: String,
     pub expires_at: DateTime<Utc>,
-    pub enabled: i32,
+    pub enabled: bool,
     pub created: DateTime<Utc>,
     pub updated: DateTime<Utc>,
 }
@@ -212,7 +212,7 @@ pub struct UserMfaInput {
     pub tenant: String,
     pub tms_user_id: String,
     pub expires_at: DateTime<Utc>,
-    pub enabled: i32,
+    pub enabled: bool,
     pub created: DateTime<Utc>,
     pub updated: DateTime<Utc>,
 }
@@ -224,7 +224,7 @@ impl UserMfa {
         tenant: String,
         tms_user_id: String,
         expires_at: DateTime<Utc>,
-        enabled: i32,
+        enabled: bool,
         created: DateTime<Utc>,
         updated: DateTime<Utc>,
     ) 
@@ -241,7 +241,7 @@ impl UserMfaInput {
         tenant: String,
         tms_user_id: String,
         expires_at: DateTime<Utc>,
-        enabled: i32,
+        enabled: bool,
         created: DateTime<Utc>,
         updated: DateTime<Utc>,
     ) 
@@ -384,7 +384,7 @@ impl DelegationInput {
 pub struct Tenant {
     pub id: i32,
     pub tenant: String,
-    pub enabled: i32,
+    pub enabled: bool,
     pub created: DateTime<Utc>,
     pub updated: DateTime<Utc>,
 }
@@ -392,7 +392,7 @@ pub struct Tenant {
 #[derive(Debug, Deserialize)]
 pub struct TenantInput {
     pub tenant: String,
-    pub enabled: i32,
+    pub enabled: bool,
     pub key_hash: String,
     pub created: DateTime<Utc>,
     pub updated: DateTime<Utc>,
@@ -403,7 +403,7 @@ impl Tenant {
     pub fn new(
         id: i32,
         tenant: String,
-        enabled: i32,
+        enabled: bool,
         created: DateTime<Utc>,
         updated: DateTime<Utc>,
     ) 
@@ -418,7 +418,7 @@ impl TenantInput {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
         tenant: String,
-        enabled: i32,
+        enabled: bool,
         key_hash: String,
         created: DateTime<Utc>,
         updated: DateTime<Utc>,

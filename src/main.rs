@@ -12,7 +12,6 @@ use poem::{listener::TcpListener, Route};
 use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 use poem_extensions::api;
 use futures::executor::block_on;
-use sqlx::Row;
 // TMS APIs
 use crate::v1::tms::client_create::CreateClientApi;
 use crate::v1::tms::client_delete::DeleteClientApi;
@@ -43,7 +42,7 @@ use crate::v1::tms::delegations_delete::DeleteDelegationsApi;
 use crate::v1::tms::delegations_update::UpdateDelegationsApi;
 use crate::v1::tms::tenants_create::CreateTenantsApi;
 use crate::v1::tms::tenants_get::GetTenantsApi;
-use crate::v1::tms::tenants_list::{ListTenantsApi, TenantsListElement};
+use crate::v1::tms::tenants_list::ListTenantsApi;
 use crate::v1::tms::tenants_delete::DeleteTenantsApi;
 use crate::v1::tms::tenants_update::UpdateTenantsApi;
 use crate::v1::tms::tenants_wipe::WipeTenantsApi;
@@ -63,7 +62,6 @@ use crate::utils::config::{TMS_ARGS, TMS_DIRS, TEST_TENANT, init_log, init_runti
                            check_prior_installation, prohibit_root_user, RuntimeCtx};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
-use crate::utils::db_statements::LIST_TENANTS;
 
 // Modules
 mod utils;
