@@ -3,6 +3,7 @@
 use anyhow::{Result, anyhow};
 use log::{info, warn};
 use std::io::{self, Write};
+use chrono::{Utc, DateTime};
 use sqlx::Row;
 
 use futures::executor::block_on;
@@ -14,7 +15,10 @@ use log::error;
 
 use crate::RUNTIME_CTX;
 
-use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RESERVATION_FOR_EXTEND, GET_USER_HOST_ACTIVE, GET_USER_HOST_EXISTS, GET_USER_MFA_ACTIVE, GET_USER_MFA_EXISTS, INSERT_ADMIN, INSERT_CLIENTS, IS_TENANT_ENABLED, SELECT_PUBKEY_HOST_ACCOUNT, UPDATE_TENANTS_ENABLED_INTERNAL};
+use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RESERVATION_FOR_EXTEND,
+                           GET_USER_HOST_ACTIVE, GET_USER_HOST_EXISTS, GET_USER_MFA_ACTIVE,
+                           GET_USER_MFA_EXISTS, INSERT_ADMIN, INSERT_CLIENTS, IS_TENANT_ENABLED,
+                           SELECT_PUBKEY_HOST_ACCOUNT, UPDATE_TENANTS_ENABLED_INTERNAL};
 
 /** Multiple Query Transactions
  * 
@@ -262,31 +266,19 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
     match mfa_row {
         Some(row) => {
             // Unpack row.
-            let expires_at: String = row.get(0);
-            let enabled: i32 = row.get(1);
+            let expires_at: DateTime<Utc> = row.get(0);
+            let enabled: bool = row.get(1);
 
             // Check whether the user's mfa is enabled.
-            if enabled != 1 { //TODO DB_TRUE {
+            if enabled != DB_TRUE {
                 let msg = format!("Required user MFA record for user ID {} in tenant {} is disabled.",
                                           client_user_id, tenant);
                 error!("{}", msg);
                 return Result::Err(anyhow!(msg));
             }
 
-            // Parse the user's mfa expires_at timestamp.
-            let expires_at_utc= match timestamp_str_to_datetime(&expires_at) {
-                Ok(utc) => utc,
-                Err(e) => {
-                    // This should not happen since we are the only ones that write the database.
-                    let msg = format!("INTERNAL ERROR: Unable to parse user_mfa expires_at value '{}' for user {}@{}: {}", 
-                                              expires_at, client_user_id, tenant, e);
-                    error!("{}", msg);
-                    return Result::Err(anyhow!(msg));
-                }
-            };
-
             // Check whether the mfa has expired.
-            if expires_at_utc < timestamp_utc() {
+            if expires_at < timestamp_utc() {
                 let msg = format!("Required user MFA record for user ID '{}' in tenant {} expired at {}.",
                                           client_user_id, tenant, expires_at);
                 error!("{}", msg);
@@ -313,23 +305,10 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
         match host_row {
             Some(row) => {
                 // Unpack row.
-                let expires_at: String = row.get(0);
-    
-                // Parse the user host mapping's expires_at timestamp.
-                let expires_at_utc= match timestamp_str_to_datetime(&expires_at) {
-                    Ok(utc) => utc,
-                    Err(e) => {
-                        // This should not happen since we are the only ones that write the database.
-                        let msg = format!("INTERNAL ERROR: Unable to parse user_hosts expires_at value '{}' \
-                                                  for user {}@{} with account {} on host {}: {}", 
-                                                  expires_at, client_user_id, tenant, host_account, host, e);
-                        error!("{}", msg);
-                        return Result::Err(anyhow!(msg));
-                    }
-                };
+                let expires_at: DateTime<Utc> = row.get(0);
     
                 // Check whether the user host mapping has expired.
-                if expires_at_utc < timestamp_utc() {
+                if expires_at < timestamp_utc() {
                     let msg = format!("Required user host record for user {}@{} with account {} on host {} expired at {}.",
                                               client_user_id, tenant, host_account, host, expires_at);
                     error!("{}", msg);
@@ -355,23 +334,10 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
         match delg_row {
             Some(row) => {
                 // Unpack row.
-                let expires_at: String = row.get(0);
-    
-                // Parse the user's delegation's expires_at timestamp.
-                let expires_at_utc= match timestamp_str_to_datetime(&expires_at) {
-                    Ok(utc) => utc,
-                    Err(e) => {
-                        // This should not happen since we are the only ones that write the database.
-                        let msg = format!("INTERNAL ERROR: Unable to parse the delegation expires_at value '{}' \
-                                                  for client {} and client_user_id {} in tenant {}: {}", 
-                                                  expires_at, client_id, client_user_id, tenant, e);
-                        error!("{}", msg);
-                        return Result::Err(anyhow!(msg));
-                    }
-                };
+                let expires_at: DateTime<Utc> = row.get(0);
     
                 // Check whether the delegation has expired.
-                if expires_at_utc < timestamp_utc() {
+                if expires_at < timestamp_utc() {
                     let msg = format!("Required delegation record for client {} and client_user_id {} \
                                               in tenant {} expired at {}.",
                                               client_id, client_user_id, tenant, expires_at);
@@ -438,7 +404,7 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
  */
 pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id: &String,
                                       client_user_id: &String, host: &String, public_key_fingerprint: &String) 
--> Result<String>
+-> Result<DateTime<Utc>>
 {
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
@@ -452,7 +418,7 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
         .await?;
 
     // Check the candidate parent reservation and save its expiration time.    
-    let expires_at: String;
+    let expires_at: DateTime<Utc>;
     match res_row {
         Some(row) => {
             // Unpack row.
@@ -471,20 +437,8 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
                 return Result::Err(anyhow!(msg));
             }
 
-            // Parse the reservation's expires_at timestamp.
-            let expires_at_utc= match timestamp_str_to_datetime(&expires_at) {
-                Ok(utc) => utc,
-                Err(e) => {
-                    // This should not happen since we are the only ones that write the database.
-                    let msg = format!("INTERNAL ERROR: Unable to parse reservation expires_at value '{}' for resid {} \
-                                            for client {} in tenant {}: {}", expires_at, resid, client_id, tenant, e);
-                    error!("{}", msg);
-                    return Result::Err(anyhow!(msg));
-                }
-            };
-
             // Check whether the reservation has expired.
-            if expires_at_utc < timestamp_utc() {
+            if expires_at < timestamp_utc() {
                 let msg = format!("Parent reservation {} for client {} in tenant {} expired at {}.",
                                             resid, client_id, tenant, expires_at);
                 error!("{}", msg);

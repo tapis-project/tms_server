@@ -1,8 +1,10 @@
 #![forbid(unsafe_code)]
 
 use poem::Request;
-use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
+use poem_openapi::{ OpenApi, payload::Json, ApiResponse };
 use anyhow::Result;
+use chrono::{ DateTime, Utc };
+use poem_openapi::Object;
 use uuid::Uuid;
 
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, get_client_id_header};
@@ -12,7 +14,7 @@ use crate::utils::db_statements::INSERT_RESERVATIONS;
 use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, RequestDebug, check_tenant_enabled};
 use crate::utils::db::check_parent_reservation;
 use log::{error, info};
-
+use serde::{Deserialize, Serialize};
 use crate::RUNTIME_CTX;
 
 // ***************************************************************************
@@ -40,7 +42,7 @@ struct RespExtendReservation
     result_msg: String,
     resid: String,
     parent_resid: String,
-    expires_at: String,
+    expires_at: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
@@ -135,7 +137,7 @@ impl ExtendReservationsApi {
 // ***************************************************************************
 impl RespExtendReservation {
     #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: &str, resid: String, parent_resid: String, expires_at: String) -> Self {
+    fn new(result_code: &str, result_msg: &str, resid: String, parent_resid: String, expires_at: DateTime<Utc>) -> Self {
         Self {result_code: result_code.to_string(), result_msg: result_msg.to_string(), 
               resid, parent_resid, expires_at,
         }
@@ -171,8 +173,8 @@ impl RespExtendReservation {
         }
 
         // ------------------ Get Parent Reservation -------------------
-        // Check that the designated parent reservation can be extended
-        // and retrieve that reservation's experation time.
+        // Check that the designated parent reservation can be extended and retrieve the
+        //   parent's expiration time.
         let expires_at = match check_parent_reservation(&req.parent_resid, &req_ext.tenant,
                         &req_ext.client_id, &req.client_user_id, &req.host, &req.public_key_fingerprint).await
         {
@@ -195,7 +197,6 @@ impl RespExtendReservation {
         // so that we get a uniform maximum uniform datetime rather then one that
         // changes with current time when req.ttl_minutes = -1.
         let now  = timestamp_utc();
-        let current_ts  = timestamp_utc_to_str(now);
 
         // Create the input record.
         let input_record: ReservationInput = ReservationInput::new(
@@ -207,8 +208,8 @@ impl RespExtendReservation {
             req.host.clone(), 
             req.public_key_fingerprint.clone(), 
             expires_at.clone(), 
-            current_ts.clone(), 
-            current_ts,
+            now.clone(),
+            now.clone(),
         );
 
         // Insert the new key record.

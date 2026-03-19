@@ -1,6 +1,7 @@
 // This file contains the TMS database structs and related definitions.
 #![forbid(unsafe_code)]
 
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
 // ---------------------------------------------------------------------------
@@ -22,9 +23,9 @@ pub struct Pubkey {
     pub max_uses: i32,
     pub remaining_uses: i32,
     pub initial_ttl_minutes: i32,
-    pub expires_at: String,
-    pub created: String,
-    pub updated: String,
+    pub expires_at: DateTime<Utc>,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -41,9 +42,9 @@ pub struct PubkeyInput {
     pub max_uses: i32,
     pub remaining_uses: i32,
     pub initial_ttl_minutes: i32,
-    pub expires_at: String,
-    pub created: String,
-    pub updated: String,
+    pub expires_at: DateTime<Utc>,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -51,7 +52,7 @@ pub struct PubkeyInput {
 pub struct PubkeyRetrieval {
     pub public_key: String,
     pub remaining_uses: i32,
-    pub expires_at: String,
+    pub expires_at: DateTime<Utc>,
 }
 
 impl Pubkey {
@@ -70,9 +71,9 @@ impl Pubkey {
         max_uses: i32,
         remaining_uses: i32,
         initial_ttl_minutes: i32,
-        expires_at: String,
-        created: String,
-        updated: String,
+        expires_at: DateTime<Utc>,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> Pubkey {
         Pubkey {
@@ -98,9 +99,9 @@ impl PubkeyInput {
         max_uses: i32,
         remaining_uses: i32,
         initial_ttl_minutes: i32,
-        expires_at: String,
-        created: String,
-        updated: String,
+        expires_at: DateTime<Utc>,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> PubkeyInput {
         PubkeyInput {
@@ -114,7 +115,7 @@ impl PubkeyRetrieval {
     pub fn new(
         public_key: String,
         remaining_uses: i32,
-        expires_at: String,
+        expires_at: DateTime<Utc>,
     )
     -> PubkeyRetrieval {
         PubkeyRetrieval {
@@ -136,8 +137,8 @@ pub struct Client {
     pub client_id: String,
     pub client_secret: String,
     pub enabled: i32,
-    pub created: String,
-    pub updated: String,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -148,8 +149,8 @@ pub struct ClientInput {
     pub client_id: String,
     pub client_secret: String,
     pub enabled: i32,
-    pub created: String,
-    pub updated: String,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 impl Client {
@@ -162,8 +163,8 @@ impl Client {
         client_id: String,
         client_secret: String,
         enabled: i32,
-        created: String,
-        updated: String,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> Client {
         Client {
@@ -181,8 +182,8 @@ impl ClientInput {
             client_id: String,
             client_secret: String,
             enabled: i32,
-            created: String,
-            updated: String,
+            created: DateTime<Utc>,
+            updated: DateTime<Utc>,
         ) 
         -> ClientInput {
             ClientInput {
@@ -200,20 +201,20 @@ pub struct UserMfa {
     pub id: i32,
     pub tenant: String,
     pub tms_user_id: String,
-    pub expires_at: String,
+    pub expires_at: DateTime<Utc>,
     pub enabled: i32,
-    pub created: String,
-    pub updated: String,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct UserMfaInput {
     pub tenant: String,
     pub tms_user_id: String,
-    pub expires_at: String,
+    pub expires_at: DateTime<Utc>,
     pub enabled: i32,
-    pub created: String,
-    pub updated: String,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 impl UserMfa {
@@ -222,10 +223,10 @@ impl UserMfa {
         id: i32,
         tenant: String,
         tms_user_id: String,
-        expires_at: String,
+        expires_at: DateTime<Utc>,
         enabled: i32,
-        created: String,
-        updated: String,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> UserMfa {
         UserMfa {
@@ -239,10 +240,10 @@ impl UserMfaInput {
     pub fn new(
         tenant: String,
         tms_user_id: String,
-        expires_at: String,
+        expires_at: DateTime<Utc>,
         enabled: i32,
-        created: String,
-        updated: String,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> UserMfaInput {
         UserMfaInput {
@@ -262,9 +263,9 @@ pub struct UserHost {
     pub tms_user_id: String,
     pub host: String,
     pub host_account: String,
-    pub expires_at: String,
-    pub created: String,
-    pub updated: String,
+    pub expires_at: DateTime<Utc>,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -273,9 +274,9 @@ pub struct UserHostInput {
     pub tms_user_id: String,
     pub host: String,
     pub host_account: String,
-    pub expires_at: String,
-    pub created: String,
-    pub updated: String,
+    pub expires_at: DateTime<Utc>,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 impl UserHost {
@@ -286,9 +287,9 @@ impl UserHost {
         tms_user_id: String,
         host: String,
         host_account: String,
-        expires_at: String,
-        created: String,
-        updated: String,
+        expires_at: DateTime<Utc>,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> UserHost {
         UserHost {
@@ -304,9 +305,9 @@ impl UserHostInput {
         tms_user_id: String,
         host: String,
         host_account: String,
-        expires_at: String,
-        created: String,
-        updated: String,
+        expires_at: DateTime<Utc>,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> UserHostInput {
         UserHostInput {
@@ -325,9 +326,9 @@ pub struct Delegation {
     pub tenant: String,
     pub client_id: String,
     pub client_user_id: String,
-    pub expires_at: String,
-    pub created: String,
-    pub updated: String,
+    pub expires_at: DateTime<Utc>,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -335,9 +336,9 @@ pub struct DelegationInput {
     pub tenant: String,
     pub client_id: String,
     pub client_user_id: String,
-    pub expires_at: String,
-    pub created: String,
-    pub updated: String,
+    pub expires_at: DateTime<Utc>,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 impl Delegation {
@@ -347,9 +348,9 @@ impl Delegation {
         tenant: String,
         client_id: String,
         client_user_id: String,
-        expires_at: String,
-        created: String,
-        updated: String,
+        expires_at: DateTime<Utc>,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> Delegation {
         Delegation {
@@ -364,9 +365,9 @@ impl DelegationInput {
         tenant: String,
         client_id: String,
         client_user_id: String,
-        expires_at: String,
-        created: String,
-        updated: String,
+        expires_at: DateTime<Utc>,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> DelegationInput {
         DelegationInput {
@@ -384,8 +385,8 @@ pub struct Tenant {
     pub id: i32,
     pub tenant: String,
     pub enabled: i32,
-    pub created: String,
-    pub updated: String,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -393,8 +394,8 @@ pub struct TenantInput {
     pub tenant: String,
     pub enabled: i32,
     pub key_hash: String,
-    pub created: String,
-    pub updated: String,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 impl Tenant {
@@ -403,8 +404,8 @@ impl Tenant {
         id: i32,
         tenant: String,
         enabled: i32,
-        created: String,
-        updated: String,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> Tenant {
         Tenant {
@@ -419,8 +420,8 @@ impl TenantInput {
         tenant: String,
         enabled: i32,
         key_hash: String,
-        created: String,
-        updated: String,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> TenantInput {
         TenantInput {
@@ -439,8 +440,8 @@ pub struct Host {
     pub tenant: String,
     pub host: String,
     pub addr: String,
-    pub created: String,
-    pub updated: String,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -448,8 +449,8 @@ pub struct HostInput {
     pub tenant: String,
     pub host: String,
     pub addr: String,
-    pub created: String,
-    pub updated: String,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 impl Host {
@@ -459,8 +460,8 @@ impl Host {
         tenant: String,
         host: String,
         addr: String,
-        created: String,
-        updated: String,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> Host {
         Host {
@@ -475,8 +476,8 @@ impl HostInput {
         tenant: String,
         host: String,
         addr: String,
-        created: String,
-        updated: String,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> HostInput {
         HostInput {
@@ -499,9 +500,9 @@ pub struct Reservation {
     pub client_user_id: String,
     pub host: String,
     pub public_key_fingerprint: String, 
-    pub expires_at: String,
-    pub created: String,
-    pub updated: String,
+    pub expires_at: DateTime<Utc>,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -513,9 +514,9 @@ pub struct ReservationInput {
     pub client_user_id: String,
     pub host: String,
     pub public_key_fingerprint: String, 
-    pub expires_at: String,
-    pub created: String,
-    pub updated: String,
+    pub expires_at: DateTime<Utc>,
+    pub created: DateTime<Utc>,
+    pub updated: DateTime<Utc>,
 }
 
 impl Reservation {
@@ -529,9 +530,9 @@ impl Reservation {
         client_user_id: String,
         host: String,
         public_key_fingerprint: String, 
-        expires_at: String,
-        created: String,
-        updated: String,
+        expires_at: DateTime<Utc>,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> Reservation {
         Reservation {
@@ -551,9 +552,9 @@ impl ReservationInput {
         client_user_id: String,
         host: String,
         public_key_fingerprint: String, 
-        expires_at: String,
-        created: String,
-        updated: String,
+        expires_at: DateTime<Utc>,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> ReservationInput {
         ReservationInput {
