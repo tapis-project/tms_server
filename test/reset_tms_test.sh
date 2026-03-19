@@ -35,9 +35,20 @@ echo "**********************************************************************"
 echo "   Removing previous installation and re-installing"
 echo "**********************************************************************"
 rm -fr ~/.tms
+export TMS_DB_URL="postgres://tms:password@localhost:5431/tmsdb"
 ./target/debug/tms_server --install
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+  echo "TMS server install failed"
+  echo "Exiting ..."
+  exit $RET_CODE
+fi
+
 # Update config for local testing
 echo "**********************************************************************"
 echo "   Updating configuration for local testing"
 echo "**********************************************************************"
 /bin/cp -f $PRG_PATH/tms_test_local.toml ~/.tms/config/tms.toml
+echo "*****************"
+echo "     SUCCESS"
+echo "*****************"

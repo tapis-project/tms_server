@@ -76,29 +76,28 @@ pub async fn create_std_tenants() -> Result<u64> {
         .bind(now)
         .execute(&mut *tx)
         .await?;
-//
-//     let tst_key_str = create_hex_secret();
-//     let tst_key_hash = hash_hex_secret(&tst_key_str);
-//     let _tst_admin_result = sqlx::query(INSERT_ADMIN)
-//         .bind(TEST_TENANT)
-//         .bind(DEFAULT_ADMIN_ID)
-//         .bind(&tst_key_hash)
-//         .bind(PERM_ADMIN)
-//         .bind(now)
-//         .bind(now)
-//         .execute(&mut *tx)
-//         .await?;
-//
+
+    let tst_key_str = create_hex_secret();
+    let tst_key_hash = hash_hex_secret(&tst_key_str);
+    let _tst_admin_result = sqlx::query(INSERT_ADMIN)
+        .bind(TEST_TENANT)
+        .bind(DEFAULT_ADMIN_ID)
+        .bind(&tst_key_hash)
+        .bind(PERM_ADMIN)
+        .bind(now)
+        .bind(now)
+        .execute(&mut *tx)
+        .await?;
+
     // Commit the transaction.
     tx.commit().await?;
 
-    // TODO
-    // // --- MOST IMPORTANT ---
-    // // One time printout of the admin secrets for the two tenants.
-    // print_admin_secret_message(&dft_key_str, &tst_key_str)?;
-    //
+    // --- MOST IMPORTANT ---
+    // One time printout of the admin secrets for the two tenants.
+    print_admin_secret_message(&dft_key_str, &tst_key_str)?;
+
     // Return the number of tenant insertions that took place.
-    Ok(dft_result.rows_affected()/* TODO + tst_result.rows_affected()*/)
+    Ok(dft_result.rows_affected() + tst_result.rows_affected())
 }
 
 // ---------------------------------------------------------------------------

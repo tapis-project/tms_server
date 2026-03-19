@@ -32,11 +32,11 @@ use super::tms_utils::get_absolute_path;
 // Directory and file locations. Unless otherwise noted, all files and directories
 // are relative to the TMS root directory.
 const ENV_TMS_ROOT_DIR     : &str = "TMS_ROOT_DIR";
+const ENV_TMS_DB_URL       : &str = "TMS_DB_URL";
 const DEFAULT_ROOT_DIR     : &str = "~/.tms";
 const MIGRATIONS_DIR       : &str = "/migrations";
 const CONFIG_DIR           : &str = "/config";
 const LOGS_DIR             : &str = "/logs";
-const DATABASE_DIR         : &str = "/database";
 const CERTS_DIR            : &str = "/certs";
 const RESOURCES_DIR        : &str = "./resources"; // relative to currnent dir
 
@@ -67,9 +67,11 @@ pub const NEW_CLIENTS_ON_APPROVAL: &str = "on_approval";
 pub const DEFAULT_NEW_CLIENTS: &str = NEW_CLIENTS_ALLOW;
 
 // Database constants.
+// Default is to look for DB locally on the standard port
+pub const DB_URL_DEFAULT: &str = "postgres://tms:password@localhost:5432/tmsdb";
 pub const DB_TRUE : bool = true;
-#[allow(dead_code)]
-pub const DB_FALSE : bool = false;
+// #[allow(dead_code)]
+// pub const DB_FALSE : bool = false;
 
 // ***************************************************************************
 //                             Static Variables
@@ -79,7 +81,7 @@ lazy_static! {
     pub static ref TMS_ARGS: TmsArgs = init_tms_args();
 }
 
-// Calculate the data directories BEFORE RUNTIME_CTX is initialized in main.
+// Calculate the data directories and db url BEFORE RUNTIME_CTX is initialized in main.
 lazy_static! {
     pub static ref TMS_DIRS: TmsDirs = init_tms_dirs();
 }
@@ -102,7 +104,8 @@ pub struct TmsDirs {
     pub migrations_dir: String,
     pub config_dir: String,
     pub logs_dir: String,
-    pub database_dir: String,
+    // TODO Split up db_url into TMS_DB_HOST, TMS_DB_USER, TMS_DB_PASSWORD and construct URL for postgresql
+    pub db_url: String,
     pub certs_dir: String,
 }
 
@@ -120,6 +123,8 @@ pub struct TmsArgs {
     /// This directory contains all the files TMS uses during execution.
     #[structopt(short, long)]
     pub root_dir: Option<String>,
+
+    pub db_url: Option<String>,
 
     /// Create the data directories and initial database records and then exit.
     /// 
@@ -190,6 +195,7 @@ pub struct Config {
     pub enable_test_tenant: bool,
     pub new_clients: String,
     pub server_urls: Vec<String>,
+    pub db_url: String,
 }
 
 impl Config {
@@ -228,6 +234,7 @@ impl Default for Config {
             enable_test_tenant: false,
             new_clients: DEFAULT_NEW_CLIENTS.to_string(),
             server_urls: vec![DEFAULT_SVR_URL.to_string()],
+            db_url: DB_URL_DEFAULT.to_string(),
         }
     }
 }
@@ -305,7 +312,7 @@ pub fn check_prior_installation() {
 // ---------------------------------------------------------------------------
 // init_tms_dirs:
 // ---------------------------------------------------------------------------
-/** Calculate the external data directories. */
+/** Calculate the external data directories and db url. */
 fn init_tms_dirs() -> TmsDirs {
     // Initialize the mistrust object.
     let mistrust = get_mistrust();
@@ -330,16 +337,15 @@ fn init_tms_dirs() -> TmsDirs {
     let logs_dir = root_dir.clone() + LOGS_DIR;
     check_tms_dir(&logs_dir, "logs directory", &mistrust);
     
-    let database_dir = root_dir.clone() + DATABASE_DIR;
-    check_tms_dir(&database_dir, "database directory", &mistrust);
-
     let certs_dir = root_dir.clone() + CERTS_DIR;
     dir_created = check_tms_dir(&certs_dir, "certs directory", &mistrust);
     if dir_created {copy_resource_files(&certs_dir, CERTS_DIR, &root_dir);}
-    
+
+    let db_url = get_db_url();
+
     // Package up and return the directories.
     TmsDirs {
-        root_dir, migrations_dir, config_dir, logs_dir, database_dir, certs_dir,
+        root_dir, migrations_dir, config_dir, logs_dir, db_url, certs_dir,
     }
 }
 
@@ -348,9 +354,9 @@ fn init_tms_dirs() -> TmsDirs {
 // ---------------------------------------------------------------------------
 /** Check that the path is absolute and, if it exists, that is has the proper
  * permissions assigned.  If it doesn't exist, create it.  The mistrust package
- * creates directories with 0o700 permissions.  
- * 
- * Any failure results in a panic. 
+ * creates directories with 0o700 permissions.
+ *
+ * Any failure results in a panic.
  */
 fn check_tms_dir(dir: &String, msgname: &str, mistrust: &Mistrust) -> bool {
     // Get the path object.
@@ -575,14 +581,27 @@ fn get_root_dir() -> String {
     //
     let root_dir = env::var(ENV_TMS_ROOT_DIR).unwrap_or_else(
         |_| {
-            match TMS_ARGS.root_dir.clone() {
-                Some(r) => r,
-                None => DEFAULT_ROOT_DIR.to_string(),
-            }
+            TMS_ARGS.root_dir.clone().unwrap_or_else(|| DEFAULT_ROOT_DIR.to_string())
         });
 
     // Canonicalize the path.
     get_absolute_path(&root_dir)    
+}
+
+// ---------------------------------------------------------------------------
+// get_db_url:
+// ---------------------------------------------------------------------------
+fn get_db_url() -> String {
+    // Order of precedence:
+    //  1. Environment variable
+    //  2. Command line -db or --db-url argument
+    //  3. Default location
+    //
+    let db_url = env::var(ENV_TMS_DB_URL).unwrap_or_else(
+        |_| {
+            TMS_ARGS.db_url.clone().unwrap_or_else(|| DB_URL_DEFAULT.to_string())
+        });
+    db_url
 }
 
 // ***************************************************************************
