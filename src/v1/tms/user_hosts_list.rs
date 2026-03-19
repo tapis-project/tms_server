@@ -46,9 +46,9 @@ pub struct UserHostsListElement
     tms_user_id: String,
     host: String,
     host_account: String,
-    expires_at: String,
-    created: String,
-    updated: String,
+    expires_at: DateTime<Utc>,
+    created: DateTime<Utc>,
+    updated: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
@@ -141,7 +141,7 @@ impl UserHostsListElement {
     /// Create response elements.
     #[allow(clippy::too_many_arguments)]
     fn new(id: i32, tenant: String, tms_user_id: String, host: String, host_account: String, 
-           expires_at: String, created: String, updated: String) -> Self {
+           expires_at: DateTime<Utc>, created: DateTime<Utc>, updated: DateTime<Utc>) -> Self {
         Self {id, tenant, tms_user_id, host, host_account, expires_at, created, updated}
     }
 }

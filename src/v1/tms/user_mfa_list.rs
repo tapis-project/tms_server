@@ -44,10 +44,10 @@ pub struct UserMfaListElement
     id: i32,
     tenant: String,
     tms_user_id: String,
-    expires_at: String,
+    expires_at: DateTime<Utc>,
     enabled: i32,
-    created: String,
-    updated: String,
+    created: DateTime<Utc>,
+    updated: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
@@ -139,8 +139,8 @@ impl ListUserMfaApi {
 impl UserMfaListElement {
     /// Create response elements.
     #[allow(clippy::too_many_arguments)]
-    fn new(id: i32, tenant: String, tms_user_id: String, expires_at: String, 
-           enabled: i32, created: String, updated: String) -> Self {
+    fn new(id: i32, tenant: String, tms_user_id: String, expires_at: DateTime<Utc>, 
+           enabled: i32, created: DateTime<Utc>, updated: DateTime<Utc>) -> Self {
         Self {id, tenant, tms_user_id, expires_at, enabled, created, updated}
     }
 }

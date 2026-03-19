@@ -45,7 +45,7 @@ struct RespNewSshKeys
     key_bits: String,
     max_uses: String,
     remaining_uses: String,
-    expires_at: String,
+    expires_at: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
@@ -145,7 +145,7 @@ impl RespNewSshKeys {
     #[allow(clippy::too_many_arguments)]
     fn new(result_code: &str, result_msg: &str, private_key: String, public_key: String, 
            public_key_fingerprint: String, key_type: String, key_bits: String,
-           max_uses: String, remaining_uses: String, expires_at: String) -> Self {
+           max_uses: String, remaining_uses: String, expires_at: DateTime<Utc>) -> Self {
         Self {result_code: result_code.to_string(), 
               result_msg: result_msg.to_string(), 
               private_key, public_key, public_key_fingerprint,
@@ -286,8 +286,8 @@ impl RespNewSshKeys {
             remaining_uses, 
             ttl_minutes, 
             expires_at.clone(), 
-            current_ts.clone(), 
-            current_ts,
+            now.clone(), 
+            now.clone(),
         );
 
         // Insert the new key record.

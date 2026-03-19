@@ -14,6 +14,7 @@ use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_ex
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
+use crate::utils::config::DB_TRUE;
 
 // Insert fails on conflict.        
 const STRICT:bool = true;
@@ -40,7 +41,7 @@ pub struct RespCreateUserMfa
     result_code: String,
     result_msg: String,
     tms_user_id: String,
-    expires_at: String,
+    expires_at: DateTime<Utc>,
     enabled: bool,
 }
 
@@ -147,7 +148,7 @@ impl CreateUserMfaApi {
 // ***************************************************************************
 impl RespCreateUserMfa {
     /// Create a new response.
-    fn new(result_code: &str, result_msg: String, tms_user_id: String, expires_at: String, enabled: bool,) -> Self {
+    fn new(result_code: &str, result_msg: String, tms_user_id: String, expires_at: DateTime<Utc>, enabled: bool,) -> Self {
         Self {result_code: result_code.to_string(), result_msg, tms_user_id, expires_at, enabled,}}
 
     /// Process the request.
@@ -170,9 +171,9 @@ impl RespCreateUserMfa {
             req.tenant.clone(),
             req.tms_user_id.clone(),
             expires_at.clone(),
-            1,
-            current_ts.clone(), 
-            current_ts,
+            DB_TRUE,
+            now.clone(), 
+            now.clone(),
         );
 
         // Insert the new key record.

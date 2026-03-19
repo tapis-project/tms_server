@@ -44,8 +44,8 @@ pub struct TenantsListElement
     id: i32,
     tenant: String,
     enabled: i32,
-    created: String,
-    updated: String,
+    created: DateTime<Utc>,
+    updated: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
@@ -103,7 +103,7 @@ impl ListTenantsApi {
 impl TenantsListElement {
     /// Create response elements.
     #[allow(clippy::too_many_arguments)]
-    fn new(id: i32, tenant: String, enabled: i32, created: String, updated: String) -> Self {
+    fn new(id: i32, tenant: String, enabled: i32, created: DateTime<Utc>, updated: DateTime<Utc>) -> Self {
         Self {id, tenant, enabled, created, updated}
     }
 }

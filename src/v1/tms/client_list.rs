@@ -46,8 +46,8 @@ pub struct ClientListElement
     app_version: String,
     client_id: String,
     enabled: i32,
-    created: String,
-    updated: String,
+    created: DateTime<Utc>,
+    updated: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
@@ -141,7 +141,7 @@ impl ClientListElement {
     /// Create response elements.
     #[allow(clippy::too_many_arguments)]
     fn new(id: i32, tenant: String, app_name: String, app_version: String, 
-           client_id: String, enabled: i32, created: String, updated: String) -> Self {
+           client_id: String, enabled: i32, created: DateTime<Utc>, updated: DateTime<Utc>) -> Self {
         Self {id, tenant, app_name, app_version, client_id, enabled, created, updated}
     }
 }

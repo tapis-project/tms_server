@@ -114,10 +114,18 @@ pub fn get_files_in_dir(dir: &str) -> Result<Vec<PathBuf>> {
 /** The ttl should never be negative, but we handle it if it is. */
 pub fn calc_expires_at(now : DateTime<Utc>, ttl_minutes : i32) -> DateTime<Utc> {
     if ttl_minutes < 0 {
-        DateTime::parse_from_rfc3339(MAX_TMS_UTC_STR).unwrap().with_timezone(&Utc)
+        get_max_tms_utc()
     } else {
         now + Duration::minutes(ttl_minutes as i64)
     }
+}
+
+// ---------------------------------------------------------------------------
+// get_max_tms_utc:
+//   Return a utc time far in the future, for use with mfa expiry
+// ---------------------------------------------------------------------------
+pub fn get_max_tms_utc() -> DateTime<Utc> {
+        DateTime::parse_from_rfc3339(MAX_TMS_UTC_STR).unwrap().with_timezone(&Utc)
 }
 
 // ---------------------------------------------------------------------------

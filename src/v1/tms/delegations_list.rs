@@ -45,9 +45,9 @@ pub struct DelegationsListElement
     tenant: String,
     client_id: String,
     client_user_id: String,
-    expires_at: String,
-    created: String,
-    updated: String,
+    expires_at: DateTime<Utc>,
+    created: DateTime<Utc>,
+    updated: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
@@ -140,7 +140,7 @@ impl DelegationsListElement {
     /// Create response elements.
     #[allow(clippy::too_many_arguments)]
     fn new(id: i32, tenant: String, client_id: String, client_user_id: String,  
-           expires_at: String, created: String, updated: String) -> Self {
+           expires_at: DateTime<Utc>, created: DateTime<Utc>, updated: DateTime<Utc>) -> Self {
         Self {id, tenant, client_id, client_user_id, expires_at, created, updated}
     }
 }

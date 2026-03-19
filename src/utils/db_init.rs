@@ -13,7 +13,7 @@ use crate::utils::config::TMS_DIRS;
 // Database constants.
 //const SQLITE_PROTOCOL: &str = "sqlite://";
 // TODO start with hard-coded default db url including password and port 5431
-const DB_URL: &str = "postgres://tms:password@localhost:5432/tmsdb";
+const DB_URL: &str = "postgres://tms:password@localhost:5431/tmsdb";
 const POOL_MIN_CONNECTIONS: u32 = 2;
 const POOL_MAX_CONNECTIONS: u32 = 8;
 

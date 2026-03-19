@@ -39,7 +39,7 @@ pub struct RespGetDelegations
     tenant: String,
     client_id: String,
     client_user_id: String,
-    expires_at: String,
+    expires_at: DateTime<Utc>,
     created: DateTime<Utc>,
     updated: DateTime<Utc>,
 }
@@ -144,7 +144,7 @@ impl RespGetDelegations {
     /// Create a new response.
     #[allow(clippy::too_many_arguments)]
     fn new(result_code: &str, result_msg: String, id: i32, tenant: String, client_id: String, 
-           client_user_id: String, expires_at: String, created: DateTime<Utc>, updated: DateTime<Utc>) 
+           client_user_id: String, expires_at: DateTime<Utc>, created: DateTime<Utc>, updated: DateTime<Utc>) 
     -> Self {
             Self {result_code: result_code.to_string(), result_msg, 
                   id, tenant, client_id, client_user_id, expires_at, created, updated}
