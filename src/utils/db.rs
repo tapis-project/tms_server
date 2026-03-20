@@ -10,7 +10,7 @@ use futures::executor::block_on;
 use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime,
                               create_hex_secret, hash_hex_secret, MAX_TMS_UTC_STR};
 use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_STD_TENANTS, INSERT_USER_HOSTS, INSERT_USER_MFA};
-use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_ARGS, DB_TRUE};
+use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_CMD_ARGS, DB_TRUE};
 use log::error;
 
 use crate::RUNTIME_CTX;

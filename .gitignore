@@ -8,4 +8,4 @@ tms.db*
 tms.toml
 # JetBrains RustRover files
 .idea
-
+.run

@@ -8,12 +8,14 @@ use std::collections::HashMap;
 use toml;
 use fs_mistrust::Mistrust;
 use std::os::unix::fs::PermissionsExt;
+use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use tera::Tera;
 use structopt::StructOpt;
 use users::get_effective_uid;
 use poem::web::{Data};
 use sqlx::{Pool, Postgres};
+use clap::{Parser};
 // See https://users.rust-lang.org/t/relationship-between-std-futures-futures-and-tokio/38077
 // for a cogent explanation on dealing with futures and async programming in Rust.  More 
 // background can be found at https://rust-lang.github.io/async-book/.
@@ -21,6 +23,7 @@ use futures::executor::block_on;
 
 // TMS Utilities
 use crate::utils::{tms_utils, db_init, errors::Errors};
+use crate::v1::tms::pubkeys_get::RespGetPubkeys;
 use super::db_statements::{GET_CLIENT_SECRET, GET_ADMIN_SECRET};
 use super::authz::{AuthzTypes, X_TMS_ADMIN_ID, X_TMS_ADMIN_SECRET, X_TMS_CLIENT_ID, X_TMS_CLIENT_SECRET};
 
@@ -31,8 +34,6 @@ use super::tms_utils::get_absolute_path;
 // ***************************************************************************
 // Directory and file locations. Unless otherwise noted, all files and directories
 // are relative to the TMS root directory.
-const ENV_TMS_ROOT_DIR     : &str = "TMS_ROOT_DIR";
-const ENV_TMS_DB_URL       : &str = "TMS_DB_URL";
 const DEFAULT_ROOT_DIR     : &str = "~/.tms";
 const MIGRATIONS_DIR       : &str = "/migrations";
 const CONFIG_DIR           : &str = "/config";
@@ -66,24 +67,35 @@ pub const NEW_CLIENTS_DISALLOW: &str = "disallow";
 pub const NEW_CLIENTS_ON_APPROVAL: &str = "on_approval";
 pub const DEFAULT_NEW_CLIENTS: &str = NEW_CLIENTS_ALLOW;
 
+// Cmd line argument has not been provided
+pub const CMD_ARG_UNSET: &str = "ARG_UNSET";
+
 // Database constants.
-// Default is to look for DB locally on the standard port
-pub const DB_URL_DEFAULT: &str = "postgres://tms:password@localhost:5432/tmsdb";
+const ENV_TMS_ROOT_DIR     : &str = "TMS_ROOT_DIR";
+const ENV_TMS_DB_HOST       : &str = "TMS_DB_HOST";
+const ENV_TMS_DB_PORT       : &str = "TMS_DB_PORT";
+const ENV_TMS_DB_USER       : &str = "TMS_DB_USER";
+// Default is to look for DB locally on the standard port using the standard user
+// TODO pub const DB_URL_DEFAULT: &str = "postgres://tms:password@localhost:5432/tmsdb";
+pub const DB_HOST_DEFAULT: &str = "localhost";
+pub const DB_PORT_DEFAULT: u16 = 5432;
+pub const DB_USER_DEFAULT: &str = "tms";
 pub const DB_TRUE : bool = true;
-// #[allow(dead_code)]
-// pub const DB_FALSE : bool = false;
 
 // ***************************************************************************
 //                             Static Variables
+// NOTE: This are lazily initialized so the variables have a 'static lifetime.
 // ***************************************************************************
-// Assign the command line arguments BEFORE RUNTIME_CTX is initialized in main.
 lazy_static! {
-    pub static ref TMS_ARGS: TmsArgs = init_tms_args();
+    pub static ref TMS_CMD_ARGS: TmsCmdArgs = init_tms_cmd_args();
 }
 
-// Calculate the data directories and db url BEFORE RUNTIME_CTX is initialized in main.
 lazy_static! {
     pub static ref TMS_DIRS: TmsDirs = init_tms_dirs();
+}
+
+lazy_static! {
+    pub static ref TMS_DB_CONFIG: TmsDbConfig = init_tms_db_config();
 }
 
 // Initialize the authz parameter sets.
@@ -104,41 +116,78 @@ pub struct TmsDirs {
     pub migrations_dir: String,
     pub config_dir: String,
     pub logs_dir: String,
-    // TODO Split up db_url into TMS_DB_HOST, TMS_DB_USER, TMS_DB_PASSWORD and construct URL for postgresql
-    pub db_url: String,
     pub certs_dir: String,
+}
+
+// ---------------------------------------------------------------------------
+// TmsDbConfig:
+// ---------------------------------------------------------------------------
+#[derive(Debug, Deserialize)]
+pub struct TmsDbConfig {
+    pub db_host: String,
+    pub db_port: u16,
+    pub db_user: String,
+    pub db_url: String
 }
 
 // ***************************************************************************
 //                               Config Structs
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// CommandLineArgs:
+// TMS CommandLineArgs:
+// These are combined with values from the config file to determine final settings.
+// During initial setup the config file is not used so arguments need to be set here if needed.
+// Arguments:
+//  -i, --install Must be used during initial execution of tms_server. Creates directories and
+//                initializes the DB
+//  -r, --root-dir <root-dir> Installation directory.
+//  -?, --db-host Database host name. Default is localhost.
+//  -?, --db-port Database port. Default is 5432
+//  -?  --db-user Database user. Default is tms.
+//  -?  --db-passworr Database password.
+//  -V, --version Version information
+//  -h, --help Display help information
+//
+//  NOTE on DB settings: They may be passed in on the command line, set as environment variables
+//       or defined in the config file. But during initial install if a value is not the default
+//       then it must be set as a command line argument or environment variable.
+//       Precedence: command line, environment variable, config file
+//
+// TODO How to use this to replace the use of StructOpt
 // ---------------------------------------------------------------------------
-#[derive(Debug, StructOpt)]
-#[structopt(name = "tms_args", about = "Command line arguments for TMS Server.")]
-pub struct TmsArgs {
-    /// Specify TMS's root data directory.
-    /// 
+#[derive(Debug, Parser)]
+#[command(name = "tms_server", about = "Command line arguments for TMS Server.")]
+pub struct TmsCmdArgs {
+    // NOTE: Special triple slash comments provide info for clap help display
+    /// Create directories and initial database records and then exit.
+    ///
+    /// Directories will be under specified root directory. Precedence:
+    ///
+    ///   1. If set, the value of the environment variable TMS_ROOT_DIR,
+    ///
+    ///   2. Otherwise, if set, the value of the --root_dir command line argument,
+    ///
+    ///   3. Otherwise, ~/.tms
+    #[arg(short, long)]
+    pub install: bool,
+    /// Specify TMS root install directory.
+    ///
     /// This directory contains all the files TMS uses during execution.
-    #[structopt(short, long)]
+    #[arg(short, long)]
     pub root_dir: Option<String>,
 
-    pub db_url: Option<String>,
+    /// Database host name. Default is localhost.
+    #[arg(short, long)]
+    pub db_host: Option<String>,
 
-    /// Create the data directories and initial database records and then exit.
-    /// 
-    /// The data directories will be rooted at a root directory calculated 
-    /// using the following priority order:
-    /// 
-    ///   1. If set, the value of the TMS_ROOT_DIR environment,
-    /// 
-    ///   2. Otherwise, if set, the value of the --root_dir command line argument,
-    /// 
-    ///   3. Otherwise, ~/.tms
-    /// 
-    #[structopt(short, long)]
-    pub install: bool,
+    /// Database port. Default is 5432.
+    #[arg(short, long)]
+    pub db_port: Option<u16>,
+
+    /// Database user. Default is tms.
+    #[arg(short, long)]
+    pub db_user: Option<String>,
+
 }
 
 // ---------------------------------------------------------------------------
@@ -178,7 +227,7 @@ pub struct RuntimeCtx {
     pub parms: Parms,
     pub db: Pool<Postgres>,
     pub authz: &'static AuthzArgs,
-    pub tms_args: &'static TmsArgs,
+    pub tms_cmd_args: &'static TmsCmdArgs,
     pub tms_dirs: &'static TmsDirs,
 }
 
@@ -194,8 +243,7 @@ pub struct Config {
     pub enable_mvp: bool,
     pub enable_test_tenant: bool,
     pub new_clients: String,
-    pub server_urls: Vec<String>,
-    pub db_url: String,
+    pub server_urls: Vec<String>
 }
 
 impl Config {
@@ -233,8 +281,7 @@ impl Default for Config {
             enable_mvp: false,
             enable_test_tenant: false,
             new_clients: DEFAULT_NEW_CLIENTS.to_string(),
-            server_urls: vec![DEFAULT_SVR_URL.to_string()],
-            db_url: DB_URL_DEFAULT.to_string(),
+            server_urls: vec![DEFAULT_SVR_URL.to_string()]
         }
     }
 }
@@ -243,13 +290,11 @@ impl Default for Config {
 //                            Directory Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// init_tms_args:
+// init_tms_cmd_args:
 // ---------------------------------------------------------------------------
 /** Get the command line arguments. */
-fn init_tms_args() -> TmsArgs {
-    let args = TmsArgs::from_args();
-    println!("{:?}", args);
-    args
+fn init_tms_cmd_args() -> TmsCmdArgs {
+  TmsCmdArgs::parse()
 }
 
 // ---------------------------------------------------------------------------
@@ -276,34 +321,33 @@ pub fn prohibit_root_user() {
 // check_prior_installation:
 // ---------------------------------------------------------------------------
 /** Panic if we are trying to run the server before an installation run. */
-pub fn check_prior_installation() {
+pub fn set_directories_and_check_install() {
     let rootdir = get_root_dir();
     let path = Path::new(&rootdir);
     if path.is_file() {
-        // No directory found.
+        // Expected  either nothing or a directory, but found a file.
         let msg = 
             format!("\n***********************************************************************\n\
-                    ERROR: Expected the TMS root directory but found a file at {}. \n\n\
+                    ERROR: Detected an existing file at install directory location here: {}. \n\n\
                     Please correct the path and try again.\n\
                     ***********************************************************************\n", rootdir);
         panic!("{}", msg);
     }
-    else if !path.is_dir() && !TMS_ARGS.install {
-        // No directory found.
+    else if !path.is_dir() && !TMS_CMD_ARGS.install {
+        // We are not installing and no directory found.
         let msg = 
             format!("\n***********************************************************************\n\
                     ERROR: Expected the TMS root directory to exist at {}. \n\n\
-                    Please run 'tms_server --install' to install TMS's root directory \n\
-                    in it's default location or consult the README file for configuring \n\
-                    a non-default root directory location.\n\
+                    Please run 'tms_server --install' to install TMS's root directory in it's default \n\
+                    location or consult the README file for configuring a non-default root directory location.\n\
                     ***********************************************************************\n", rootdir);
         panic!("{}", msg);
-    } else if path.is_dir() && TMS_ARGS.install {
-        // Root directory already exists.
+    } else if path.is_dir() && TMS_CMD_ARGS.install {
+        // We are installing and root directory already exists.
         let msg = 
             format!("\n***********************************************************************\n\
                     ERROR: Cannot install over existing TMS root directory at {}. \n\n\
-                    Please run tms_server without the --install option.\n\
+                    Please correct or run tms_server without the --install option.\n\
                     ***********************************************************************\n", rootdir);
         panic!("{}", msg);
     }
@@ -312,7 +356,12 @@ pub fn check_prior_installation() {
 // ---------------------------------------------------------------------------
 // init_tms_dirs:
 // ---------------------------------------------------------------------------
-/** Calculate the external data directories and db url. */
+/**
+ * Setup for TmsDirs.
+ * During the initial installation create and populate the directories.
+ * During normal startup check the directories.
+
+ */
 fn init_tms_dirs() -> TmsDirs {
     // Initialize the mistrust object.
     let mistrust = get_mistrust();
@@ -341,10 +390,19 @@ fn init_tms_dirs() -> TmsDirs {
     dir_created = check_tms_dir(&certs_dir, "certs directory", &mistrust);
     if dir_created {copy_resource_files(&certs_dir, CERTS_DIR, &root_dir);}
 
-    let db_url = get_db_url();
-
     // Package up and return the directories.
     TmsDirs {
+        root_dir, migrations_dir, config_dir, logs_dir, certs_dir,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// init_tms_db_config:
+// ---------------------------------------------------------------------------
+/** Calculate db url. */
+fn init_tms_db_config() -> TmsDbConfig {
+    // Package up and return the directories.
+    TmsDbConfig {
         root_dir, migrations_dir, config_dir, logs_dir, db_url, certs_dir,
     }
 }
@@ -352,9 +410,9 @@ fn init_tms_dirs() -> TmsDirs {
 // ---------------------------------------------------------------------------
 // check_tms_dir:
 // ---------------------------------------------------------------------------
-/** Check that the path is absolute and, if it exists, that is has the proper
- * permissions assigned.  If it doesn't exist, create it.  The mistrust package
- * creates directories with 0o700 permissions.
+/**
+ * Check that the path is absolute and, if it exists, that it has the proper permissions assigned.
+ * If it does not exist, create it. The mistrust package creates directories with 0o700 permissions.
  *
  * Any failure results in a panic.
  */
@@ -579,29 +637,31 @@ fn get_root_dir() -> String {
     //  2. Command line --root-dir argument
     //  3. Default location
     //
-    let root_dir = env::var(ENV_TMS_ROOT_DIR).unwrap_or_else(
+    let tmp_root_dir = env::var(ENV_TMS_ROOT_DIR).unwrap_or_else(
         |_| {
-            TMS_ARGS.root_dir.clone().unwrap_or_else(|| DEFAULT_ROOT_DIR.to_string())
+            TMS_CMD_ARGS.root_dir.clone().unwrap_or_else(|| DEFAULT_ROOT_DIR.to_string())
         });
 
     // Canonicalize the path.
-    get_absolute_path(&root_dir)    
+    get_absolute_path(&tmp_root_dir)
 }
 
 // ---------------------------------------------------------------------------
 // get_db_url:
 // ---------------------------------------------------------------------------
-fn get_db_url() -> String {
-    // Order of precedence:
-    //  1. Environment variable
-    //  2. Command line -db or --db-url argument
-    //  3. Default location
-    //
-    let db_url = env::var(ENV_TMS_DB_URL).unwrap_or_else(
-        |_| {
-            TMS_ARGS.db_url.clone().unwrap_or_else(|| DB_URL_DEFAULT.to_string())
-        });
-    db_url
+fn get_db_config() -> String {
+    DB_URL_DEFAULT.to_string()
+    // TODO
+    // // Order of precedence:
+    // //  1. Environment variable
+    // //  2. Command line -db or --db-url argument
+    // //  3. Default location
+    // //
+    // let db_url = env::var(ENV_TMS_DB_URL).unwrap_or_else(
+    //     |_| {
+    //         TMS_ARGS.db_url.clone().unwrap_or_else(|| DB_URL_DEFAULT.to_string())
+    //     });
+    // db_url
 }
 
 // ***************************************************************************
@@ -715,7 +775,7 @@ pub fn init_runtime_context() -> RuntimeCtx {
     let db :Pool<Postgres> = block_on(db_init::init_db());
     
     // Return the runtime context.
-    RuntimeCtx {parms, db, authz: &AUTHZ_ARGS, tms_args: &TMS_ARGS, tms_dirs: &TMS_DIRS}
+    RuntimeCtx {parms, db, authz: &AUTHZ_ARGS, tms_cmd_args: &TMS_CMD_ARGS, tms_dirs: &TMS_DIRS}
 }
 
 // ***************************************************************************

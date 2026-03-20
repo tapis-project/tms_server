@@ -1,10 +1,12 @@
 #![forbid(unsafe_code)]
 /*
  * Main routine for TMS Server
- * Uses tokio for async runtime, poem for REST endpoints and sqlx for database support
+ * Uses tokio for async runtime, poem for REST endpoints, sqlx for database support
+ *   and Clap for cmd line arg processing.
  */
 use std::time::Duration;
 use anyhow::Result;
+use clap::Parser;
 use lazy_static::lazy_static;
 use log::info;
 use poem::listener::{Listener, OpensslTlsConfig};
@@ -58,8 +60,8 @@ use crate::v1::tms::reservations_extend::ExtendReservationsApi;
 use crate::v1::tms::version::VersionApi;
 
 // TMS Utilities
-use crate::utils::config::{TMS_ARGS, TMS_DIRS, TEST_TENANT, init_log, init_runtime_context, 
-                           check_prior_installation, prohibit_root_user, RuntimeCtx};
+use crate::utils::config::{TMS_CMD_ARGS, TMS_DIRS, TEST_TENANT, init_log, init_runtime_context,
+                           set_directories_and_check_install, prohibit_root_user, RuntimeCtx, TmsCmdArgs};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
 
@@ -79,9 +81,10 @@ const TMSS_CERT_FILE: &str = "/cert.pem";
 // ***************************************************************************
 //                             Static Variables
 // ***************************************************************************
-// Lazily initialize the parameters variable so that it has a 'static lifetime.
-// We also initialize the database connection pool and run db migrations.
-// We exit if we can't read our parameters or access the database.
+// Lazily initialize the runtime here so that the variable is global and has a 'static lifetime.
+// This will exit if there is a problem reading the config file or connecting to the database.
+// This depends on install directories being present, so this should be instantiated after
+//   processing of --install
 lazy_static! {
     static ref RUNTIME_CTX: RuntimeCtx = init_runtime_context();
 }
@@ -96,9 +99,36 @@ async fn main() -> Result<(), std::io::Error> {
     let version_str = option_env!("CARGO_PKG_VERSION").unwrap_or("unknown");
     println!("Starting tms_server version {}!", version_str);
 
+    // Prevent program from running as root.
+    prohibit_root_user();
 
-    // Initialize the server and allow for early exit.
-    if !tms_init() { return Ok(()); }
+    // Process command line arguments. Parsing is triggered by lazy_static init of TMS_CMD_ARGS
+    println!("*** Command line arguments *** \n{:?}\n", *TMS_CMD_ARGS);
+
+    // Set directories and make sure we are not trying to start without having run
+    //  with --install first.
+    set_directories_and_check_install();
+
+    // Directory setup. init_tms_dirs is triggered by lazy_static init of TMS_DIRS
+    // During the initial install this creates and populates the directories
+    // During normal startup if checks the directories and constructs the TmsDirs object
+    println!("*** Runtime file locations *** \n{:?}\n", *TMS_DIRS);
+
+    // Perform initialization that should happen during normal and install startup.
+    // NOTE: This initializes RUNTIME_CTX via a lazy_static TODO but RUNTIME_CTX includes DB init
+    //  TODO is there any way to allow for customizing the DB connect parameters via the config file,
+    //       even on first install? Actually, instructions could say to modify the source tms.toml cfg file before running --install
+    //       I think that should work.
+    tms_init1();
+
+    // If this was an installation run then we are done
+    if TMS_CMD_ARGS.install {
+        println!("Exiting: TMS root directory installed and initialized at {}", &TMS_DIRS.root_dir);
+        return Ok(());
+    }
+
+    // This is a non-install startup. Perform second stage initialization
+    tms_init2();
 
     // --------------- Main Loop Set Up ---------------
     // Create a tuple with all the endpoints, create the service and add the server urls to it.
@@ -161,23 +191,14 @@ async fn main() -> Result<(), std::io::Error> {
 // ***************************************************************************
 //                             Private Functions
 // ***************************************************************************
+
 // ---------------------------------------------------------------------------
-// tms_init:
+// tms_init1:
 // ---------------------------------------------------------------------------
 /*
- * Initialize all subsystems and data structures other than those needed to configure
- * the main loop processor.
+ * Initialize all subsystems and data structures. Init needed for normal and install startup.
  */
-fn tms_init() -> bool {
-    // Panic if we detect that we're root.
-    prohibit_root_user();
-
-    // Parse command line args and determine if early exit.
-    println!("*** Command line arguments *** \n{:?}\n", *TMS_ARGS);
-    check_prior_installation(); // Cannot run before installation.
-    
-    // Directory setup.
-    println!("*** Runtime file locations *** \n{:?}\n", *TMS_DIRS);
+fn tms_init1() {
 
     // Configure out log.
     init_log();
@@ -201,25 +222,23 @@ fn tms_init() -> bool {
 
     // Initialize the key generator.
     keygen::init_keygen();
+}
 
-    // Was this an initial installation?
-    if TMS_ARGS.install { 
-        println!("Exiting: TMS root directory installed and initialized at {}", &TMS_DIRS.root_dir);
-        false 
-    } else {
-        // Manage test tenant enablement by always setting the test tenant's enablement
-        // flag to the value specified in the configuration.
-        let tenant = TEST_TENANT.to_string();
-        block_on(db::set_tenant_enabled_internal(
-            &tenant, RUNTIME_CTX.parms.config.enable_test_tenant))
-            .unwrap_or_else(|_|{
-                panic!("Unable to set the {} tenant's enabled flag to match the enable_test_tenant configuration. \
-                        Aborting server execution.", tenant);
-            });
-
-        // Fully initialized.
-        true
-    }
+// ---------------------------------------------------------------------------
+// tms_init2:
+// ---------------------------------------------------------------------------
+/*
+ * Perform initialization steps for a normal non-install run
+ */
+fn tms_init2() {
+    // Manage test tenant enablement by always setting the test tenant's enablement
+    // flag to the value specified in the configuration.
+    let tenant = TEST_TENANT.to_string();
+    block_on(db::set_tenant_enabled_internal(
+        &tenant, RUNTIME_CTX.parms.config.enable_test_tenant)).unwrap_or_else(|_|{
+            panic!("Unable to set the {} tenant's enabled flag to match the enable_test_tenant configuration. \
+                    Aborting server execution.", tenant);
+        });
 }
 
 // ---------------------------------------------------------------------------
