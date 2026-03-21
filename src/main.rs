@@ -105,20 +105,29 @@ async fn main() -> Result<(), std::io::Error> {
     // Process command line arguments. Parsing is triggered by lazy_static init of TMS_CMD_ARGS
     println!("*** Command line arguments *** \n{:?}\n", *TMS_CMD_ARGS);
 
-    // Set directories and make sure we are not trying to start without having run
-    //  with --install first.
+    // Set directories and make sure we are not trying to start without running --install first.
     set_directories_and_check_install();
 
     // Directory setup. init_tms_dirs is triggered by lazy_static init of TMS_DIRS
     // During the initial install this creates and populates the directories
-    // During normal startup if checks the directories and constructs the TmsDirs object
+    // During normal startup it checks the directories and constructs the TmsDirs object
+    // After this all directories and files should be in place, including the config file tms.toml. 
     println!("*** Runtime file locations *** \n{:?}\n", *TMS_DIRS);
 
-    // Perform initialization that should happen during normal and install startup.
-    // NOTE: This initializes RUNTIME_CTX via a lazy_static TODO but RUNTIME_CTX includes DB init
-    //  TODO is there any way to allow for customizing the DB connect parameters via the config file,
-    //       even on first install? Actually, instructions could say to modify the source tms.toml cfg file before running --install
-    //       I think that should work.
+    // Configure output log
+    init_log();
+
+    // Initialize the runtime context. This is triggered by lazy_static init of RUNTIME_CTX:
+    //   - Check resource files
+    //   - read configuration parameters from tms.toml
+    //         TODO/TBD precedence of config settings: cmd line arg, env variable, config file
+    //   - initialize database, makes db connections available to all modules.
+    info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
+
+    // Log build info.
+    print_version_info();
+
+    // Additional initialization that should happen during normal and install startup.
     tms_init1();
 
     // If this was an installation run then we are done
@@ -200,16 +209,6 @@ async fn main() -> Result<(), std::io::Error> {
  */
 fn tms_init1() {
 
-    // Configure out log.
-    init_log();
-
-    // Force the reading of input parameters and initialization of runtime context.
-    // The runtime context also initializes the database, which makes db connections
-    // available to all modules.
-    info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
-
-    // Log build info.
-    print_version_info();
     // Insert default records into database if they don't already exist.
     // This call is a no-op except when the --install option is set.
     let inserts = block_on(db::create_std_tenants())

@@ -127,7 +127,7 @@ pub struct TmsDbConfig {
     pub db_host: String,
     pub db_port: u16,
     pub db_user: String,
-    pub db_url: String
+    pub db_url: String,
 }
 
 // ***************************************************************************
@@ -222,20 +222,19 @@ pub struct AuthzArgs {
 // RuntimeCtx:
 // ---------------------------------------------------------------------------
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct RuntimeCtx {
     pub parms: Parms,
     pub db: Pool<Postgres>,
     pub authz: &'static AuthzArgs,
     pub tms_cmd_args: &'static TmsCmdArgs,
     pub tms_dirs: &'static TmsDirs,
+    pub tms_db_config: &'static TmsDbConfig
 }
 
 // ---------------------------------------------------------------------------
 // Config:
 // ---------------------------------------------------------------------------
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct Config {
     pub title: String,
     pub http_addr: String,
@@ -260,13 +259,13 @@ impl Config {
             NEW_CLIENTS_ON_APPROVAL =>  {
                 let msg = "The new_clients 'on_approval' setting is not implemented yet.";
                 error!("{}", msg);
-                Result::Err(anyhow!(msg))
+                Err(anyhow!(msg))
             },           
             other => {
                 let msg = format!("Invalid value '{}' assigned to the new_clients configuration setting.  \
                                           Currently supported values are: 'allow', 'disallow'.", other);
                 error!("{}", msg);
-                Result::Err(anyhow!(msg))
+                Err(anyhow!(msg))
             },
         } 
     }
@@ -292,7 +291,7 @@ impl Default for Config {
 // ---------------------------------------------------------------------------
 // init_tms_cmd_args:
 // ---------------------------------------------------------------------------
-/** Get the command line arguments. */
+/* Get the command line arguments. */
 fn init_tms_cmd_args() -> TmsCmdArgs {
   TmsCmdArgs::parse()
 }
@@ -300,7 +299,7 @@ fn init_tms_cmd_args() -> TmsCmdArgs {
 // ---------------------------------------------------------------------------
 // prohibit_root_user:
 // ---------------------------------------------------------------------------
-/** This function makes a reasonable attempt to stop execution if we are running
+/* This function makes a reasonable attempt to stop execution if we are running
  * as root.  It's not meant to be foolproof, just likely to catch inadvertent, 
  * high-privilege executions before they can cause trouble.
  */
@@ -320,7 +319,7 @@ pub fn prohibit_root_user() {
 // ---------------------------------------------------------------------------
 // check_prior_installation:
 // ---------------------------------------------------------------------------
-/** Panic if we are trying to run the server before an installation run. */
+/* Panic if we are trying to run the server before an installation run. */
 pub fn set_directories_and_check_install() {
     let rootdir = get_root_dir();
     let path = Path::new(&rootdir);
@@ -356,7 +355,7 @@ pub fn set_directories_and_check_install() {
 // ---------------------------------------------------------------------------
 // init_tms_dirs:
 // ---------------------------------------------------------------------------
-/**
+/*
  * Setup for TmsDirs.
  * During the initial installation create and populate the directories.
  * During normal startup check the directories.
@@ -399,7 +398,7 @@ fn init_tms_dirs() -> TmsDirs {
 // ---------------------------------------------------------------------------
 // init_tms_db_config:
 // ---------------------------------------------------------------------------
-/** Calculate db url. */
+/* Calculate db url. */
 fn init_tms_db_config() -> TmsDbConfig {
     // Package up and return the directories.
     TmsDbConfig {
@@ -410,7 +409,7 @@ fn init_tms_db_config() -> TmsDbConfig {
 // ---------------------------------------------------------------------------
 // check_tms_dir:
 // ---------------------------------------------------------------------------
-/**
+/*
  * Check that the path is absolute and, if it exists, that it has the proper permissions assigned.
  * If it does not exist, create it. The mistrust package creates directories with 0o700 permissions.
  *
@@ -452,7 +451,7 @@ fn check_tms_dir(dir: &String, msgname: &str, mistrust: &Mistrust) -> bool {
 // ---------------------------------------------------------------------------
 // copy_resource_files:
 // ---------------------------------------------------------------------------
-/** Copy the resource files to the target directory from the ./resources directory.
+/* Copy the resource files to the target directory from the ./resources directory.
  * This function will not copy any files if the current working directory of this
  * program does have a subdirectory named "resources".
  * 
@@ -549,7 +548,7 @@ fn copy_resource_files(target_dir: &String, dir_suffix: &str, root_dir: &String)
 // ---------------------------------------------------------------------------
 // check_resource_files:
 // ---------------------------------------------------------------------------
-/**
+/*
  * Make sure all required configuration files are present in the tms directory subtree.
  * The log4rs.yml and tms.toml files have already been checked and read, so no need to do
  * that here, see init_log() and get_parms().
@@ -613,7 +612,7 @@ fn check_resource_files() {
 // ---------------------------------------------------------------------------
 // get_mistrust:
 // ---------------------------------------------------------------------------
-/** Configure a new mistrust object for initial directory processing. */
+/* Configure a new mistrust object for initial directory processing. */
 fn get_mistrust() -> Mistrust {
     // Configure our mistrust object.
     let mistrust = match Mistrust::builder() 
@@ -672,7 +671,7 @@ fn get_db_config() -> String {
 // ---------------------------------------------------------------------------
 pub fn init_log() {
     // Initialize log4rs logging.
-    let logconfig = init_log_config();
+    let logconfig = init_log_config_file_path();
     match log4rs::init_file(logconfig.clone(), Default::default()) {
         Ok(_) => (),
         Err(e) => {
@@ -687,7 +686,7 @@ pub fn init_log() {
 // ---------------------------------------------------------------------------
 // init_log_config:
 // ---------------------------------------------------------------------------
-fn init_log_config() -> String {
+fn init_log_config_file_path() -> String {
     TMS_DIRS.config_dir.clone() + LOG4RS_CONFIG_FILE 
 }
 
@@ -697,16 +696,14 @@ fn init_log_config() -> String {
 // ---------------------------------------------------------------------------
 // get_parms:
 // ---------------------------------------------------------------------------
-/** Retrieve the application parameters from the configuration file specified
- * either through an environment variable or as the first (and only) command
- * line argument.  If neither are provided, an attempt is made to use the
- * default file path.
+/*
+ * Retrieve the application parameters from the configuration file.
  */
 fn get_parms() -> Result<Parms> {
     // Get the config file path from its data directory.
     let config_file = TMS_DIRS.config_dir.clone() + TMS_CONFIG_FILE;
     
-    // Read the cofiguration file.
+    // Read the configuration file.
     let config_file_abs = tms_utils::get_absolute_path(&config_file);
     info!("{}", Errors::ReadingConfigFile(config_file_abs.clone()));
     let contents = match fs::read_to_string(&config_file_abs) {
@@ -770,12 +767,25 @@ pub fn init_runtime_context() -> RuntimeCtx {
     //   including the 2 pem files that should be installed in the configured directory.
     check_resource_files();
 
-    // If either of these fail the application aborts.
+    // TODO 
+    //   - read configuration parameters from tms.toml
+    //         TODO/TBD precedence of config settings: cmd line arg, env variable, config file
+
+    // Read config parameters from file
     let parms = get_parms().expect("FAILED to read configuration file.");
+
+    // TODO DB connect settings. init_tms_db_config is triggered by lazy_static init of TMS_DIRS
+    // TODO During the initial install this creates and populates the directories
+    //  During normal startup it checks the directories and constructs the TmsDirs object
+    //  After this all directories and files should be in place, including the config file tms.toml.
+    println!("*** Runtime DB config *** \n{:?}\n", *TMS_DB_CONFIG);
+
+
+    // Initialize database
     let db :Pool<Postgres> = block_on(db_init::init_db());
     
     // Return the runtime context.
-    RuntimeCtx {parms, db, authz: &AUTHZ_ARGS, tms_cmd_args: &TMS_CMD_ARGS, tms_dirs: &TMS_DIRS}
+    RuntimeCtx {parms, db, authz: &AUTHZ_ARGS, tms_cmd_args: &TMS_CMD_ARGS, tms_dirs: &TMS_DIRS, &TMS_DB_CONFIG}
 }
 
 // ***************************************************************************
