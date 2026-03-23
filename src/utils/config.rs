@@ -74,13 +74,11 @@ const ENV_TMS_ROOT_DIR     : &str = "TMS_ROOT_DIR";
 const ENV_TMS_DB_HOST       : &str = "TMS_DB_HOST";
 const ENV_TMS_DB_PORT       : &str = "TMS_DB_PORT";
 const ENV_TMS_DB_USER       : &str = "TMS_DB_USER";
+// DB URL example: "postgres://tms:password@localhost:5432/tmsdb";
 const ENV_TMS_DB_URL       : &str = "TMS_DB_URL";
-// Default is to look for DB locally on the standard port using the standard user
-// TODO pub const DB_URL_DEFAULT: &str = "postgres://tms:password@localhost:5432/tmsdb";
 pub const DB_HOST_DEFAULT: &str = "localhost";
 pub const DB_PORT_DEFAULT: u16 = 5432;
 pub const DB_USER_DEFAULT: &str = "tms";
-//pub const DB_URL_DEFAULT: &str = "postgres://tms:password@localhost:5431/tmsdb"; // Must be set, no default
 pub const DB_TRUE : bool = true;
 
 // ***************************************************************************
@@ -155,7 +153,6 @@ pub struct TmsDbConfig {
 //       then it must be set as a command line argument or environment variable.
 //       Precedence: command line, environment variable, config file
 //
-// TODO How to use this to replace the use of StructOpt
 // ---------------------------------------------------------------------------
 #[derive(Debug, Parser)]
 #[command(name = "tms_server", about = "Command line arguments for TMS Server.")]
@@ -177,20 +174,6 @@ pub struct TmsCmdArgs {
     /// This directory contains all the files TMS uses during execution.
     #[arg(short, long)]
     pub root_dir: Option<String>,
-
-    // TODO
-    // /// Database host name. Default is localhost.
-    // #[arg(short, long)]
-    // pub db_host: Option<String>,
-    //
-    // /// Database port. Default is 5432.
-    // #[arg(short, long)]
-    // pub db_port: Option<u16>,
-    //
-    // /// Database user. Default is tms.
-    // #[arg(short, long)]
-    // pub db_user: Option<String>,
-
 }
 
 // ---------------------------------------------------------------------------
@@ -395,18 +378,6 @@ fn init_tms_dirs() -> TmsDirs {
     TmsDirs {
         root_dir, migrations_dir, config_dir, logs_dir, certs_dir,
     }
-}
-
-// ---------------------------------------------------------------------------
-// init_tms_db_config:
-// Init DB config from env variables and construct DB url
-// ---------------------------------------------------------------------------
-/* Calculate db url. */
-fn init_tms_db_config() -> TmsDbConfig {
-    let db_url = env::var(ENV_TMS_DB_URL).expect("ERROR: Environment variable TMS_DB_URL must be set.");
-    if db_url.is_empty() {panic!("ERROR: Environment variable TMS_DB_URL must be set.");}
-    // Package up and return the config parameters
-    TmsDbConfig { db_url }
 }
 
 // ---------------------------------------------------------------------------
@@ -648,25 +619,6 @@ fn get_root_dir() -> String {
     get_absolute_path(&tmp_root_dir)
 }
 
-// TODO remove?
-// // ---------------------------------------------------------------------------
-// // get_db_url:
-// // ---------------------------------------------------------------------------
-// fn get_db_config() -> String {
-//     DB_URL_DEFAULT.to_string()
-//     // TODO
-//     // // Order of precedence:
-//     // //  1. Environment variable
-//     // //  2. Command line -db or --db-url argument
-//     // //  3. Default location
-//     // //
-//     // let db_url = env::var(ENV_TMS_DB_URL).unwrap_or_else(
-//     //     |_| {
-//     //         TMS_ARGS.db_url.clone().unwrap_or_else(|| DB_URL_DEFAULT.to_string())
-//     //     });
-//     // db_url
-// }
-
 // ***************************************************************************
 //                               Log Functions
 // ***************************************************************************
@@ -770,10 +722,6 @@ pub fn init_runtime_context() -> RuntimeCtx {
     // Make sure all required configuration files are present in the tms directory,
     //   including the 2 pem files that should be installed in the configured directory.
     check_resource_files();
-
-    // TODO
-    //   - read configuration parameters from tms.toml
-    //         TODO/TBD precedence of config settings: cmd line arg, env variable, config file
 
     // Read config parameters from file
     let parms = get_parms().expect("FAILED to read configuration file.");

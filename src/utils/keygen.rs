@@ -41,7 +41,7 @@ pub enum KeyType {
     Rsa,
 }
 
-// Convert enum to it's string representation.
+// Convert enum to string representation.
 impl fmt::Display for KeyType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -80,11 +80,8 @@ impl GeneratedKeyObj {
 // ***************************************************************************
 //                               Functions
 // ***************************************************************************
-// ---------------------------------------------------------------------------
-// init_runtime_context:
-// ---------------------------------------------------------------------------
-/** One time initialization routine. This function panics if it cannot complete 
- * successfully. 
+/*
+ * One time initialization routine. This function panics if it cannot complete successfully.
  */
 #[allow(unused_variables)]
 pub fn init_keygen() {
@@ -151,10 +148,9 @@ pub fn generate_key(key_type: KeyType) -> Result<GeneratedKeyObj> {
     // Get the public key fingerprint.
     let ssh_fp = prvkey.fingerprint(HashAlg::Sha256).to_string(); 
 
-    // // -------------------------- Package Results ----------------------------
-    // // -----------------------------------------------------------------------
-    // Get the bit length for this key type. This should never fail, 
-    // but if it we just return 0.
+    // -------------------------- Package Results ----------------------------
+    // -----------------------------------------------------------------------
+    // Get the bit length for this key type. This should never fail, but if it does just return 0.
     let bitlen = *KEY_LEN_MAP.get(&key_type)
         .unwrap_or(&(0_i32));
 
@@ -198,8 +194,7 @@ fn gen_private_key(algorithm: Algorithm) -> Result<PrivateKey> {
 // ---------------------------------------------------------------------------
 // get_key_len_map:
 // ---------------------------------------------------------------------------
-/** One-time initialization routine that defines the bit lengths used 
- * for the various key types. 
+/** One-time initialization routine that defines the bit lengths used for the various key types.
  */
 fn get_key_len_map() -> HashMap<KeyType, i32> {
     // Create the key type bit length mappings.

@@ -61,7 +61,7 @@ use crate::v1::tms::version::VersionApi;
 
 // TMS Utilities
 use crate::utils::config::{TMS_CMD_ARGS, TMS_DIRS, TEST_TENANT, init_log, init_runtime_context,
-                           set_directories_and_check_install, prohibit_root_user, RuntimeCtx, TmsCmdArgs};
+                           set_directories_and_check_install, prohibit_root_user, RuntimeCtx};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
 
@@ -105,6 +105,10 @@ async fn main() -> Result<(), std::io::Error> {
     // Process command line arguments. Parsing is triggered by lazy_static init of TMS_CMD_ARGS
     println!("*** Command line arguments *** \n{:?}\n", *TMS_CMD_ARGS);
 
+    // Initialize the key generator.
+    keygen::init_keygen();
+    println!("*** Keygen initialized ***");
+
     // Set directories and make sure we are not trying to start without running --install first.
     set_directories_and_check_install();
 
@@ -115,27 +119,22 @@ async fn main() -> Result<(), std::io::Error> {
     println!("*** Runtime file locations *** \n{:?}\n", *TMS_DIRS);
 
     // Configure output log
-    println!("*** Runtime file locations *** \n{:?}\n", *TMS_DIRS);
     init_log();
-
-    // // Initialize DB config from environment variables. Function is triggered by lazy_static init of TMS_DB_CONFIG
-    // println!("*** DB Configuration *** \n{:?}\n", *TMS_DB_CONFIG);
 
     // Initialize the runtime context. This is triggered by lazy_static init of RUNTIME_CTX:
     //   - Check resource files
     //   - read configuration parameters from tms.toml
-    //         TODO/TBD precedence of config settings: cmd line arg, env variable, config file
     //   - initialize database, makes db connections available to all modules.
     info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
 
     // Log build info.
     print_version_info();
 
+    // Initialization that should happen during normal startup and install.
+    tms_init1();
 
     // If this was an installation run then we are done
     if TMS_CMD_ARGS.install {
-        // Additional initialization that should happen during normal and install startup.
-        tms_init1();
         println!("Exiting: TMS root directory installed and initialized at {}", &TMS_DIRS.root_dir);
         return Ok(());
     }
@@ -222,9 +221,6 @@ fn tms_init1() {
     // Optionally insert test records into test tenant
     // only if we just created the standard tenants.
     if inserts > 0 {db::check_test_data();}
-
-    // Initialize the key generator.
-    keygen::init_keygen();
 }
 
 // ---------------------------------------------------------------------------
