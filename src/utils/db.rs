@@ -42,7 +42,7 @@ use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RES
  */
 pub async fn create_std_tenants() -> Result<u64> {
     // Guard against repeated initialization of standard tenants and admins.
-    if !TMS_ARGS.install {
+    if !TMS_CMD_ARGS.install {
         return Ok(0);
     }
 

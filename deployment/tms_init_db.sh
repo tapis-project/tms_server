@@ -4,7 +4,7 @@
 # Postgres password must be set in env var POSTGRES_PASSWORD
 
 if [ -z "$TMS_DB_HOST" ]; then
-  TMS_DB_HOST=localohst
+  TMS_DB_HOST=localhost
 fi
 
 if [ -z "$TMS_DB_PORT" ]; then

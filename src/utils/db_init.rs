@@ -17,23 +17,13 @@ const POOL_MAX_CONNECTIONS: u32 = 8;
 // init_db:
 // ---------------------------------------------------------------------------
 // See migrations directory for database schema definition.
-pub async fn init_db() -> Pool<Postgres> {
-
-    // DB URL precedence: Environment variable, cmd line (--db-url), default
-    let url = TMS_DIRS.db_url.as_str();
+pub async fn init_db(url: &str) -> Pool<Postgres> {
 
     // Create the DB connection pool
     let db :Pool<Postgres> = PgPoolOptions::new()
         .min_connections(POOL_MIN_CONNECTIONS).max_connections(POOL_MAX_CONNECTIONS)
         .connect(url).await.expect("Failed to connect to Postgres");
 
-    // // Create the database connection pool.
-    // let db = SqlitePoolOptions::new()
-    //     .min_connections(POOL_MIN_CONNECTIONS)
-    //     .max_connections(POOL_MAX_CONNECTIONS)
-    //     .connect_with(options).await
-    //     .expect("Unable to create connection db");
-    //
     // Locate the migration files.
     let tdir = &TMS_DIRS.migrations_dir;
     let migrations = std::path::Path::new(tdir);

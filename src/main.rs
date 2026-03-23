@@ -111,11 +111,15 @@ async fn main() -> Result<(), std::io::Error> {
     // Directory setup. init_tms_dirs is triggered by lazy_static init of TMS_DIRS
     // During the initial install this creates and populates the directories
     // During normal startup it checks the directories and constructs the TmsDirs object
-    // After this all directories and files should be in place, including the config file tms.toml. 
+    // After this all directories and files should be in place, including the config file tms.toml.
     println!("*** Runtime file locations *** \n{:?}\n", *TMS_DIRS);
 
     // Configure output log
+    println!("*** Runtime file locations *** \n{:?}\n", *TMS_DIRS);
     init_log();
+
+    // // Initialize DB config from environment variables. Function is triggered by lazy_static init of TMS_DB_CONFIG
+    // println!("*** DB Configuration *** \n{:?}\n", *TMS_DB_CONFIG);
 
     // Initialize the runtime context. This is triggered by lazy_static init of RUNTIME_CTX:
     //   - Check resource files
@@ -127,11 +131,11 @@ async fn main() -> Result<(), std::io::Error> {
     // Log build info.
     print_version_info();
 
-    // Additional initialization that should happen during normal and install startup.
-    tms_init1();
 
     // If this was an installation run then we are done
     if TMS_CMD_ARGS.install {
+        // Additional initialization that should happen during normal and install startup.
+        tms_init1();
         println!("Exiting: TMS root directory installed and initialized at {}", &TMS_DIRS.root_dir);
         return Ok(());
     }

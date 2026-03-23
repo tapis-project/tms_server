@@ -11,7 +11,6 @@ use std::os::unix::fs::PermissionsExt;
 use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use tera::Tera;
-use structopt::StructOpt;
 use users::get_effective_uid;
 use poem::web::{Data};
 use sqlx::{Pool, Postgres};
@@ -75,11 +74,13 @@ const ENV_TMS_ROOT_DIR     : &str = "TMS_ROOT_DIR";
 const ENV_TMS_DB_HOST       : &str = "TMS_DB_HOST";
 const ENV_TMS_DB_PORT       : &str = "TMS_DB_PORT";
 const ENV_TMS_DB_USER       : &str = "TMS_DB_USER";
+const ENV_TMS_DB_URL       : &str = "TMS_DB_URL";
 // Default is to look for DB locally on the standard port using the standard user
 // TODO pub const DB_URL_DEFAULT: &str = "postgres://tms:password@localhost:5432/tmsdb";
 pub const DB_HOST_DEFAULT: &str = "localhost";
 pub const DB_PORT_DEFAULT: u16 = 5432;
 pub const DB_USER_DEFAULT: &str = "tms";
+pub const DB_URL_DEFAULT: &str = "postgres://tms:password@localhost:5431/tmsdb";
 pub const DB_TRUE : bool = true;
 
 // ***************************************************************************
@@ -94,9 +95,9 @@ lazy_static! {
     pub static ref TMS_DIRS: TmsDirs = init_tms_dirs();
 }
 
-lazy_static! {
-    pub static ref TMS_DB_CONFIG: TmsDbConfig = init_tms_db_config();
-}
+// lazy_static! {
+//     pub static ref TMS_DB_CONFIG: TmsDbConfig = init_tms_db_config();
+// }
 
 // Initialize the authz parameter sets.
 lazy_static! {
@@ -116,7 +117,7 @@ pub struct TmsDirs {
     pub migrations_dir: String,
     pub config_dir: String,
     pub logs_dir: String,
-    pub certs_dir: String,
+    pub certs_dir: String
 }
 
 // ---------------------------------------------------------------------------
@@ -124,10 +125,11 @@ pub struct TmsDirs {
 // ---------------------------------------------------------------------------
 #[derive(Debug, Deserialize)]
 pub struct TmsDbConfig {
-    pub db_host: String,
-    pub db_port: u16,
-    pub db_user: String,
-    pub db_url: String,
+    // pub db_host: String,
+    // pub db_port: u16,
+    // pub db_user: String,
+    // pub db_password: String,
+    pub db_url: String
 }
 
 // ***************************************************************************
@@ -176,17 +178,18 @@ pub struct TmsCmdArgs {
     #[arg(short, long)]
     pub root_dir: Option<String>,
 
-    /// Database host name. Default is localhost.
-    #[arg(short, long)]
-    pub db_host: Option<String>,
-
-    /// Database port. Default is 5432.
-    #[arg(short, long)]
-    pub db_port: Option<u16>,
-
-    /// Database user. Default is tms.
-    #[arg(short, long)]
-    pub db_user: Option<String>,
+    // TODO
+    // /// Database host name. Default is localhost.
+    // #[arg(short, long)]
+    // pub db_host: Option<String>,
+    //
+    // /// Database port. Default is 5432.
+    // #[arg(short, long)]
+    // pub db_port: Option<u16>,
+    //
+    // /// Database user. Default is tms.
+    // #[arg(short, long)]
+    // pub db_user: Option<String>,
 
 }
 
@@ -228,7 +231,6 @@ pub struct RuntimeCtx {
     pub authz: &'static AuthzArgs,
     pub tms_cmd_args: &'static TmsCmdArgs,
     pub tms_dirs: &'static TmsDirs,
-    pub tms_db_config: &'static TmsDbConfig
 }
 
 // ---------------------------------------------------------------------------
@@ -397,13 +399,14 @@ fn init_tms_dirs() -> TmsDirs {
 
 // ---------------------------------------------------------------------------
 // init_tms_db_config:
+// Init DB config from env variables and construct DB url
 // ---------------------------------------------------------------------------
 /* Calculate db url. */
 fn init_tms_db_config() -> TmsDbConfig {
-    // Package up and return the directories.
-    TmsDbConfig {
-        root_dir, migrations_dir, config_dir, logs_dir, db_url, certs_dir,
-    }
+    let db_url = env::var(ENV_TMS_DB_URL).unwrap_or_else(
+        |_| { DB_URL_DEFAULT.to_string()});
+    // Package up and return the config parameters
+    TmsDbConfig { db_url }
 }
 
 // ---------------------------------------------------------------------------
@@ -645,23 +648,24 @@ fn get_root_dir() -> String {
     get_absolute_path(&tmp_root_dir)
 }
 
-// ---------------------------------------------------------------------------
-// get_db_url:
-// ---------------------------------------------------------------------------
-fn get_db_config() -> String {
-    DB_URL_DEFAULT.to_string()
-    // TODO
-    // // Order of precedence:
-    // //  1. Environment variable
-    // //  2. Command line -db or --db-url argument
-    // //  3. Default location
-    // //
-    // let db_url = env::var(ENV_TMS_DB_URL).unwrap_or_else(
-    //     |_| {
-    //         TMS_ARGS.db_url.clone().unwrap_or_else(|| DB_URL_DEFAULT.to_string())
-    //     });
-    // db_url
-}
+// TODO remove?
+// // ---------------------------------------------------------------------------
+// // get_db_url:
+// // ---------------------------------------------------------------------------
+// fn get_db_config() -> String {
+//     DB_URL_DEFAULT.to_string()
+//     // TODO
+//     // // Order of precedence:
+//     // //  1. Environment variable
+//     // //  2. Command line -db or --db-url argument
+//     // //  3. Default location
+//     // //
+//     // let db_url = env::var(ENV_TMS_DB_URL).unwrap_or_else(
+//     //     |_| {
+//     //         TMS_ARGS.db_url.clone().unwrap_or_else(|| DB_URL_DEFAULT.to_string())
+//     //     });
+//     // db_url
+// }
 
 // ***************************************************************************
 //                               Log Functions
@@ -767,25 +771,21 @@ pub fn init_runtime_context() -> RuntimeCtx {
     //   including the 2 pem files that should be installed in the configured directory.
     check_resource_files();
 
-    // TODO 
+    // TODO
     //   - read configuration parameters from tms.toml
     //         TODO/TBD precedence of config settings: cmd line arg, env variable, config file
 
     // Read config parameters from file
     let parms = get_parms().expect("FAILED to read configuration file.");
 
-    // TODO DB connect settings. init_tms_db_config is triggered by lazy_static init of TMS_DIRS
-    // TODO During the initial install this creates and populates the directories
-    //  During normal startup it checks the directories and constructs the TmsDirs object
-    //  After this all directories and files should be in place, including the config file tms.toml.
-    println!("*** Runtime DB config *** \n{:?}\n", *TMS_DB_CONFIG);
-
+    let db_url = env::var(ENV_TMS_DB_URL).unwrap_or_else(
+        |_| { DB_URL_DEFAULT.to_string()});
 
     // Initialize database
-    let db :Pool<Postgres> = block_on(db_init::init_db());
+    let db :Pool<Postgres> = block_on(db_init::init_db(db_url.as_str()));
     
     // Return the runtime context.
-    RuntimeCtx {parms, db, authz: &AUTHZ_ARGS, tms_cmd_args: &TMS_CMD_ARGS, tms_dirs: &TMS_DIRS, &TMS_DB_CONFIG}
+    RuntimeCtx {parms, db, authz: &AUTHZ_ARGS, tms_cmd_args: &TMS_CMD_ARGS, tms_dirs: &TMS_DIRS}
 }
 
 // ***************************************************************************
