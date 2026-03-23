@@ -80,7 +80,7 @@ const ENV_TMS_DB_URL       : &str = "TMS_DB_URL";
 pub const DB_HOST_DEFAULT: &str = "localhost";
 pub const DB_PORT_DEFAULT: u16 = 5432;
 pub const DB_USER_DEFAULT: &str = "tms";
-pub const DB_URL_DEFAULT: &str = "postgres://tms:password@localhost:5431/tmsdb";
+//pub const DB_URL_DEFAULT: &str = "postgres://tms:password@localhost:5431/tmsdb"; // Must be set, no default
 pub const DB_TRUE : bool = true;
 
 // ***************************************************************************
@@ -403,8 +403,8 @@ fn init_tms_dirs() -> TmsDirs {
 // ---------------------------------------------------------------------------
 /* Calculate db url. */
 fn init_tms_db_config() -> TmsDbConfig {
-    let db_url = env::var(ENV_TMS_DB_URL).unwrap_or_else(
-        |_| { DB_URL_DEFAULT.to_string()});
+    let db_url = env::var(ENV_TMS_DB_URL).expect("ERROR: Environment variable TMS_DB_URL must be set.");
+    if db_url.is_empty() {panic!("ERROR: Environment variable TMS_DB_URL must be set.");}
     // Package up and return the config parameters
     TmsDbConfig { db_url }
 }
@@ -778,8 +778,8 @@ pub fn init_runtime_context() -> RuntimeCtx {
     // Read config parameters from file
     let parms = get_parms().expect("FAILED to read configuration file.");
 
-    let db_url = env::var(ENV_TMS_DB_URL).unwrap_or_else(
-        |_| { DB_URL_DEFAULT.to_string()});
+    let db_url = env::var(ENV_TMS_DB_URL).expect("ERROR: Environment variable TMS_DB_URL must be set.");
+    if db_url.is_empty() {panic!("ERROR: Environment variable TMS_DB_URL must be set.");}
 
     // Initialize database
     let db :Pool<Postgres> = block_on(db_init::init_db(db_url.as_str()));

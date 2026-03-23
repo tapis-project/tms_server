@@ -8,10 +8,6 @@ title = "My TMS Server"
 http_addr = "https://localhost"
 http_port = 3000
 
-# Connect string for the database. If not set defaults to
-#   postgres://tms:password@localhost:5432/tmsdb
-db_url = "postgres://tms:password@localhost:5432/tmsdb"
-
 # Setting this flag causes the server to run in Minimal Viable Product (MVP)
 # mode, which affects the level of automation during key creation
 # (when the pubkeys_create endpoint executes).  MVP processing has these 

@@ -13,6 +13,11 @@ export PRG_RELPATH=$(dirname "$0")
 cd "$PRG_RELPATH"/. || exit
 export PRG_PATH=$(pwd)
 
+if [ -z "${POSTGRES_PASSWORD}" ]; then
+  echo "Please set env var POSTGRES_PASSWORD before running this script"
+  exit 1
+fi
+
 # Rebuild tms
 echo "**********************************************************************"
 echo "   Rebuilding TMS server"
@@ -28,7 +33,19 @@ fi
 
 #  Reset the DB
 ./deployment/tms_drop_db.sh
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+  echo "tms_drop_db failed."
+  echo "Exiting ..."
+  exit $RET_CODE
+fi
 ./deployment/tms_init_db.sh
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+  echo "tms_init_db failed."
+  echo "Exiting ..."
+  exit $RET_CODE
+fi
 
 # Remove current install and re-install
 echo "**********************************************************************"
