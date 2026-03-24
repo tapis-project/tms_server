@@ -46,7 +46,7 @@ do
   echo ".output ${t}.sql" >> $TMP_FILE
   echo "select * from ${t};" >> $TMP_FILE
   $SQ3_CMD ".read $TMP_FILE"
-  # TODO Post-process the sql command. Replace INSERT INTO "table" with correct table name
+  # Post-process the sql command. Replace INSERT INTO "table" with correct table name
   $PRG_PATH/gres_r.sh "INSERT INTO \"table\"" "INSERT INTO \"${t}\"" ${t}.sql
 done
 
@@ -65,7 +65,7 @@ done
 
 # TODO
 echo "**********************************************************************"
-echo "   Importing tables into postgresql DB"
+echo "   TODO Importing tables into postgresql DB"
 echo "**********************************************************************"
 
 rm $TMP_FILE
