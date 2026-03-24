@@ -130,8 +130,8 @@ async fn main() -> Result<(), std::io::Error> {
     // Log build info.
     print_version_info();
 
-    // Initialization that should happen during normal startup and install.
-    tms_init1();
+    // Initialize standard tenants and test data. Skip if --schema-only specified.
+    if (!TMS_CMD_ARGS.schema_only) { tms_init_data(); }
 
     // If this was an installation run then we are done
     if TMS_CMD_ARGS.install {
@@ -210,7 +210,7 @@ async fn main() -> Result<(), std::io::Error> {
 /*
  * Initialize all subsystems and data structures. Init needed for normal and install startup.
  */
-fn tms_init1() {
+fn tms_init_data() {
 
     // Insert default records into database if they don't already exist.
     // This call is a no-op except when the --install option is set.
@@ -244,7 +244,15 @@ fn tms_init2() {
 // print_version_info:
 // ---------------------------------------------------------------------------
 fn print_version_info() {
-    // Log build info.
+    // Log build info. NOTE: The two messages are the same
+    // TODO Use single string. Only print directly to console if log level is turned down below info.
+    println!("\n*** Running TMS={}, BRANCH={}, COMMIT={}, DIRTY={}, SRC_TS={}, RUSTC={}",
+             option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"),
+             env!("GIT_BRANCH"),
+             env!("GIT_COMMIT_SHORT"),
+             env!("GIT_DIRTY"),
+             env!("SOURCE_TIMESTAMP"),
+             env!("RUSTC_VERSION"));
     info!("{}.", format!("\n*** Running TMS={}, BRANCH={}, COMMIT={}, DIRTY={}, SRC_TS={}, RUSTC={}",
                         option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"),
                         env!("GIT_BRANCH"),

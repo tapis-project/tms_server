@@ -53,7 +53,7 @@ echo "   Removing previous installation and re-installing"
 echo "**********************************************************************"
 rm -fr ~/.tms
 export TMS_DB_URL="postgres://tms:password@localhost:5431/tmsdb"
-./target/debug/tms_server --install
+./target/debug/tms_server --install --schema-only
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "TMS server install failed"

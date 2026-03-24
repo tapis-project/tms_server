@@ -144,7 +144,7 @@ pub struct TmsDbConfig {
 //  -?, --db-host Database host name. Default is localhost.
 //  -?, --db-port Database port. Default is 5432
 //  -?  --db-user Database user. Default is tms.
-//  -?  --db-passworr Database password.
+//  -?  --db-password Database password.
 //  -V, --version Version information
 //  -h, --help Display help information
 //
@@ -169,6 +169,11 @@ pub struct TmsCmdArgs {
     ///   3. Otherwise, ~/.tms
     #[arg(short, long)]
     pub install: bool,
+    /// When running with --install, only create the DB schema, skip data initialization.
+    ///
+    /// This can be used when importing all data
+    #[arg(short, long)]
+    pub schema_only: bool,
     /// Specify TMS root install directory.
     ///
     /// This directory contains all the files TMS uses during execution.
@@ -306,6 +311,13 @@ pub fn prohibit_root_user() {
 // ---------------------------------------------------------------------------
 /* Panic if we are trying to run the server before an installation run. */
 pub fn set_directories_and_check_install() {
+
+    // Check that schema_only is not specified without also specifying --install
+    if (TMS_CMD_ARGS.schema_only && !TMS_CMD_ARGS.install) {
+        panic!("\n***********************************************************************\n\
+                    ERROR: Option --schema-only may only be used along with --install. \n\
+                    ***********************************************************************\n");
+    }
     let rootdir = get_root_dir();
     let path = Path::new(&rootdir);
     if path.is_file() {
