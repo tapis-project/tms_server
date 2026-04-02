@@ -2,6 +2,7 @@
 # Script to initialize TMS server DB using psql
 # Create database, user and schema
 # Postgres password must be set in env var POSTGRES_PASSWORD
+# Postgres password TMS DB user must be set in env var TMS_DB_USER_PASSWORD
 
 if [ -z "$TMS_DB_HOST" ]; then
   TMS_DB_HOST=localhost
@@ -11,15 +12,23 @@ if [ -z "$TMS_DB_PORT" ]; then
   TMS_DB_PORT=5432
 fi
 
+if [ -z "$TMS_DB_USER" ]; then
+  TMS_DB_USER=tms
+fi
+
 PSQL_CMD="psql --host=${TMS_DB_HOST} --port=${TMS_DB_PORT}"
 
 DB_USER=postgres
 DB_NAME=tmsdb
-export TMS_DB_USER=tms
-export TMS_DB_SCHEMA=tms
+DB_SCHEMA=tms
 
 if [ -z "${POSTGRES_PASSWORD}" ]; then
   echo "Please set env var POSTGRES_PASSWORD before running this script"
+  exit 1
+fi
+
+if [ -z "${TMS_DB_USER_PASSWORD}" ]; then
+  echo "Please set env var TMS_DB_USER_PASSWORD before running this script"
   exit 1
 fi
 
@@ -41,12 +50,12 @@ BEGIN
   RAISE NOTICE 'User already exists. User name: ${TMS_DB_USER}';
 END
 \$\$;
-ALTER USER ${TMS_DB_USER} WITH ENCRYPTED PASSWORD '${POSTGRES_PASSWORD}';
+ALTER USER ${TMS_DB_USER} WITH ENCRYPTED PASSWORD '${TMS_DB_USER_PASSWORD}';
 GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${TMS_DB_USER};
 
 -- Create schema if it does not exist
-CREATE SCHEMA IF NOT EXISTS ${TMS_DB_SCHEMA} AUTHORIZATION ${TMS_DB_USER};
-ALTER ROLE ${TMS_DB_USER} SET search_path = '${TMS_DB_SCHEMA}';
+CREATE SCHEMA IF NOT EXISTS ${DB_SCHEMA} AUTHORIZATION ${TMS_DB_USER};
+ALTER ROLE ${TMS_DB_USER} SET search_path = '${DB_SCHEMA}';
 EOB
 
 ## Test SQL

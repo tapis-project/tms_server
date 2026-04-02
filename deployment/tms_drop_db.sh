@@ -14,8 +14,7 @@ PSQL_CMD="psql --host=${TMS_DB_HOST} --port=${TMS_DB_PORT}"
 
 DB_USER=postgres
 DB_NAME=tmsdb
-export TMS_DB_USER=tms
-export TMS_DB_SCHEMA=tms
+DB_SCHEMA=tms
 
 if [ -z "${POSTGRES_PASSWORD}" ]; then
   echo "Please set env var POSTGRES_PASSWORD before running this script"
@@ -28,5 +27,5 @@ export PGPASSWORD=${POSTGRES_PASSWORD}
 # Run sql to create user and schema if they do not exist
 $PSQL_CMD --username=${DB_USER} --dbname=${DB_NAME} -q << EOB
 -- Drop schema if it exists
-DROP SCHEMA IF EXISTS ${TMS_DB_SCHEMA} cascade;
+DROP SCHEMA IF EXISTS ${DB_SCHEMA} cascade;
 EOB

@@ -2,7 +2,7 @@
 # ***********************************************************************
 # This is pretty much straight from O'Reilly "sed & awk", 2nd Edition, p 51
 #                                                                        
-# Use sed to substitue one string for another.
+# Use sed to substitute one string for another.
 # Specified file is modified.
 #
 
