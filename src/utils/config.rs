@@ -169,11 +169,14 @@ pub struct TmsCmdArgs {
     ///   3. Otherwise, ~/.tms
     #[arg(short, long)]
     pub install: bool,
-    /// When running with --install, only create the DB schema, skip data initialization.
+    /// Create the DB schema, skip data initialization.
     ///
-    /// This can be used when importing all data
+    /// Use when migrating DB from SQLite to Postgres
     #[arg(short, long)]
     pub schema_only: bool,
+    /// Display the version and exit
+    #[arg(short, long)]
+    pub version: bool,
     /// Specify TMS root install directory.
     ///
     /// This directory contains all the files TMS uses during execution.
@@ -313,10 +316,10 @@ pub fn prohibit_root_user() {
 pub fn set_directories_and_check_install() {
 
     // Check that schema_only is not specified without also specifying --install
-    if (TMS_CMD_ARGS.schema_only && !TMS_CMD_ARGS.install) {
+    if (TMS_CMD_ARGS.schema_only && TMS_CMD_ARGS.install) {
         panic!("\n***********************************************************************\n\
-                    ERROR: Option --schema-only may only be used along with --install. \n\
-                    ***********************************************************************\n");
+                    ERROR: Option --schema-only may not be used along with --install. \n\
+                  ***********************************************************************\n");
     }
     let rootdir = get_root_dir();
     let path = Path::new(&rootdir);

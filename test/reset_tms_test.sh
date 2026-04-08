@@ -18,11 +18,13 @@ if [ -z "${POSTGRES_PASSWORD}" ]; then
   exit 1
 fi
 
+# Move to the top level of tms_server src code directory
+cd $PRG_PATH/.. || exit 1
+
 # Rebuild tms
 echo "**********************************************************************"
 echo "   Rebuilding TMS server"
 echo "**********************************************************************"
-cd ..
 cargo build
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
@@ -53,7 +55,7 @@ echo "   Removing previous installation and re-installing"
 echo "**********************************************************************"
 rm -fr ~/.tms
 export TMS_DB_URL="postgres://tms:password@localhost:5431/tmsdb"
-./target/debug/tms_server --install --schema-only
+./target/debug/tms_server --install # --schema-only TODO But when importing data we will already have an install?
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "TMS server install failed"

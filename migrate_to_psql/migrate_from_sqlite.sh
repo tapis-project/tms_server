@@ -10,17 +10,17 @@
 #   TMS_DB_PASSWORD
 #
 # Determine absolute path to location from which we are running and change to that directory.
-export RUN_DIR=$(pwd)
-export PRG_RELPATH=$(dirname "$0")
+RUN_DIR=$(pwd)
+PRG_RELPATH=$(dirname "$0")
 cd "$PRG_RELPATH"/. || exit
-export PRG_PATH=$(pwd)
+PRG_PATH=$(pwd)
 
 # This script should only be run when upgrading from TMS server version 0.2.0
 VERS_OLD_REQUIRED="0.2.0"
 
 # Check that all required env variables are set
 FAILED=false
-env_list="TMS_INSTALL_DIR TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_DB_PASSWORD"
+env_list="POSTGRES_PASSWORD TMS_INSTALL_DIR TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_DB_PASSWORD"
 for name in $env_list
 do
   if [[ -z "${!name}" ]]; then
@@ -89,6 +89,13 @@ do
   $PRG_PATH/gres_r.sh "',0,'" "',0::bool,'" ${out_file}
 done
 
+# Reset the postgres DB
+echo "**********************************************************************"
+echo "   Initializing Postgres DB for TMS"
+echo "**********************************************************************"
+$PRG_PATH/../deployment/tms_drop_db.sh
+$PRG_PATH/../deployment/tms_init_db.sh
+
 # TODO
 echo "**********************************************************************"
 echo "   TODO Importing tables into postgresql DB"
@@ -97,6 +104,10 @@ echo "**********************************************************************"
 PSQL_CMD="TODO"
 
 # TODO Cleanup temporary staging file and directory
+echo "**********************************************************************"
+echo "   Final cleanup"
+echo "**********************************************************************"
 #rm $TMP_FILE
 #rm $STG_DIR/*.sql
 #rmdir $STG_DIR
+cd $RUN_DIR

@@ -99,11 +99,15 @@ async fn main() -> Result<(), std::io::Error> {
     let version_str = option_env!("CARGO_PKG_VERSION").unwrap_or("unknown");
     println!("Starting tms_server version {}!", version_str);
 
+    // If only showing version we are done.
+    // Note that parsing of cmd line args is triggered by lazy_static init of TMS_CMD_ARGS
+    if TMS_CMD_ARGS.version { return Ok(()); }
+
+    // Show command line arguments.
+    println!("*** Command line arguments *** \n{:?}\n", *TMS_CMD_ARGS);
+
     // Prevent program from running as root.
     prohibit_root_user();
-
-    // Process command line arguments. Parsing is triggered by lazy_static init of TMS_CMD_ARGS
-    println!("*** Command line arguments *** \n{:?}\n", *TMS_CMD_ARGS);
 
     // Initialize the key generator.
     keygen::init_keygen();
@@ -134,8 +138,13 @@ async fn main() -> Result<(), std::io::Error> {
     if (!TMS_CMD_ARGS.schema_only) { tms_init_data(); }
 
     // If this was an installation run then we are done
-    if TMS_CMD_ARGS.install {
+    if (TMS_CMD_ARGS.install) {
         println!("Exiting: TMS root directory installed and initialized at {}", &TMS_DIRS.root_dir);
+        return Ok(());
+    }
+    // If this was an schema-only run then we are done
+    if (TMS_CMD_ARGS.schema_only) {
+        println!("Exiting: TMS DB Schema initialized.");
         return Ok(());
     }
 

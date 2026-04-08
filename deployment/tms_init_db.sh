@@ -2,7 +2,7 @@
 # Script to initialize TMS server DB using psql
 # Create database, user and schema
 # Postgres password must be set in env var POSTGRES_PASSWORD
-# Postgres password TMS DB user must be set in env var TMS_DB_USER_PASSWORD
+# Password for TMS DB user must be set in env var TMS_DB_USER_PASSWORD
 
 if [ -z "$TMS_DB_HOST" ]; then
   TMS_DB_HOST=localhost

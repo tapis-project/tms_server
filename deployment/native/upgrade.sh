@@ -5,18 +5,29 @@
 # Default install directory is /opt/tms_server. May be overridden using env variable TMS_INSTALL_DIR.
 # User used to build and install TMS may be given on the command line. Default user is "tms"
 
-PrgName=$(basename "$0")
+# TODO Support a test mode where we do not have to run as root and tms_install_user is taken to be current user.
 
-USAGE="Usage: $PrgName [ <tms_install_user> ]"
+PrgName=$(basename "$0")
+USAGE="Usage: $PrgName [ <tms_install_user> | --test ]"
+
+# Determine absolute path to location from which we are running and change to that directory.
+RUN_DIR=$(pwd)
+PRG_RELPATH=$(dirname "$0")
+cd "$PRG_RELPATH"/. || exit
+PRG_PATH=$(pwd)
 
 # Check number of arguments
 if [ $# -gt 1 ]; then
   echo "$USAGE"
   exit 1
 fi
-
+TEST_MODE=false
+if [ "$1" == "--test" ]; then
+  echo "Running in test mode"
+  TEST_MODE=true
+fi
 # Make sure we are running as root
-if [ "$EUID" != 0 ]; then
+if [ "$TEST_MODE" == "false" ] && [ "$EUID" != 0 ]; then
   echo "This program must be run as the root user"
   echo "Exiting ..."
   exit 1
@@ -24,7 +35,9 @@ fi
 
 # Determine TMS install user
 INSTALL_USR=tms
-if [ -n "$1" ]; then
+if [ "$TEST_MODE" == "true" ]; then
+  INSTALL_USR=$USER
+elif [ -n "$1" ]; then
   INSTALL_USR="$1"
 fi
 
@@ -36,12 +49,6 @@ if [ $RET_CODE -ne 0 ]; then
     echo "Exiting ..."
     exit $RET_CODE
 fi
-
-# Determine absolute path to location from which we are running and change to that directory.
-RUN_DIR=$(pwd)
-PRG_RELPATH=$(dirname "$0")
-cd "$PRG_RELPATH"/. || exit
-PRG_PATH=$(pwd)
 
 # Set installation directory
 INSTALL_DEF_DIR="/opt/tms_server"
@@ -125,7 +132,7 @@ if [ ! -f "$EXEC_FILE" ]; then
   exit 1
 fi
 
-# Shut down the service, copy the new executable into place, start the service
+# Shut down the service, copy the new executable into place
 echo
 echo "===== Stopping TMS service and copying new executable into place"
 echo "========================================================================================="
@@ -135,6 +142,7 @@ cp $EXEC_FILE $INSTALL_DIR/tms_server
 # Update version in install dir
 echo "$VERS_NEW" > $VERS_FILE
 
+# Start the service
 echo
 echo "===== Starting TMS service"
 echo "========================================================================================="
