@@ -46,7 +46,7 @@ mv $TMS_HOME/tms.version $TMS_INSTALL_DIR
 
 # TODO Set up env variables for running the upgrade script
 # TODO - are we really going to make users define all these env variables?
-# TODO . $PRG_PATH/local.env
+. $PRG_PATH/local.env
 
 echo "*********************************************************************************"
 echo "   Running upgrade script"

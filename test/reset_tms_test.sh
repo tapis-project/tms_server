@@ -33,6 +33,7 @@ if [ $RET_CODE -ne 0 ]; then
   exit $RET_CODE
 fi
 
+# TODO tms_drop and tms_init scripts no longer in deployment dir.
 #  Reset the DB
 ./deployment/tms_drop_db.sh
 RET_CODE=$?
