@@ -60,7 +60,7 @@ else
 fi
 
 # Make sure the specified user for the TMS install exists
-id "$INSTALL_USR" #>/dev/null 2>&1
+id "$INSTALL_USR" >/dev/null 2>&1
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
     echo "TMS install user does not exist. User: $INSTALL_USR"
@@ -96,7 +96,7 @@ VERS_OLD=$(cat $VERS_FILE)
 
 # Determine new version
 if [ "$TEST_MODE" == "true" ]; then
-  VERS_NEW=$('cd ../..; cargo pkgid | cut -d "#" -f2')
+  VERS_NEW=$(cd $SRC_DIR; cargo pkgid | cut -d "#" -f2)
 else
   VERS_NEW=$(su - $INSTALL_USR -c 'cd tms_server; cargo pkgid | cut -d "#" -f2')
 fi
@@ -136,8 +136,13 @@ echo "===== Running build script as TMS install user. User: $INSTALL_USR"
 echo "========================================================================================="
 chmod +x $TMP_FILE
 chown $INSTALL_USR:$INSTALL_USR $TMP_FILE
-su - $INSTALL_USR -c "$TMP_FILE"
-RET_CODE=$?
+if [ "$TEST_MODE" != "true" ]; then
+  su - $INSTALL_USR -c "$TMP_FILE"
+  RET_CODE=$?
+else
+  $TMP_FILE
+  RET_CODE=$?
+fi
 echo "========================================================================================="
 if [ $RET_CODE -ne 0 ]; then
   echo
@@ -155,10 +160,10 @@ if [ ! -f "$EXEC_FILE" ]; then
 fi
 
 # Shut down the service, copy the new executable into place
-echo
-echo "===== Stopping TMS service and copying new executable into place"
-echo "========================================================================================="
 if [ "$TEST_MODE" != "true" ]; then
+  echo
+  echo "===== Stopping TMS service and copying new executable into place"
+  echo "========================================================================================="
   systemctl stop tms_server
 fi
 cp $EXEC_FILE $INSTALL_DIR/tms_server
@@ -166,7 +171,7 @@ cp $EXEC_FILE $INSTALL_DIR/tms_server
 # Update migrations files.
 BAK_TIMESTAMP=`date  +%Y%m%d%H%M%S`
 mv $TMS_HOME/migrations $TMS_HOME/migrations_bak_$BAK_TIMESTAMP
-cp -pr ./resources/migrations $TMS_HOME/
+cp -pr $SRC_DIR/resources/migrations $TMS_HOME/migrations
 chmod 0700 $TMS_HOME/migrations
 
 # Before updating version and starting up new tms_server perform the migration from sqlite to postgres
@@ -175,6 +180,7 @@ echo "===== Migrating DB from sqlite to postgres"
 echo "========================================================================================="
 
 $SRC_DIR/migrate_to_psql/migrate_from_sqlite.sh
+RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo
   echo "*************** Error running migration script"

@@ -41,9 +41,11 @@ fi
 mkdir -p $TMS_INSTALL_DIR
 touch $TMS_INSTALL_DIR/tms_server
 chmod +x $TMS_INSTALL_DIR/tms_server
-cp $TMS_HOME_BAK_DIR/tms.version $TMS_INSTALL_DIR
+# Version is not normally in $TMS_HOME, so move it to where it should be, TMS_INSTALL_DIR
+mv $TMS_HOME/tms.version $TMS_INSTALL_DIR
 
 # TODO Set up env variables for running the upgrade script
+# TODO - are we really going to make users define all these env variables?
 # TODO . $PRG_PATH/local.env
 
 echo "*********************************************************************************"
