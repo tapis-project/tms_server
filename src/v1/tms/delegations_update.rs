@@ -3,6 +3,7 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::UPDATE_DELEGATION_EXPIRY;
@@ -35,7 +36,7 @@ pub struct RespUpdateDelegations
     result_code: String,
     result_msg: String,
     fields_updated: i32,
-    expires_at: String,
+    expires_msg: String,
 }
 
 // Implement the debug record trait for logging.
@@ -144,8 +145,8 @@ async fn update_client_delegation(&self, http_req: &Request, req: Json<ReqUpdate
 // ***************************************************************************
 impl RespUpdateDelegations {
     /// Create a new response.
-    fn new(result_code: &str, result_msg: String, num_updates: i32, expires_at: String) -> Self {
-        Self {result_code: result_code.to_string(), result_msg, fields_updated: num_updates, expires_at}}
+    fn new(result_code: &str, result_msg: String, num_updates: i32, expires_msg: String) -> Self {
+        Self {result_code: result_code.to_string(), result_msg, fields_updated: num_updates, expires_msg}}
 
     /// Process the request.
     async fn process(http_req: &Request, req: &ReqUpdateDelegations) -> Result<TmsResponse, anyhow::Error> {
@@ -153,12 +154,12 @@ impl RespUpdateDelegations {
         tms_utils::debug_request(http_req, req);
 
         // Insert the new key record.
-        let (updates, expires_at) = update_user_host(req).await?;
+        let (updates, expires_msg) = update_user_host(req).await?;
         
         // Log result and return response.
         let msg = format!("{} update(s) to user {} and client {} completed", updates, req.client_user_id, req.client_id);
         info!("{}", msg);
-        Ok(make_http_200(RespUpdateDelegations::new("0", msg, updates as i32, expires_at)))
+        Ok(make_http_200(RespUpdateDelegations::new("0", msg, updates as i32, expires_msg)))
     }
 }
 
@@ -196,6 +197,6 @@ async fn update_user_host(req: &ReqUpdateDelegations) -> Result<(u64, String)> {
 
     // Commit the transaction.
     tx.commit().await?;
-    let expires_msg = if updates < 1 {"UNCHANGED".to_string()} else {expires_at};
+    let expires_msg = if updates < 1 {"UNCHANGED".to_string()} else {expires_at.to_string()};
     Ok((updates, expires_msg))
 }

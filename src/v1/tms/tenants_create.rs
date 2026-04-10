@@ -10,7 +10,7 @@ use crate::utils::db_types::TenantInput;
 use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header}; 
 use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, create_hex_secret, hash_hex_secret, 
                               RequestDebug, check_tenant_enabled};
-use crate::utils::config::{DEFAULT_TENANT, DEFAULT_ADMIN_ID, PERM_ADMIN};
+use crate::utils::config::{DEFAULT_TENANT, DEFAULT_ADMIN_ID, PERM_ADMIN, DB_TRUE};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -162,10 +162,10 @@ impl RespCreateTenants {
         // the hex secret, but never the secret itself.  
         let input_record: TenantInput = TenantInput::new(
             req.tenant.clone(),
-            1,
+            DB_TRUE,
             key_hash,
-            current_ts.clone(), 
-            current_ts,
+            now.clone(), 
+            now.clone(),
         );
 
         // Insert the new key record.

@@ -3,7 +3,7 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
-
+use chrono::{DateTime, Utc};
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_DELEGATIONS_NOT_STRICT};
 use crate::utils::db_types::DelegationInput;
@@ -40,7 +40,7 @@ pub struct RespCreateDelegations
     result_msg: String,
     client_id: String,
     client_user_id: String,
-    expires_at: String,
+    expires_at: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
@@ -149,7 +149,7 @@ impl CreateDelegationsApi {
 impl RespCreateDelegations {
     /// Create a new response.
     fn new(result_code: &str, result_msg: String, client_id: String, client_user_id: String, 
-           expires_at: String,) -> Self {
+           expires_at: DateTime<Utc>,) -> Self {
         Self {result_code: result_code.to_string(), result_msg, client_id, client_user_id, expires_at,}}
 
     /// Process the request.
@@ -163,7 +163,6 @@ impl RespCreateDelegations {
 
         // Use the same current UTC timestamp in all related time caculations..
         let now = timestamp_utc();
-        let current_ts = timestamp_utc_to_str(now);
         let expires_at = calc_expires_at(now, ttl_minutes);
 
         // Create the input record.  Note that we save the hash of
@@ -173,8 +172,8 @@ impl RespCreateDelegations {
             req.client_id.clone(),
             req.client_user_id.clone(),
             expires_at.clone(),
-            current_ts.clone(), 
-            current_ts,
+            now.clone(),
+            now.clone(),
         );
 
         // Insert the new key record.

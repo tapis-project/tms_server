@@ -3,6 +3,7 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::{Result, anyhow};
+use chrono::{DateTime, Utc};
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -38,9 +39,9 @@ pub struct RespGetDelegations
     tenant: String,
     client_id: String,
     client_user_id: String,
-    expires_at: String,
-    created: String,
-    updated: String,
+    expires_at: DateTime<Utc>,
+    created: DateTime<Utc>,
+    updated: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
@@ -143,7 +144,7 @@ impl RespGetDelegations {
     /// Create a new response.
     #[allow(clippy::too_many_arguments)]
     fn new(result_code: &str, result_msg: String, id: i32, tenant: String, client_id: String, 
-           client_user_id: String, expires_at: String, created: String, updated: String) 
+           client_user_id: String, expires_at: DateTime<Utc>, created: DateTime<Utc>, updated: DateTime<Utc>) 
     -> Self {
             Self {result_code: result_code.to_string(), result_msg, 
                   id, tenant, client_id, client_user_id, expires_at, created, updated}

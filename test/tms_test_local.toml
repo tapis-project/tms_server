@@ -1,0 +1,10 @@
+title = "My TMS Server"
+http_addr = "http://localhost"
+http_port = 3001
+enable_mvp = true
+enable_test_tenant = true
+new_clients = "allow"
+# Database location
+db_url = "postgres://tms:password@localhost:5431/tmsdb"
+# At least one server should be specified.
+server_urls = ["http://localhost:3001/v1"]

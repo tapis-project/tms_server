@@ -5,18 +5,18 @@ pub const PLACEHOLDER: &str = "${PLACEHOLDER}";
 
 // ========================= tenants table =========================
 pub const INSERT_STD_TENANTS: &str = concat!(
-    "INSERT OR IGNORE INTO tenants (tenant, enabled, created, updated) ",
-    "VALUES (?, ?, ?, ?)",
+    "INSERT INTO tenants (tenant, enabled) ",
+    "VALUES ($1, $2) ON CONFLICT DO NOTHING",
 );
 
 pub const INSERT_TENANT: &str = concat!(
     "INSERT INTO tenants (tenant, enabled, created, updated) ",
-    "VALUES (?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4)",
 );
 
 pub const GET_TENANT: &str = concat!(
     "SELECT id, tenant, enabled, created, updated ",
-    "FROM tenants WHERE tenant = ?"
+    "FROM tenants WHERE tenant = $1"
 );
 
 // Secret elided.
@@ -26,16 +26,16 @@ pub const LIST_TENANTS: &str = concat!(
 );
 
 pub const UPDATE_TENANTS_ENABLED: &str = concat!(
-    "UPDATE tenants SET enabled = ?, updated = ? WHERE tenant = ?"
+    "UPDATE tenants SET enabled = $1, updated = $2 WHERE tenant = $3"
 );
 
 // Used to enforce enable_test_tenant configuation value at start up.
 pub const UPDATE_TENANTS_ENABLED_INTERNAL: &str = concat!(
-    "UPDATE tenants SET enabled = ? WHERE tenant = ?"
+    "UPDATE tenants SET enabled = $1 WHERE tenant = $2"
 );
 
 pub const IS_TENANT_ENABLED: &str = concat!(
-    "SELECT enabled FROM tenants WHERE tenant = ?"
+    "SELECT enabled FROM tenants WHERE tenant = $1"
 );
 
 // ---------------- Start of Delete and Wipe Calls
@@ -56,306 +56,306 @@ pub const IS_TENANT_ENABLED: &str = concat!(
 
 // --- Wipe begins here
 pub const DELETE_RESERVATIONS_FOR_TENANT: &str = concat!(
-    "DELETE FROM reservations WHERE tenant = ?"
+    "DELETE FROM reservations WHERE tenant = $1"
 );
 
 pub const DELETE_PUBKEYS_FOR_TENANT: &str = concat!(
-    "DELETE FROM pubkeys WHERE tenant = ?"
+    "DELETE FROM pubkeys WHERE tenant = $1"
 );
 
 pub const DELETE_DELEGATIONS_FOR_TENANT: &str = concat!(
-    "DELETE FROM delegations WHERE tenant = ?"
+    "DELETE FROM delegations WHERE tenant = $1"
 );
 
 pub const DELETE_USER_HOSTS_FOR_TENANT: &str = concat!(
-    "DELETE FROM user_hosts WHERE tenant = ?"
+    "DELETE FROM user_hosts WHERE tenant = $1"
 );
 
 pub const DELETE_USER_MFAS_FOR_TENANT: &str = concat!(
-    "DELETE FROM user_mfa WHERE tenant = ?"
+    "DELETE FROM user_mfa WHERE tenant = $1"
 );
 
 pub const DELETE_CLIENTS_FOR_TENANT: &str = concat!(
-    "DELETE FROM clients WHERE tenant = ?"
+    "DELETE FROM clients WHERE tenant = $1"
 );
 
 pub const DELETE_HOSTS_FOR_TENANT: &str = concat!(
-    "DELETE FROM hosts WHERE tenant = ?"
+    "DELETE FROM hosts WHERE tenant = $1"
 );
 
 // --- Standard delete begins here (and wipe continues)
 pub const DELETE_ADMINS_FOR_TENANT: &str = concat!(
-    "DELETE FROM admin WHERE tenant = ?"
+    "DELETE FROM admin WHERE tenant = $1"
 );
 
 pub const DELETE_TENANT: &str = concat!(
-    "DELETE FROM tenants WHERE tenant = ?"
+    "DELETE FROM tenants WHERE tenant = $1"
 );
 // ---------------- End of Delete and Wipe Calls
 
 // ========================= clients table =========================
 pub const INSERT_CLIENTS: &str = concat!(
     "INSERT INTO clients (tenant, app_name, app_version, client_id, client_secret, enabled, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 );
 
 pub const GET_CLIENT: &str = concat!(
     "SELECT id, tenant, app_name, app_version, client_id, client_secret, enabled, created, updated ",
-    "FROM clients WHERE client_id = ? AND tenant = ?",
+    "FROM clients WHERE client_id = $1 AND tenant = $2",
 );
 
 // Secret elided.
 pub const LIST_CLIENTS_TEMPLATE: &str = concat!(
     "SELECT id, tenant, app_name, app_version, client_id, enabled, created, updated ",
-    "FROM clients WHERE tenant = ? ${PLACEHOLDER} ORDER BY tenant, client_id",
+    "FROM clients WHERE tenant = $1 ${PLACEHOLDER} ORDER BY tenant, client_id",
 );
 
 // Conforms to the signature required for secret retrieval queries as defined by 
 // get_authz_secret() in authz.rs.
 pub const GET_CLIENT_SECRET: &str = concat!(
-    "SELECT client_secret FROM clients WHERE client_id = ? AND tenant = ?",
+    "SELECT client_secret FROM clients WHERE client_id = $1 AND tenant = $2",
 );
 
 pub const UPDATE_CLIENT_APP_VERSION: &str = concat!(
-    "UPDATE clients SET app_version = ?, updated = ? WHERE client_id = ? AND tenant = ?"
+    "UPDATE clients SET app_version = $1, updated = $2 WHERE client_id = $3 AND tenant = $4"
 );
 
 pub const UPDATE_CLIENT_ENABLED: &str = concat!(
-    "UPDATE clients SET enabled = ?, updated = ? WHERE client_id = ? AND tenant = ?"
+    "UPDATE clients SET enabled = $1, updated = $2 WHERE client_id = $3 AND tenant = $4"
 );
 
 pub const UPDATE_CLIENT_SECRET: &str = concat!(
-    "UPDATE clients SET client_secret = ?, updated = ? WHERE client_id = ? AND tenant = ?"
+    "UPDATE clients SET client_secret = $1, updated = $2 WHERE client_id = $3 AND tenant = $4"
 );
 
 pub const DELETE_CLIENT: &str = concat!(
-    "DELETE FROM clients WHERE client_id = ? AND tenant = ?"
+    "DELETE FROM clients WHERE client_id = $1 AND tenant = $2"
 );
 
 // ========================= user_mfa table ========================
 pub const INSERT_USER_MFA: &str = concat!(
     "INSERT INTO user_mfa (tenant, tms_user_id, expires_at, enabled, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6)",
 );
 
 pub const INSERT_USER_MFA_NOT_STRICT: &str = concat!(
     "INSERT INTO user_mfa (tenant, tms_user_id, expires_at, enabled, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+    "VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING",
 );
 
 pub const GET_USER_MFA: &str = concat!(
     "SELECT id, tenant, tms_user_id, expires_at, enabled, created, updated ",
-    "FROM user_mfa WHERE tms_user_id = ? AND tenant = ?"
+    "FROM user_mfa WHERE tms_user_id = $1 AND tenant = $2"
 );
 
 pub const GET_USER_MFA_ACTIVE: &str = concat!(
     "SELECT expires_at, enabled ",
-    "FROM user_mfa WHERE tms_user_id = ? AND tenant = ?"
+    "FROM user_mfa WHERE tms_user_id = $1 AND tenant = $2"
 );
 
 pub const GET_USER_MFA_EXISTS: &str = concat!(
-    "SELECT 1 FROM user_mfa WHERE tms_user_id = ? AND tenant = ?"
+    "SELECT 1 FROM user_mfa WHERE tms_user_id = $1 AND tenant = $2"
 );
 
 pub const UPDATE_USER_MFA_ENABLED: &str = concat!(
-    "UPDATE user_mfa SET enabled = ?, updated = ? WHERE tms_user_id = ? AND tenant = ?"
+    "UPDATE user_mfa SET enabled = $1, updated = $2 WHERE tms_user_id = $3 AND tenant = $4"
 );
 
 pub const DELETE_USER_MFA: &str = concat!(
-    "DELETE FROM user_mfa WHERE tms_user_id = ? AND tenant = ?"
+    "DELETE FROM user_mfa WHERE tms_user_id = $1 AND tenant = $2"
 );
 
 // Secret elided.
 pub const LIST_USER_MFA: &str = concat!(
     "SELECT id, tenant, tms_user_id, expires_at, enabled, created, updated ",
-    "FROM user_mfa WHERE tenant = ? ORDER BY tenant, tms_user_id",
+    "FROM user_mfa WHERE tenant = $1 ORDER BY tenant, tms_user_id",
 );
 
 // ========================= user_hosts table =======================
 pub const INSERT_USER_HOSTS: &str = concat!(
     "INSERT INTO user_hosts (tenant, tms_user_id, host, host_account, expires_at, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6, $7)",
 );
 
 pub const INSERT_USER_HOSTS_NOT_STRICT: &str = concat!(
     "INSERT INTO user_hosts (tenant, tms_user_id, host, host_account, expires_at, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+    "VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING",
 );
 
 pub const GET_USER_HOST: &str = concat!(
     "SELECT id, tenant, tms_user_id, host, host_account, expires_at, created, updated ",
-    "FROM user_hosts WHERE id = ? AND tenant = ?"
+    "FROM user_hosts WHERE id = $1 AND tenant = $2"
 );
 
 pub const GET_USER_HOST_ACTIVE: &str = concat!(
     "SELECT expires_at ",
-    "FROM user_hosts WHERE tms_user_id = ? AND tenant = ? AND host = ? AND host_account = ?"
+    "FROM user_hosts WHERE tms_user_id = $1 AND tenant = $2 AND host = $3 AND host_account = $4"
 );
 
 pub const GET_USER_HOST_EXISTS: &str = concat!(
-    "SELECT 1 FROM user_hosts WHERE tms_user_id = ? AND tenant = ? AND host = ? AND host_account = ?"
+    "SELECT 1 FROM user_hosts WHERE tms_user_id = $1 AND tenant = $2 AND host = $3 AND host_account = $4"
 );
 
 pub const DELETE_USER_HOST: &str = concat!(
-    "DELETE FROM user_hosts WHERE tms_user_id = ? AND tenant = ? AND host = ? AND host_account = ?"
+    "DELETE FROM user_hosts WHERE tms_user_id = $1 AND tenant = $2 AND host = $3 AND host_account = $4"
 );
 
 pub const LIST_USER_HOSTS: &str = concat!(
     "SELECT id, tenant, tms_user_id, host, host_account, expires_at, created, updated ",
-    "FROM user_hosts WHERE tenant = ? ORDER BY tenant, tms_user_id, host, host_account",
+    "FROM user_hosts WHERE tenant = $1 ORDER BY tenant, tms_user_id, host, host_account",
 );
 
 pub const UPDATE_USER_HOST_EXPIRY: &str = concat!(
-    "UPDATE user_hosts SET expires_at = ?, updated = ? ", 
-    "WHERE tms_user_id = ? AND tenant = ? AND host = ? AND host_account = ?",
+    "UPDATE user_hosts SET expires_at = $1, updated = $2 ",
+    "WHERE tms_user_id = $3 AND tenant = $4 AND host = $5 AND host_account = $6",
 );
 
 // ========================= user_delegations table =================
 pub const INSERT_DELEGATIONS: &str = concat!(
     "INSERT INTO delegations (tenant, client_id, client_user_id, expires_at, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6)",
 );
 
 pub const INSERT_DELEGATIONS_NOT_STRICT: &str = concat!(
     "INSERT INTO delegations (tenant, client_id, client_user_id, expires_at, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+    "VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING",
 );
 
 pub const GET_DELEGATION: &str = concat!(
     "SELECT id, tenant, client_id, client_user_id, expires_at, created, updated ",
-    "FROM delegations WHERE id = ? AND tenant = ?"
+    "FROM delegations WHERE id = $1 AND tenant = $2"
 );
 
 pub const GET_DELEGATION_ACTIVE: &str = concat!(
     "SELECT expires_at ",
-    "FROM delegations WHERE tenant = ? AND client_id = ? AND client_user_id = ?"
+    "FROM delegations WHERE tenant = $1 AND client_id = $2 AND client_user_id = $3"
 );
 
 pub const GET_DELEGATION_EXISTS: &str = concat!(
-    "SELECT 1 FROM delegations WHERE tenant = ? AND client_id = ? AND client_user_id = ?"
+    "SELECT 1 FROM delegations WHERE tenant = $1 AND client_id = $2 AND client_user_id = $3"
 );
 
 pub const LIST_DELEGATIONS: &str = concat!(
     "SELECT id, tenant, client_id, client_user_id, expires_at, created, updated ",
-    "FROM delegations WHERE tenant = ? ORDER BY tenant, client_id, client_user_id",
+    "FROM delegations WHERE tenant = $1 ORDER BY tenant, client_id, client_user_id",
 );
 
 pub const DELETE_DELEGATION: &str = concat!(
-    "DELETE FROM delegations WHERE client_id = ? AND client_user_id = ? AND tenant = ?"
+    "DELETE FROM delegations WHERE client_id = $1 AND client_user_id = $2 AND tenant = $3"
 );
 
 pub const UPDATE_DELEGATION_EXPIRY: &str = concat!(
-    "UPDATE delegations SET expires_at = ?, updated = ? ", 
-    "WHERE client_id = ? AND client_user_id = ? AND tenant = ?",
+    "UPDATE delegations SET expires_at = $1, updated = $2 ",
+    "WHERE client_id = $3 AND client_user_id = $4 AND tenant = $5",
 );
 
 // ========================= pubkeys table =========================
 pub const INSERT_PUBKEYS: &str = concat!(
     "INSERT INTO pubkeys (tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",
     "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated) ", 
-    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
 );
 
 pub const SELECT_PUBKEY: &str = concat!(
     "SELECT public_key, remaining_uses, expires_at FROM pubkeys ",
-    "WHERE host_account = ? AND host = ? AND public_key_fingerprint = ?",
+    "WHERE host_account = $1 AND host = $2 AND public_key_fingerprint = $3",
 );
 
 pub const SELECT_PUBKEY_FOR_UPDATE: &str = concat!(
     "SELECT max_uses, remaining_uses FROM pubkeys ",
-    "WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?",
+    "WHERE client_id = $1 AND tenant = $2 AND host = $3 AND public_key_fingerprint = $4",
 );
 
 pub const SELECT_PUBKEY_HOST_ACCOUNT: &str = concat!(
     "SELECT host_account FROM pubkeys ",
-    "WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?",
+    "WHERE client_id = $1 AND tenant = $2 AND host = $3 AND public_key_fingerprint = $4",
 );
 
 pub const SELECT_PUBKEY_RESERVATION_INFO: &str = concat!(
     "SELECT remaining_uses, expires_at, host_account FROM pubkeys ",
-    "WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?",
+    "WHERE client_id = $1 AND tenant = $2 AND host = $3 AND public_key_fingerprint = $4",
 );
 
 pub const GET_PUBKEY_TEMPLATE: &str = concat!(
     "SELECT id, tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",
     "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated ",
-    "FROM pubkeys WHERE id = ? AND tenant = ? ${PLACEHOLDER}",
+    "FROM pubkeys WHERE id = $1 AND tenant = $2 ${PLACEHOLDER}",
 );
 
 pub const LIST_PUBKEYS_TEMPLATE: &str = concat!(
     "SELECT id, tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",
     "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated ",
-    "FROM pubkeys WHERE tenant = ? ${PLACEHOLDER} ORDER BY tenant, client_user_id, host, host_account",
+    "FROM pubkeys WHERE tenant = $1 ${PLACEHOLDER} ORDER BY tenant, client_user_id, host, host_account",
 );
 
 pub const UPDATE_MAX_USES: &str = concat!(
-    "UPDATE pubkeys SET max_uses = ?, remaining_uses = ?, updated = ? ",
-    "WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?",
+    "UPDATE pubkeys SET max_uses = $1, remaining_uses = $2, updated = $3 ",
+    "WHERE client_id = $4 AND tenant = $5 AND host = $6 AND public_key_fingerprint = $7",
 );
 
 pub const UPDATE_EXPIRES_AT: &str = concat!(
-    "UPDATE pubkeys SET expires_at = ?, updated = ? ",
-    "WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?",
+    "UPDATE pubkeys SET expires_at = $1, updated = $2 ",
+    "WHERE client_id = $3 AND tenant = $4 AND host = $5 AND public_key_fingerprint = $6",
 );
 
 pub const DELETE_PUBKEY: &str = concat!(
-    "DELETE FROM pubkeys WHERE client_id = ? AND tenant = ? AND host = ? AND public_key_fingerprint = ?"
+    "DELETE FROM pubkeys WHERE client_id = $1 AND tenant = $2 AND host = $3 AND public_key_fingerprint = $4"
 );
 
 // ========================= admin table ===========================
 pub const INSERT_ADMIN: &str = concat!(
     "INSERT INTO admin (tenant, admin_user, admin_secret, privilege, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6)",
 );
 
 // Conforms to the signature required for secret retrieval queries as defined by 
 // get_authz_secret() in authz.rs.
 pub const GET_ADMIN_SECRET: &str = concat!(
-    "SELECT admin_secret FROM admin WHERE admin_user = ? AND tenant = ?",
+    "SELECT admin_secret FROM admin WHERE admin_user = $1 AND tenant = $2",
 );
 
 // ========================= hosts table ===========================
 pub const INSERT_HOSTS: &str = concat!(
     "INSERT INTO hosts (tenant, host, addr, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?)", 
+    "VALUES ($1, $2, $3, $4, $5)",
 );
 
 pub const GET_HOST: &str = concat!(
     "SELECT id, tenant, host, addr, created, updated ",
-    "FROM hosts WHERE id = ? AND tenant = ?"
+    "FROM hosts WHERE id = $1 AND tenant = $2"
 );
 
 pub const DELETE_HOST: &str = concat!(
-    "DELETE FROM hosts WHERE tenant = ? AND host = ? AND addr = ?"
+    "DELETE FROM hosts WHERE tenant = $1 AND host = $2 AND addr = $3"
 );
 
 pub const LIST_HOSTS: &str = concat!(
     "SELECT id, tenant, host, addr, created, updated ",
-    "FROM hosts WHERE tenant = ? ORDER BY tenant, host, addr",
+    "FROM hosts WHERE tenant = $1 ORDER BY tenant, host, addr",
 );
 
 // ==================== reservations table =========================
 pub const INSERT_RESERVATIONS: &str = concat!(
     "INSERT INTO reservations (resid, parent_resid, tenant, client_id, client_user_id, ", 
     "host, public_key_fingerprint, expires_at, created, updated) ",
-    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
 );
 
 pub const GET_RESERVATION: &str = concat!(
     "SELECT id, resid, parent_resid, tenant, client_id, client_user_id, host, ", 
     "public_key_fingerprint, expires_at, created, updated ",
-    "FROM reservations WHERE resid = ? AND tenant = ?",
+    "FROM reservations WHERE resid = $1 AND tenant = $2",
 );
 
 pub const GET_RESERVATION_FOR_EXTEND: &str = concat!(
     "SELECT parent_resid, expires_at FROM reservations ", 
-    "WHERE resid = ? AND tenant = ? AND client_id = ?",
+    "WHERE resid = $1 AND tenant = $2 AND client_id = $3",
 );
 
 pub const DELETE_RESERVATION: &str = concat!(
-    "DELETE FROM reservations WHERE resid = ? AND client_id = ? AND tenant = ?"
+    "DELETE FROM reservations WHERE resid = $1 AND client_id = $2 AND tenant = $3"
 );
 
 pub const DELETE_RELATED_RESERVATIONS: &str = concat!(
-    "DELETE FROM reservations WHERE (resid = ? OR parent_resid = ?) AND client_id = ? AND tenant = ?"
+    "DELETE FROM reservations WHERE (resid = $1 OR parent_resid = $2) AND client_id = $3 AND tenant = $4"
 );

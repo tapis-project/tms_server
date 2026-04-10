@@ -1,15 +1,17 @@
 #![forbid(unsafe_code)]
 
 use anyhow::Result;
-
+use chrono::{DateTime, Utc};
 use crate::utils::db_types::{DelegationInput, UserMfaInput, UserHostInput};
-use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_to_str, MAX_TMS_UTC};
+use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_to_str, MAX_TMS_UTC_STR};
 use crate::v1::tms::delegations_create::insert_delegation;
 use crate::v1::tms::user_mfa_create::insert_user_mfa;
 use crate::v1::tms::user_hosts_create::insert_user_host;
 use log::info;
+use crate::utils::config::DB_TRUE;
+use crate::utils::tms_utils;
 
-// Insert fails on conflict.        
+// Insert fails on conflict.
 const NOT_STRICT:bool = false;
 
 pub struct MVPDependencyParms
@@ -42,7 +44,7 @@ pub struct MVPDependencyParms
 pub async fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64> {
 
     // --------------------- Variables used throughout ---------------------
-    let expires_at = MAX_TMS_UTC;
+    let expires_at = tms_utils::get_max_tms_utc();
     let mut insert_count: u64 = 0;
 
      // Use the same current UTC timestamp in all related time caculations..
@@ -57,10 +59,10 @@ pub async fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64
     let input_record = UserMfaInput::new(
         parms.tenant.clone(),
         parms.client_user_id.clone(),
-        expires_at.to_string(),
-        1,
-        current_ts.clone(), 
-        current_ts.clone(),
+        expires_at,
+        DB_TRUE,
+        now.clone(), 
+        now.clone(),
     );
 
     // Insert the new record if it doesn't already exist.
@@ -80,9 +82,9 @@ pub async fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64
         parms.tenant.clone(),
         parms.client_id.clone(),
         parms.client_user_id.clone(),
-        expires_at.to_string(),
-        current_ts.clone(), 
-        current_ts.clone(),
+        expires_at,
+        now.clone(), 
+        now.clone(),
     );
 
     // Insert the new record if it doesn't already exist.
@@ -103,9 +105,9 @@ pub async fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64
         parms.client_user_id.clone(),
         parms.host.clone(),
         parms.host_account.clone(),
-        expires_at.to_string(),
-        current_ts.clone(), 
-        current_ts,
+        expires_at,
+        now.clone(), 
+        now.clone(),
     );
 
     // Insert the new record if it doesn't already exist.

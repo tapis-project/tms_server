@@ -3,6 +3,7 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::{Result, anyhow};
+use chrono::{DateTime, Utc};
 use sqlx::Row;
 use std::cmp::min;
 use uuid::Uuid;
@@ -47,7 +48,7 @@ struct RespCreateReservation
     result_msg: String,
     resid: String,
     parent_resid: String,
-    expires_at: String,
+    expires_at: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
@@ -85,7 +86,7 @@ impl ReqReservationExtension {
 // Public key fields used in processing a new reservation.
 struct PubkeyInfo {
     remaining_uses: i32,
-    expires_at: String,
+    expires_at: DateTime<Utc>,
     host_account: String,
 }
 
@@ -149,7 +150,7 @@ impl CreateReservationsApi {
 // ***************************************************************************
 impl RespCreateReservation {
     #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: &str, resid: String, parent_resid: String, expires_at: String) -> Self {
+    fn new(result_code: &str, result_msg: &str, resid: String, parent_resid: String, expires_at: DateTime<Utc>) -> Self {
         Self {result_code: result_code.to_string(), result_msg: result_msg.to_string(), 
               resid, parent_resid, expires_at,
         }
@@ -212,22 +213,8 @@ impl RespCreateReservation {
             return Ok(make_http_403(msg));
         }
 
-        // Parse the user host mapping's expires_at timestamp.
-        let expires_at_utc= match timestamp_str_to_datetime(&pubkey_info.expires_at) {
-            Ok(utc) => utc,
-            Err(e) => {
-                // This should not happen since we are the only ones that write the database.
-                let msg = format!("INTERNAL ERROR: Unable to parse pubkeys expires_at value '{}' \
-                                           for client {}@{} on host {} with fingerprint {}: {}", 
-                                           pubkey_info.expires_at, req_ext.client_id, req_ext.tenant, 
-                                           req.host, req.public_key_fingerprint, e);
-                error!("{}", msg);
-                return Ok(make_http_500(msg));
-            }
-        };
-    
         // Check whether the user host mapping has expired.
-        if expires_at_utc < timestamp_utc() {
+        if pubkey_info.expires_at < timestamp_utc() {
             let msg = format!("Pubkey for client {}@{} on host {} with fingerprint {} expired at {}.",
                                         req_ext.client_id, req_ext.tenant, req.host, 
                                         req.public_key_fingerprint, pubkey_info.expires_at);
@@ -289,8 +276,8 @@ impl RespCreateReservation {
             req.host.clone(), 
             req.public_key_fingerprint.clone(), 
             expires_at.clone(), 
-            current_ts.clone(), 
-            current_ts,
+            now.clone(), 
+            now.clone(),
         );
 
         // Insert the new key record.

@@ -3,6 +3,7 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{INSERT_USER_HOSTS, INSERT_USER_HOSTS_NOT_STRICT};
@@ -42,7 +43,7 @@ pub struct RespCreateUserHosts
     tms_user_id: String,
     host: String,
     host_account: String,
-    expires_at: String,
+    expires_at: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
@@ -153,7 +154,7 @@ impl CreateUserHostsApi {
 impl RespCreateUserHosts {
     /// Create a new response.
     fn new(result_code: &str, result_msg: String, tms_user_id: String, host: String, 
-           host_account: String, expires_at: String,) -> Self {
+           host_account: String, expires_at: DateTime<Utc>,) -> Self {
         Self {result_code: result_code.to_string(), result_msg, tms_user_id, host, host_account, expires_at,}}
 
     /// Process the request.
@@ -178,8 +179,8 @@ impl RespCreateUserHosts {
             req.host.clone(),
             req.host_account.clone(),
             expires_at.clone(),
-            current_ts.clone(), 
-            current_ts,
+            now.clone(), 
+            now.clone(),
         );
 
         // Insert the new key record.

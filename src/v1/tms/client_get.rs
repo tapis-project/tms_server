@@ -3,6 +3,7 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::{Result, anyhow};
+use chrono::{ DateTime, Utc};
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -39,9 +40,9 @@ pub struct RespGetClient
     app_name: String,
     app_version: String,
     client_id: String,
-    enabled: i32,
-    created: String,
-    updated: String,
+    enabled: bool,
+    created: DateTime<Utc>,
+    updated: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
@@ -153,7 +154,7 @@ impl RespGetClient {
     /// Create a new response.
     #[allow(clippy::too_many_arguments)]
     fn new(result_code: &str, result_msg: String, id: i32, tenant: String, app_name: String, 
-            app_version: String, client_id: String, enabled: i32, created: String, updated: String) 
+            app_version: String, client_id: String, enabled: bool, created: DateTime<Utc>, updated: DateTime<Utc>)
     -> Self {
             Self {result_code: result_code.to_string(), result_msg, 
               id, tenant, app_name, app_version, client_id, enabled, created, updated}

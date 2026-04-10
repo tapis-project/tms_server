@@ -1,15 +1,19 @@
 #![forbid(unsafe_code)]
-
+/*
+ * Main routine for TMS Server
+ * Uses tokio for async runtime, poem for REST endpoints, sqlx for database support
+ *   and Clap for cmd line arg processing.
+ */
 use std::time::Duration;
 use anyhow::Result;
+use clap::Parser;
 use lazy_static::lazy_static;
-use log::info;
+use log::{info};
 use poem::listener::{Listener, OpensslTlsConfig};
 use poem::{listener::TcpListener, Route};
 use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 use poem_extensions::api;
 use futures::executor::block_on;
-
 // TMS APIs
 use crate::v1::tms::client_create::CreateClientApi;
 use crate::v1::tms::client_delete::DeleteClientApi;
@@ -56,8 +60,8 @@ use crate::v1::tms::reservations_extend::ExtendReservationsApi;
 use crate::v1::tms::version::VersionApi;
 
 // TMS Utilities
-use crate::utils::config::{TMS_ARGS, TMS_DIRS, TEST_TENANT, init_log, init_runtime_context, 
-                           check_prior_installation, prohibit_root_user, RuntimeCtx};
+use crate::utils::config::{TMS_CMD_ARGS, TMS_DIRS, TEST_TENANT, init_log, init_runtime_context,
+                           set_directories_and_check_install, prohibit_root_user, RuntimeCtx};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
 
@@ -77,9 +81,10 @@ const TMSS_CERT_FILE: &str = "/cert.pem";
 // ***************************************************************************
 //                             Static Variables
 // ***************************************************************************
-// Lazily initialize the parameters variable so that it has a 'static lifetime.
-// We also initialize the database connection pool and run db migrations.
-// We exit if we can't read our parameters or access the database.
+// Lazily initialize the runtime here so that the variable is global and has a 'static lifetime.
+// This will exit if there is a problem reading the config file or connecting to the database.
+// This depends on install directories being present, so this should be instantiated after
+//   processing of --install
 lazy_static! {
     static ref RUNTIME_CTX: RuntimeCtx = init_runtime_context();
 }
@@ -91,10 +96,60 @@ lazy_static! {
 async fn main() -> Result<(), std::io::Error> {
     // --------------- Initialize TMS -----------------
     // Announce ourselves.
-    println!("Starting tms_server!");
+    let version_str = option_env!("CARGO_PKG_VERSION").unwrap_or("unknown");
+    println!("Starting tms_server version {}!", version_str);
 
-    // Initialize the server and allow for early exit.
-    if !tms_init() { return Ok(()); }
+    // If only showing version we are done.
+    // Note that parsing of cmd line args is triggered by lazy_static init of TMS_CMD_ARGS
+    if TMS_CMD_ARGS.version { return Ok(()); }
+
+    // Show command line arguments.
+    println!("*** Command line arguments *** \n{:?}\n", *TMS_CMD_ARGS);
+
+    // Prevent program from running as root.
+    prohibit_root_user();
+
+    // Initialize the key generator.
+    keygen::init_keygen();
+    println!("*** Keygen initialized ***");
+
+    // Set directories and make sure we are not trying to start without running --install first.
+    set_directories_and_check_install();
+
+    // Directory setup. init_tms_dirs is triggered by lazy_static init of TMS_DIRS
+    // During the initial install this creates and populates the directories
+    // During normal startup it checks the directories and constructs the TmsDirs object
+    // After this all directories and files should be in place, including the config file tms.toml.
+    println!("*** Runtime file locations *** \n{:?}\n", *TMS_DIRS);
+
+    // Configure output log
+    init_log();
+
+    // Initialize the runtime context. This is triggered by lazy_static init of RUNTIME_CTX:
+    //   - Check resource files
+    //   - read configuration parameters from tms.toml
+    //   - initialize database, makes db connections available to all modules.
+    info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
+
+    // Log build info.
+    print_version_info();
+
+    // Initialize standard tenants and test data. Skip if --schema-only specified.
+    if (!TMS_CMD_ARGS.schema_only) { tms_init_data(); }
+
+    // If this was an installation run then we are done
+    if (TMS_CMD_ARGS.install) {
+        println!("Exiting: TMS root directory installed and initialized at {}", &TMS_DIRS.root_dir);
+        return Ok(());
+    }
+    // If this was an schema-only run then we are done
+    if (TMS_CMD_ARGS.schema_only) {
+        println!("Exiting: TMS DB Schema initialized.");
+        return Ok(());
+    }
+
+    // This is a non-install startup. Perform second stage initialization
+    tms_init2();
 
     // --------------- Main Loop Set Up ---------------
     // Create a tuple with all the endpoints, create the service and add the server urls to it.
@@ -112,7 +167,7 @@ async fn main() -> Result<(), std::io::Error> {
          CreateHostsApi, GetHostsApi, DeleteHostsApi, ListHostsApi,
          GetReservationApi, DeleteReservationApi, CreateReservationsApi, ExtendReservationsApi, DeleteRelatedReservationsApi);
     let mut api_service = 
-        OpenApiService::new(endpoints, "TMS Server", "0.2.0");
+        OpenApiService::new(endpoints, "TMS Server", version_str);
     let urls = &RUNTIME_CTX.parms.config.server_urls;
     for url in urls.iter() {
         api_service = api_service.server(url);
@@ -157,33 +212,14 @@ async fn main() -> Result<(), std::io::Error> {
 // ***************************************************************************
 //                             Private Functions
 // ***************************************************************************
+
 // ---------------------------------------------------------------------------
-// tms_init:
+// tms_init1:
 // ---------------------------------------------------------------------------
-/** Initialing all subsystems and data structures other than those needed
- * to configure the main loop processor.
+/*
+ * Initialize all subsystems and data structures. Init needed for normal and install startup.
  */
-fn tms_init() -> bool {
-    // Panic if we detect that we're root.
-    prohibit_root_user();
-
-    // Parse command line args and determine if early exit.
-    println!("*** Command line arguments *** \n{:?}\n", *TMS_ARGS);
-    check_prior_installation(); // Cannot run before installation.
-    
-    // Directory setup.
-    println!("*** Runtime file locations *** \n{:?}\n", *TMS_DIRS);
-
-    // Configure out log.
-    init_log();
-
-    // Force the reading of input parameters and initialization of runtime context.
-    // The runtime context also initializes the database, which makes db connections
-    // available to all modules.
-    info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
-
-    // Log build info.
-    print_version_info();
+fn tms_init_data() {
 
     // Insert default records into database if they don't already exist.
     // This call is a no-op except when the --install option is set.
@@ -194,28 +230,23 @@ fn tms_init() -> bool {
     // Optionally insert test records into test tenant
     // only if we just created the standard tenants.
     if inserts > 0 {db::check_test_data();}
+}
 
-    // Initialize the key generator.
-    keygen::init_keygen();
-
-    // Was this an initial installation?
-    if TMS_ARGS.install { 
-        println!("Exiting: TMS root directory installed and initialized at {}", &TMS_DIRS.root_dir);
-        false 
-    } else {
-        // Manage test tenant enablement by always setting the test tenant's enablement
-        // flag to the value specified in the configuration.
-        let tenant = TEST_TENANT.to_string();
-        block_on(db::set_tenant_enabled_internal(
-            &tenant, RUNTIME_CTX.parms.config.enable_test_tenant))
-            .unwrap_or_else(|_|{
-                panic!("Unable to set the {} tenant's enabled flag to match the enable_test_tenant configuration. \
-                        Aborting server execution.", tenant);
-            });
-
-        // Fully initialized.
-        true
-    }
+// ---------------------------------------------------------------------------
+// tms_init2:
+// ---------------------------------------------------------------------------
+/*
+ * Perform initialization steps for a normal non-install run
+ */
+fn tms_init2() {
+    // Manage test tenant enablement by always setting the test tenant's enablement
+    // flag to the value specified in the configuration.
+    let tenant = TEST_TENANT.to_string();
+    block_on(db::set_tenant_enabled_internal(
+        &tenant, RUNTIME_CTX.parms.config.enable_test_tenant)).unwrap_or_else(|_|{
+            panic!("Unable to set the {} tenant's enabled flag to match the enable_test_tenant configuration. \
+                    Aborting server execution.", tenant);
+        });
 }
 
 // ---------------------------------------------------------------------------
@@ -223,14 +254,16 @@ fn tms_init() -> bool {
 // ---------------------------------------------------------------------------
 fn print_version_info() {
     // Log build info.
-    info!("{}.", format!("\n*** Running TMS={}, BRANCH={}, COMMIT={}, DIRTY={}, SRC_TS={}, RUSTC={}",
-                        option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"),
-                        env!("GIT_BRANCH"),
-                        env!("GIT_COMMIT_SHORT"),
-                        env!("GIT_DIRTY"),
-                        env!("SOURCE_TIMESTAMP"),
-                        env!("RUSTC_VERSION")),
-    );
+    let vers_info : String =
+        format!("\n*** Running TMS={}, BRANCH={}, COMMIT={}, DIRTY={}, SRC_TS={}, RUSTC={}",
+            option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"),
+            env!("GIT_BRANCH"),
+            env!("GIT_COMMIT_SHORT"),
+            env!("GIT_DIRTY"),
+            env!("SOURCE_TIMESTAMP"),
+            env!("RUSTC_VERSION"));
+    println!("{}.", vers_info);
+    info!("{}.", vers_info);
 }
 
 // ***************************************************************************

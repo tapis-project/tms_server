@@ -152,16 +152,15 @@ impl RespCreateHost {
 
         // Use the same current UTC timestamp in all related time caculations..
         let now = timestamp_utc();
-        let current_ts = timestamp_utc_to_str(now);
-    
+
         // Create the input record.  Note that we save the hash of
         // the hex secret, but never the secret itself.  
         let input_record: HostInput = HostInput::new(
             req.tenant.clone(),
             req.host.clone(),
             req.addr.clone(),
-            current_ts.clone(), 
-            current_ts,
+            now.clone(), 
+            now.clone(),
         );
 
         // Insert the new key record.

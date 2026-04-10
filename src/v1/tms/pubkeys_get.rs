@@ -3,6 +3,7 @@
 use poem::Request;
 use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, ApiResponse };
 use anyhow::{Result, anyhow};
+use chrono::{DateTime, Utc};
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
@@ -47,9 +48,9 @@ pub struct RespGetPubkeys
     max_uses: i32,
     remaining_uses: i32,
     initial_ttl_minutes: i32,
-    expires_at: String,
-    created: String,
-    updated: String,
+    expires_at: DateTime<Utc>,
+    created: DateTime<Utc>,
+    updated: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
@@ -165,9 +166,9 @@ impl RespGetPubkeys {
         max_uses: i32,
         remaining_uses: i32,
         initial_ttl_minutes: i32,
-        expires_at: String,
-        created: String,
-        updated: String,
+        expires_at: DateTime<Utc>,
+        created: DateTime<Utc>,
+        updated: DateTime<Utc>,
     ) 
     -> Self {
             Self {result_code: result_code.to_string(), result_msg, 
