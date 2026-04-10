@@ -100,7 +100,8 @@ async fn main() -> Result<(), std::io::Error> {
     println!("Starting tms_server version {}!", version_str);
 
     // If only showing version we are done.
-    // Note that parsing of cmd line args is triggered by lazy_static init of TMS_CMD_ARGS
+    // Note that parsing of cmd line args is triggered by lazy_static init of TMS_CMD_ARGS.
+    // This is first reference so it happens here.
     if TMS_CMD_ARGS.version { return Ok(()); }
 
     // Show command line arguments.
@@ -116,6 +117,7 @@ async fn main() -> Result<(), std::io::Error> {
     // Set directories and make sure we are not trying to start without running --install first.
     set_directories_and_check_install();
 
+    // NOTE: This is where --install is handled.
     // Directory setup. init_tms_dirs is triggered by lazy_static init of TMS_DIRS
     // During the initial install this creates and populates the directories
     // During normal startup it checks the directories and constructs the TmsDirs object
@@ -125,14 +127,14 @@ async fn main() -> Result<(), std::io::Error> {
     // Configure output log
     init_log();
 
-    // Initialize the runtime context. This is triggered by lazy_static init of RUNTIME_CTX:
-    //   - Check resource files
-    //   - read configuration parameters from tms.toml
-    //   - initialize database, makes db connections available to all modules.
-    info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
-
     // Log build info.
     print_version_info();
+
+    // Initialize the runtime context. This is triggered by lazy_static init of RUNTIME_CTX:
+    //   - Check resource files
+    //   - read configuration parameters from tms.toml and environment
+    //   - initialize database, makes db connections available to all modules.
+    info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
 
     // Initialize standard tenants and test data. Skip if --schema-only specified.
     if (!TMS_CMD_ARGS.schema_only) { tms_init_data(); }
@@ -142,7 +144,7 @@ async fn main() -> Result<(), std::io::Error> {
         println!("Exiting: TMS root directory installed and initialized at {}", &TMS_DIRS.root_dir);
         return Ok(());
     }
-    // If this was an schema-only run then we are done
+    // If this was a schema-only run then we are done
     if (TMS_CMD_ARGS.schema_only) {
         println!("Exiting: TMS DB Schema initialized.");
         return Ok(());

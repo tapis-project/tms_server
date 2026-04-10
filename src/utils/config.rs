@@ -66,19 +66,20 @@ pub const NEW_CLIENTS_DISALLOW: &str = "disallow";
 pub const NEW_CLIENTS_ON_APPROVAL: &str = "on_approval";
 pub const DEFAULT_NEW_CLIENTS: &str = NEW_CLIENTS_ALLOW;
 
-// Cmd line argument has not been provided
-pub const CMD_ARG_UNSET: &str = "ARG_UNSET";
-
-// Database constants.
+// Env variable names
 const ENV_TMS_ROOT_DIR     : &str = "TMS_ROOT_DIR";
 const ENV_TMS_DB_HOST       : &str = "TMS_DB_HOST";
 const ENV_TMS_DB_PORT       : &str = "TMS_DB_PORT";
+const ENV_TMS_DB_DB_NAME    : &str = "TMS_DB_DB_NAME";
 const ENV_TMS_DB_USER       : &str = "TMS_DB_USER";
+const ENV_TMS_DB_USER_PASSWORD : &str = "TMS_DB_USER_PASSWORD";
+
+// Database config defaults.
 // DB URL example: "postgres://tms:password@localhost:5432/tmsdb";
-const ENV_TMS_DB_URL       : &str = "TMS_DB_URL";
-pub const DB_HOST_DEFAULT: &str = "localhost";
-pub const DB_PORT_DEFAULT: u16 = 5432;
-pub const DB_USER_DEFAULT: &str = "tms";
+const DB_HOST_DEFAULT: &str = "localhost";
+const DB_PORT_DEFAULT: u16 = 5432;
+const DB_DB_NAME_DEFAULT: &str = "tmsdb";
+const DB_USER_DEFAULT: &str = "tms";
 pub const DB_TRUE : bool = true;
 
 // ***************************************************************************
@@ -315,7 +316,7 @@ pub fn prohibit_root_user() {
 /* Panic if we are trying to run the server before an installation run. */
 pub fn set_directories_and_check_install() {
 
-    // Check that schema_only is not specified without also specifying --install
+    // Check that --schema_only and --install are not specified together
     if (TMS_CMD_ARGS.schema_only && TMS_CMD_ARGS.install) {
         panic!("\n***********************************************************************\n\
                     ERROR: Option --schema-only may not be used along with --install. \n\
@@ -368,9 +369,8 @@ fn init_tms_dirs() -> TmsDirs {
     // Declare directory create flag to control file copying.
     let mut dir_created;
 
-    // Check that each path is absolute and is a directory with the
-    // proper permission assign if it exists.  If it doesn't exist,
-    // create it.
+    // Check that each path is absolute and is a directory with the proper permissions assigned
+    // if it exists. If directory does not exist then create it.
     let root_dir = get_root_dir();
     check_tms_dir(&root_dir, "root directory", &mistrust);
 
@@ -741,8 +741,17 @@ pub fn init_runtime_context() -> RuntimeCtx {
     // Read config parameters from file
     let parms = get_parms().expect("FAILED to read configuration file.");
 
-    let db_url = env::var(ENV_TMS_DB_URL).expect("ERROR: Environment variable TMS_DB_URL must be set.");
-    if db_url.is_empty() {panic!("ERROR: Environment variable TMS_DB_URL must be set.");}
+    // Get DB config from environment. The only one required is TMS_DB_USER_PASSWORD
+    // Others have defaults
+    let db_passwd = env::var(ENV_TMS_DB_USER_PASSWORD).expect("ERROR: Environment variable TMS_DB_USER_PASSWORD must be set.");
+    if db_passwd.is_empty() {panic!("ERROR: Environment variable TMS_DB_USER_PASSWORD must be set.");}
+    let db_username = env::var(ENV_TMS_DB_USER).unwrap_or_else(|_| {DB_USER_DEFAULT.to_string()});
+    let db_host = env::var(ENV_TMS_DB_HOST).unwrap_or_else(|_| {DB_HOST_DEFAULT.to_string()});
+    let db_port = env::var(ENV_TMS_DB_PORT).unwrap_or_else(|_| {DB_PORT_DEFAULT.to_string()});
+    let db_name = env::var(ENV_TMS_DB_DB_NAME).unwrap_or_else(|_| {DB_DB_NAME_DEFAULT.to_string()});
+
+    // Construct DB URL. Example: "postgres://tms:password@localhost:5432/tmsdb";
+    let db_url = format!("postgres://{}:{}@{}:{}/{}", db_username, db_passwd, db_host, db_port, db_name);
 
     // Initialize database
     let db :Pool<Postgres> = block_on(db_init::init_db(db_url.as_str()));

@@ -86,7 +86,7 @@ impl GeneratedKeyObj {
 #[allow(unused_variables)]
 pub fn init_keygen() {
     // Get the bit length any key type to force map initialization. 
-    // This should never fail, but if it does we abort execution.
+    // Should never fail, but if it does fail, we abort execution.
     let key_type = KeyType::Ed25519;
     let bitlen = *KEY_LEN_MAP.get(&key_type)
         .unwrap_or_else(|| panic!("Unable to determine bit length for key type {}.", key_type));
@@ -191,11 +191,7 @@ fn gen_private_key(algorithm: Algorithm) -> Result<PrivateKey> {
 // ***************************************************************************
 //                            Private Functions
 // ***************************************************************************
-// ---------------------------------------------------------------------------
-// get_key_len_map:
-// ---------------------------------------------------------------------------
-/** One-time initialization routine that defines the bit lengths used for the various key types.
- */
+// One-time initialization routine that defines the bit lengths used for the various key types.
 fn get_key_len_map() -> HashMap<KeyType, i32> {
     // Create the key type bit length mappings.
     let mut key_len_map = HashMap::new();

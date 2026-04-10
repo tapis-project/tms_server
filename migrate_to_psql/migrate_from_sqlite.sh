@@ -8,7 +8,7 @@
 #   TMS_DB_HOST     e.g. localhost
 #   TMS_DB_PORT     e.g. 5431
 #   TMS_DB_USER     e.g. tms
-#   TMS_DB_PASSWORD
+#   TMS_DB_USER_PASSWORD
 #   POSTGRES_PASSWORD
 #
 # Determine absolute path to location from which we are running and change to that directory.
@@ -26,7 +26,7 @@ VERS_NEW_REQUIRED="0.3.0"
 
 # Check that all required env variables are set
 FAILED=false
-env_list="POSTGRES_PASSWORD TMS_HOME TMS_INSTALL_DIR TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_DB_PASSWORD"
+env_list="POSTGRES_PASSWORD TMS_HOME TMS_INSTALL_DIR TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_DB_USER_PASSWORD"
 for name in $env_list
 do
   if [[ -z "${!name}" ]]; then
@@ -119,7 +119,7 @@ echo "**************************************************************************
 echo "   Creating TMS postgres DB schema"
 echo "*********************************************************************************"
 # Create the initial tms schema
-export TMS_DB_URL="postgres://${TMS_DB_USER}:${TMS_DB_PASSWORD}@${TMS_DB_HOST}:${TMS_DB_PORT}/tmsdb"
+#export TMS_DB_URL="postgres://${TMS_DB_USER}:${TMS_DB_USER_PASSWORD}@${TMS_DB_HOST}:${TMS_DB_PORT}/tmsdb"
 $SRC_DIR/target/release/tms_server --schema-only
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
@@ -132,7 +132,7 @@ echo "**********************************************************************"
 echo "   Importing tables into postgresql DB"
 echo "**********************************************************************"
 # Put PGPASSWORD in environment for psql to pick up
-export PGPASSWORD=${TMS_DB_PASSWORD}
+export PGPASSWORD=${TMS_DB_USER_PASSWORD}
 PSQL_CMD="psql -h ${TMS_DB_HOST} -p ${TMS_DB_PORT} -U ${TMS_DB_USER} -d tmsdb -q -f"
 
 # List of tables to populate. Note: order is important due to foreign key constraints. Tenants first.
