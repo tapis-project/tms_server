@@ -118,7 +118,6 @@ echo "VER_OLD=$VERS_OLD" >> $TMP_FILE
 echo "VER_NEW=$VERS_NEW" >> $TMP_FILE
 
 # Construct second part of script
-# TODO put back cargo build
 cat >> $TMP_FILE << EOB
 echo "Upgrading TMS Server from version $VERS_OLD to version $VERS_NEW"
 echo "Install directory: $INSTALL_DIR"
@@ -126,13 +125,11 @@ echo "Install directory: $INSTALL_DIR"
 # Build executable
 echo "Building executable from directory: $SRC_DIR"
 cd $SRC_DIR
-# TODO skip for new, save time
-# cargo build --release
+cargo build --release
 EOB
 
-# TODO Remove any existing executable
-# TODO Skip remove / rebuild for now, save time during test / fix cycle.
-# rm -f $EXEC_FILE
+# Remove any existing executable
+rm -f $EXEC_FILE
 # Run the script to build the new executable
 echo
 echo "===== Running build script as TMS install user. User: $INSTALL_USR"
@@ -202,7 +199,7 @@ if [ "$TEST_MODE" != "true" ]; then
   systemctl start tms_server
 fi
 
-# TODO Remove the temporary file
-# rm -f $TMP_FILE
+# Remove the temporary file
+rm -f $TMP_FILE
 # Switch back to current working directory of invoking user
 cd "$RUN_DIR"

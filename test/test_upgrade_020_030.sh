@@ -44,7 +44,7 @@ chmod +x $TMS_INSTALL_DIR/tms_server
 # Version is not normally in $TMS_HOME, so move it to where it should be, TMS_INSTALL_DIR
 mv $TMS_HOME/tms.version $TMS_INSTALL_DIR
 
-# TODO Set up env variables for running the upgrade script
+# Set up env variables for running the upgrade script
 # TODO - are we really going to make users define all these env variables?
 . $PRG_PATH/local.env
 

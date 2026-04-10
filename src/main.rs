@@ -8,7 +8,7 @@ use std::time::Duration;
 use anyhow::Result;
 use clap::Parser;
 use lazy_static::lazy_static;
-use log::info;
+use log::{info};
 use poem::listener::{Listener, OpensslTlsConfig};
 use poem::{listener::TcpListener, Route};
 use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
@@ -253,23 +253,17 @@ fn tms_init2() {
 // print_version_info:
 // ---------------------------------------------------------------------------
 fn print_version_info() {
-    // Log build info. NOTE: The two messages are the same
-    // TODO Use single string. Only print directly to console if log level is turned down below info.
-    println!("\n*** Running TMS={}, BRANCH={}, COMMIT={}, DIRTY={}, SRC_TS={}, RUSTC={}",
-             option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"),
-             env!("GIT_BRANCH"),
-             env!("GIT_COMMIT_SHORT"),
-             env!("GIT_DIRTY"),
-             env!("SOURCE_TIMESTAMP"),
-             env!("RUSTC_VERSION"));
-    info!("{}.", format!("\n*** Running TMS={}, BRANCH={}, COMMIT={}, DIRTY={}, SRC_TS={}, RUSTC={}",
-                        option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"),
-                        env!("GIT_BRANCH"),
-                        env!("GIT_COMMIT_SHORT"),
-                        env!("GIT_DIRTY"),
-                        env!("SOURCE_TIMESTAMP"),
-                        env!("RUSTC_VERSION")),
-    );
+    // Log build info.
+    let vers_info : String =
+        format!("\n*** Running TMS={}, BRANCH={}, COMMIT={}, DIRTY={}, SRC_TS={}, RUSTC={}",
+            option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"),
+            env!("GIT_BRANCH"),
+            env!("GIT_COMMIT_SHORT"),
+            env!("GIT_DIRTY"),
+            env!("SOURCE_TIMESTAMP"),
+            env!("RUSTC_VERSION"));
+    println!("{}.", vers_info);
+    info!("{}.", vers_info);
 }
 
 // ***************************************************************************

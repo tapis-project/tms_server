@@ -8,10 +8,10 @@
 #  - Update config for local testing
 #
 # Determine absolute path to location from which we are running and change to that directory.
-export RUN_DIR=$(pwd)
-export PRG_RELPATH=$(dirname "$0")
+RUN_DIR=$(pwd)
+PRG_RELPATH=$(dirname "$0")
 cd "$PRG_RELPATH"/. || exit
-export PRG_PATH=$(pwd)
+PRG_PATH=$(pwd)
 
 if [ -z "${POSTGRES_PASSWORD}" ]; then
   echo "Please set env var POSTGRES_PASSWORD before running this script"
@@ -33,16 +33,15 @@ if [ $RET_CODE -ne 0 ]; then
   exit $RET_CODE
 fi
 
-# TODO tms_drop and tms_init scripts no longer in deployment dir.
 #  Reset the DB
-./deployment/tms_drop_db.sh
+$PRG_PATH/../migrate_to_psql/tms_drop_db.sh
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "tms_drop_db failed."
   echo "Exiting ..."
   exit $RET_CODE
 fi
-./deployment/tms_init_db.sh
+$PRG_PATH/../migrate_to_psql/tms_init_db.sh
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "tms_init_db failed."
@@ -56,7 +55,7 @@ echo "   Removing previous installation and re-installing"
 echo "**********************************************************************"
 rm -fr ~/.tms
 export TMS_DB_URL="postgres://tms:password@localhost:5431/tmsdb"
-./target/debug/tms_server --install # --schema-only TODO But when importing data we will already have an install?
+./target/debug/tms_server --install
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "TMS server install failed"
@@ -72,3 +71,4 @@ echo "**********************************************************************"
 echo "*****************"
 echo "     SUCCESS"
 echo "*****************"
+cd $RUN_DIR

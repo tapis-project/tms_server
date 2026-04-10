@@ -154,11 +154,11 @@ done
 BAK_TIMESTAMP=`date  +%Y%m%d%H%M%S`
 mv $TMS_HOME/database $TMS_HOME/database_bak_$BAK_TIMESTAMP
 
-# TODO Cleanup temporary staging file and directory
+# Cleanup temporary staging file and directory
 echo "**********************************************************************"
 echo "   Final cleanup"
 echo "**********************************************************************"
-#rm $TMP_FILE
-#rm $STG_DIR/*.sql
-#rmdir $STG_DIR
+rm $TMP_FILE
+rm $STG_DIR/*.sql
+rmdir $STG_DIR
 cd $RUN_DIR
