@@ -754,8 +754,9 @@ pub fn init_runtime_context() -> RuntimeCtx {
     let db_url = format!("postgres://{}:{}@{}:{}/{}", db_username, db_passwd, db_host, db_port, db_name);
 
     // Initialize database
+    info!("Connecting to DB URL: {}", db_url);
     let db :Pool<Postgres> = block_on(db_init::init_db(db_url.as_str()));
-    
+
     // Return the runtime context.
     RuntimeCtx {parms, db, authz: &AUTHZ_ARGS, tms_cmd_args: &TMS_CMD_ARGS, tms_dirs: &TMS_DIRS}
 }

@@ -4,10 +4,10 @@
 # NOTE: Based on tapis-deployer backup scripts located on tapisdeploy:/home/tapisprod/cron/scripts
 #
 # Determine absolute path to location from which we are running and change to that directory.
-export RUN_DIR=$(pwd)
-export PRG_RELPATH=$(dirname "$0")
+RUN_DIR=$(pwd)
+PRG_RELPATH=$(dirname "$0")
 cd "$PRG_RELPATH"/. || exit
-export PRG_PATH=$(pwd)
+PRG_PATH=$(pwd)
 
 TMS_HOME="/home/tms"
 SERVICE=tms
@@ -78,3 +78,5 @@ fi
 echo "${SERVICE}-${ENV} backup success"
 echo "Listing backups at ${backups3path}"
 s3cmd ls ${backups3path}
+
+cd $RUN_DIR

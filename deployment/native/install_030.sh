@@ -1,25 +1,30 @@
 #!/bin/bash
-# TODO
-# TODO convert this script to an official install script. See test/test_install_030.sh
-# TODO This script copied from upgrade_020_030.sh
-# TODO
+# Clean install of TMS Server
 # Build and deploy the latest native version TMS Server
-# This script must be run as root.
+# This script must be run as root or run in --test mode.
 # This script builds a release version and updates files in the install directory as needed.
+#
 # Default install directory is /opt/tms_server. May be overridden using env variable TMS_INSTALL_DIR.
+#
+# Default root directory is ~/.tms. May be overridden using env variable TMS_ROOT_DIR.
+#
+# User may define TMS_LOCAL_DIR for local customizations. Default is $TMS_ROOT_DIR/local
+# Local directory will contain install output and may contain custom tms.toml and log4rs.yml files.
+#
 # User used to build and install TMS may be given on the command line. Default user is "tms"
 #
 # Assumptions:
 #  - We are running from a checkout of tms_server github repo.
-#  - Following are installed: rust tool chain (cargo, rustc), SQLite and postgres psql.
+#  - Following are installed: rust tool chain (cargo, rustc).
+#  - TMS postgres DB is set up and available.
 #  - Following env variables are set:
 #    - TMS_DB_HOST     e.g. localhost
 #    - TMS_DB_PORT     e.g. 5431
 #    - TMS_DB_USER     e.g. tms
-#    - TMS_DB_PASSWORD
+#    - TMS_DB_USER_PASSWORD
 #    - POSTGRES_PASSWORD
 #
-# A test mode is supported allowing for execution as a non-root user and tms_install_user is taken to be current user.
+# A --test mode is supported allowing for execution as a non-root user and tms_install_user is taken to be current user.
 
 PrgName=$(basename "$0")
 USAGE="Usage: $PrgName [ <tms_install_user> | --test ]"
@@ -72,31 +77,63 @@ if [ $RET_CODE -ne 0 ]; then
     exit $RET_CODE
 fi
 
-# Set installation directory.
+# Set root directory. Location of config, logs, etc.
+ROOT_DEF_DIR="$HOME/.tms"
+if [ -n "$TMS_ROOT_DIR" ]; then
+  ROOT_DIR="$TMS_ROOT_DIR"
+else
+  ROOT_DIR="$ROOT_DEF_DIR"
+fi
+# This is an install, so there should not be an existing installation
+if [ -e "$ROOT_DIR/config" ]; then
+  echo "ERROR: TMS Server appears to already be installed under root directory: $ROOT_DIR. Path found: $ROOT_DIR/config"
+  echo "Exiting ..."
+  exit 1
+fi
+# Create the root directory
+mkdir -p $ROOT_DIR
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+  echo "ERROR: Unable to create TMS directory: $ROOT_DIR"
+  echo "Exiting ..."
+  exit $RET_CODE
+fi
+
+# Set installation directory. Location of tms_server executable and tms.version.
 INSTALL_DEF_DIR="/opt/tms_server"
 if [ -n "$TMS_INSTALL_DIR" ]; then
   INSTALL_DIR="$TMS_INSTALL_DIR"
 else
   INSTALL_DIR="$INSTALL_DEF_DIR"
 fi
-
-# Make sure we have the expected executable in the install dir
-if [ ! -f "$INSTALL_DIR/tms_server" ]; then
-  echo "Unable to find TMS Server executable at path: $INSTALL_DIR"
-  echo "If you have not set env variable TMS_INSTALL_DIR you may do so to specify a non-default path for the installation."
-  echo "Default path for the installation: $INSTALL_DEF_DIR"
-  echo "Exiting ..."
-  exit 1
+# If necessary create the install directory.
+if [ ! -d "$INSTALL_DIR" ]; then
+  mkdir -p $INSTALL_DIR
+  RET_CODE=$?
+  if [ $RET_CODE -ne 0 ]; then
+    echo "ERROR: Unable to create TMS install directory: $INSTALL_DIR"
+    echo "Exiting ..."
+    exit $RET_CODE
+  fi
 fi
 
-# Determine existing version
-VERS_FILE=$INSTALL_DIR/tms.version
-if [ ! -f "$VERS_FILE" ]; then
-  echo "Unable to determine existing TMS version. Cannot find file: $VERS_FILE"
-  echo "Exiting ..."
-  exit 1
+# Set local directory. Location of install output and optional custom tms.toml, log4rs.yml files.
+LOCAL_DEF_DIR="$ROOT_DIR/local"
+if [ -n "$TMS_LOCAL_DIR" ]; then
+  LOCAL_DIR="$TMS_LOCAL_DIR"
+else
+  LOCAL_DIR="$LOCAL_DEF_DIR"
 fi
-VERS_OLD=$(cat $VERS_FILE)
+# Create the local directory. NOTE: It may have already been created and pre-populated with custom files.
+mkdir -p $LOCAL_DIR
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+  echo "ERROR: Unable to create directory: $LOCAL_DIR"
+  echo "Exiting ..."
+  exit $RET_CODE
+fi
+# Restrict it since it will contain secrets from the initialization run.
+chmod 700 $LOCAL_DIR
 
 # Determine new version
 if [ "$TEST_MODE" == "true" ]; then
@@ -105,8 +142,14 @@ else
   VERS_NEW=$(su - $INSTALL_USR -c 'cd tms_server; cargo pkgid | cut -d "#" -f2')
 fi
 
-# Set path to built executable
-EXEC_FILE=$SRC_DIR/target/release/tms_server
+# Check to see if TMS appears to already be installed.
+EXEC_DEST="$TMS_INSTALL_DIR/tms_server"
+# Make sure TMS executable is not already installed
+if [ -e "$EXEC_DEST" ]; then
+  echo "ERROR It appears that TMS is already installed under directory: $TMS_INSTALL_DIR. Found: $EXEC_DEST"
+  echo "Exiting ..."
+  exit 1
+fi
 
 # Construct script to be used by install user to build new executable
 echo
@@ -123,8 +166,9 @@ echo "VER_NEW=$VERS_NEW" >> $TMP_FILE
 
 # Construct second part of script
 cat >> $TMP_FILE << EOB
-echo "Upgrading TMS Server from version $VERS_OLD to version $VERS_NEW"
+echo "Installing TMS Server. Version $VERS_NEW"
 echo "Install directory: $INSTALL_DIR"
+echo "Install user: $INSTALL_USR"
 
 # Build executable
 echo "Building executable from directory: $SRC_DIR"
@@ -132,6 +176,8 @@ cd $SRC_DIR
 cargo build --release
 EOB
 
+# Set path to built executable
+EXEC_FILE=$SRC_DIR/target/release/tms_server
 # Remove any existing executable
 rm -f $EXEC_FILE
 # Run the script to build the new executable
@@ -163,43 +209,79 @@ if [ ! -f "$EXEC_FILE" ]; then
   exit 1
 fi
 
-# Shut down the service, copy the new executable into place
-if [ "$TEST_MODE" != "true" ]; then
-  echo
-  echo "===== Stopping TMS service and copying new executable into place"
-  echo "========================================================================================="
-  systemctl stop tms_server
-fi
-cp $EXEC_FILE $INSTALL_DIR/tms_server
-
-# Update migrations files.
-BAK_TIMESTAMP=`date  +%Y%m%d%H%M%S`
-mv $TMS_HOME/migrations $TMS_HOME/migrations_bak_$BAK_TIMESTAMP
-cp -pr $SRC_DIR/resources/migrations $TMS_HOME/migrations
-chmod 0700 $TMS_HOME/migrations
-
-# Before updating version and starting up new tms_server perform the migration from sqlite to postgres
-echo
-echo "===== Migrating DB from sqlite to postgres"
-echo "========================================================================================="
-
-$SRC_DIR/migrate_to_psql/migrate_from_sqlite.sh
+# Copy the new executable into place
+cp $EXEC_FILE $EXEC_DEST
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
-  echo
-  echo "*************** Error running migration script"
+  echo "ERROR: Unable to copy executable from path: $EXEC_FILE to path: $EXEC_DEST"
   echo "Exiting ..."
   exit $RET_CODE
 fi
+chmod 770 $EXEC_DEST
 
 # Update version in install dir
+VERS_FILE=$INSTALL_DIR/tms.version
 echo "$VERS_NEW" > $VERS_FILE
 
-# Start the service
+# First Time Install Processing. Save output to LOCAL_DIR
 echo
-echo "===== Starting TMS service"
+echo "===== Initialize server. Running tms_server --install as user: $INSTALL_USR"
 echo "========================================================================================="
+# Initialize the content of the install directory.
+set -xv
+INSTALL_INIT_CMD="$EXEC_DEST --install --root-dir $ROOT_DIR"
+$INSTALL_INIT_CMD > ${LOCAL_DIR}/tms-install.out 2>&1
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+  echo "ERROR: Error running tms_server init. Command: $INSTALL_INIT_CMD"
+  echo "Exiting ..."
+  exit $RET_CODE
+fi
+chmod 600 ${LOCAL_DIR}/tms-install.out
+
+# TODO
+exit 0
+
+# If there are custom tms or log4s config then copy into place
+if [ -f $LOCAL_DIR/tms.toml ]; then
+  cp -p $LOCAL_DIR/tms.toml $ROOT_DIR/tms.toml
+  RET_CODE=$?
+  if [ $RET_CODE -ne 0 ]; then
+    echo "ERROR: Unable to copy: $LOCAL_DIR/tms.toml"
+    echo "Exiting ..."
+    exit $RET_CODE
+  fi
+  chmod 600 $ROOT_DIR/tms.toml
+fi
+if [ -f $LOCAL_DIR/log4rs.yml ]; then
+  cp -p $LOCAL_DIR/log4rs.yml $ROOT_DIR/log4rs.yml
+  RET_CODE=$?
+  if [ $RET_CODE -ne 0 ]; then
+    echo "ERROR: Unable to copy file: $LOCAL_DIR/log4rs.yml"
+    echo "Exiting ..."
+    exit $RET_CODE
+  fi
+  chmod 600 $ROOT_DIR/tms.toml
+fi
+
+# If no example cert related files exist then copy example cert and key path files into local directory.
+if [ ! -f $LOCAL_DIR/cert.path ]; then
+  cp -p $SRC_DIR/deployment/native/cert.path $LOCAL_DIR/cert.path
+fi
+if [ ! -f $LOCAL_DIR/key.path ]; then
+  cp -p $SRC_DIR/deployment/native/key.path $LOCAL_DIR/key.path
+fi
+
+
+
+#
+# TODO
+# TODO
+# Start the service
 if [ "$TEST_MODE" != "true" ]; then
+  echo
+  echo "===== Starting TMS service"
+  echo "========================================================================================="
   systemctl start tms_server
 fi
 

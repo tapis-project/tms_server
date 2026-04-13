@@ -16,22 +16,23 @@ PRG_PATH=$(pwd)
 # By default, upgrade script sets install dir to /opt/tms_server, so override for testing.
 export TMS_INSTALL_DIR=/tmp/tms_server
 
-# For local test use to standard tms home dir of ~/.tms
-export TMS_HOME=~/.tms
-
 # Remove current install
 echo "**********************************************************************"
 echo "   Removing previous installation"
 echo "**********************************************************************"
-rm -fr $TMS_HOME
+# For local test use to standard tms root dir of ~/.tms
+export TMS_ROOT_DIR=~/.tms
+rm -fr $TMS_ROOT_DIR
+rm -f $TMS_INSTALL_DIR/tms_server
+rm -f $TMS_INSTALL_DIR/tms.version
 
 # Simulate a previous 0.2.0 install by restoring a backed up ~/.tms install directory
 #   and creating a version file and a fake executable file under /tmp/tms_server
 echo "*********************************************************************************"
-echo "   Restoring backed up TMS server 0.2.0 install to standard install dir $TMS_HOME"
+echo "   Restoring backed up TMS server 0.2.0 install to standard install dir: $TMS_ROOT_DIR"
 echo "*********************************************************************************"
-TMS_HOME_BAK_DIR=~/dot_tms_bak
-/bin/cp -pr $TMS_HOME_BAK_DIR $TMS_HOME
+ROOT_BAK_DIR=~/dot_tms_bak
+/bin/cp -pr $ROOT_BAK_DIR $TMS_ROOT_DIR
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "TMS server restore failed"
@@ -41,8 +42,8 @@ fi
 mkdir -p $TMS_INSTALL_DIR
 touch $TMS_INSTALL_DIR/tms_server
 chmod +x $TMS_INSTALL_DIR/tms_server
-# Version is not normally in $TMS_HOME, so move it to where it should be, TMS_INSTALL_DIR
-mv $TMS_HOME/tms.version $TMS_INSTALL_DIR
+# Version is not normally in $TMS_ROOT_DIR, so move it to where it should be, TMS_INSTALL_DIR
+mv $TMS_ROOT_DIR/tms.version $TMS_INSTALL_DIR
 
 # Set up env variables for running the upgrade script
 . $PRG_PATH/local.env

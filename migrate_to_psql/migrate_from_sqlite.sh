@@ -3,7 +3,7 @@
 # Script to migrate data from an SQLite DB to a postgresql DB
 # Script assumes SQLite and postgres psql are installed.
 # Required env variables:
-#   TMS_HOME e.g. ~/.tms
+#   TMS_ROOT_DIR e.g. ~/.tms
 #   TMS_INSTALL_DIR e.g. /opt/tms_server
 #   TMS_DB_HOST     e.g. localhost
 #   TMS_DB_PORT     e.g. 5431
@@ -26,7 +26,7 @@ VERS_NEW_REQUIRED="0.3.0"
 
 # Check that all required env variables are set
 FAILED=false
-env_list="POSTGRES_PASSWORD TMS_HOME TMS_INSTALL_DIR TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_DB_USER_PASSWORD"
+env_list="POSTGRES_PASSWORD TMS_ROOT_DIR TMS_INSTALL_DIR TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_DB_USER_PASSWORD"
 for name in $env_list
 do
   if [[ -z "${!name}" ]]; then
@@ -62,7 +62,7 @@ STG_DIR=/tmp/tms_migrate
 mkdir -p $STG_DIR
 
 # Path to SQLite3 DB file
-TMS_SQ3_DB_PATH=$TMS_HOME/database/tms.db
+TMS_SQ3_DB_PATH=$TMS_ROOT_DIR/database/tms.db
 
 echo "**********************************************************************"
 echo "   Exporting tables from SQLite DB: ${TMS_SQ3_DB_PATH}"
@@ -152,7 +152,7 @@ done
 
 # Move old sqlite database files to a backup directory
 BAK_TIMESTAMP=`date  +%Y%m%d%H%M%S`
-mv $TMS_HOME/database $TMS_HOME/database_bak_$BAK_TIMESTAMP
+mv $TMS_ROOT_DIR/database $TMS_ROOT_DIR/database_bak_$BAK_TIMESTAMP
 
 # Cleanup temporary staging file and directory
 echo "**********************************************************************"

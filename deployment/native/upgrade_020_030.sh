@@ -1,8 +1,9 @@
 #!/bin/bash
 # Build and deploy the latest native version TMS Server
-# This script must be run as root.
-# This script builds a release version and updates files in the install directory as needed.
+# This script must be run as root or run in --test mode.
+# This script builds a release version and updates files in the install and root directories as needed.
 # Default install directory is /opt/tms_server. May be overridden using env variable TMS_INSTALL_DIR.
+# Default root directory is ~/.tms. May be overridden using env variable TMS_ROOT_DIR.
 # User used to build and install TMS may be given on the command line. Default user is "tms"
 #
 # Assumptions:
@@ -12,10 +13,10 @@
 #    - TMS_DB_HOST     e.g. localhost
 #    - TMS_DB_PORT     e.g. 5431
 #    - TMS_DB_USER     e.g. tms
-#    - TMS_DB_PASSWORD
+#    - TMS_DB_USER_PASSWORD
 #    - POSTGRES_PASSWORD
 #
-# A test mode is supported allowing for execution as a non-root user and tms_install_user is taken to be current user.
+# A --test mode is supported allowing for execution as a non-root user and tms_install_user is taken to be current user.
 
 PrgName=$(basename "$0")
 USAGE="Usage: $PrgName [ <tms_install_user> | --test ]"
@@ -50,6 +51,15 @@ if [ "$TEST_MODE" == "false" ] && [ "$EUID" != 0 ]; then
   exit 1
 fi
 
+# Make sure rust is installed.
+rustc --version
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+    echo "ERROR: Unable to access rustc. Install the latest stable version of Rust if necessary."
+    echo "Exiting ..."
+    exit $RET_CODE
+fi
+
 # Determine TMS install user
 if [ "$TEST_MODE" == "true" ]; then
   INSTALL_USR=$USER
@@ -68,6 +78,22 @@ if [ $RET_CODE -ne 0 ]; then
     exit $RET_CODE
 fi
 
+# Set root directory.
+ROOT_DEF_DIR="$HOME/.tms"
+if [ -n "$TMS_ROOT_DIR" ]; then
+  ROOT_DIR="$TMS_ROOT_DIR"
+else
+  ROOT_DIR="$ROOT_DEF_DIR"
+fi
+# This is an upgrade, so there should be an existing installation
+if [ ! -d "$ROOT_DIR/config" ]; then
+  echo "Unable to find TMS Server configuration under directory: $ROOT_DIR. Path not found: $ROOT_DIR/config"
+  echo "If you have not set env variable TMS_ROOT_DIR, you may do so to specify a non-default path for TMS root."
+  echo "Default path for TMS root: $ROOT_DEF_DIR"
+  echo "Exiting ..."
+  exit 1
+fi
+
 # Set installation directory.
 INSTALL_DEF_DIR="/opt/tms_server"
 if [ -n "$TMS_INSTALL_DIR" ]; then
@@ -75,11 +101,10 @@ if [ -n "$TMS_INSTALL_DIR" ]; then
 else
   INSTALL_DIR="$INSTALL_DEF_DIR"
 fi
-
-# Make sure we have the expected executable in the install dir
+# This is an upgrade, so there should be an executable in the install dir
 if [ ! -f "$INSTALL_DIR/tms_server" ]; then
   echo "Unable to find TMS Server executable at path: $INSTALL_DIR"
-  echo "If you have not set env variable TMS_INSTALL_DIR you may do so to specify a non-default path for the installation."
+  echo "If you have not set env variable TMS_INSTALL_DIR, you may do so to specify a non-default path for the installation."
   echo "Default path for the installation: $INSTALL_DEF_DIR"
   echo "Exiting ..."
   exit 1
@@ -170,9 +195,9 @@ cp $EXEC_FILE $INSTALL_DIR/tms_server
 
 # Update migrations files.
 BAK_TIMESTAMP=`date  +%Y%m%d%H%M%S`
-mv $TMS_HOME/migrations $TMS_HOME/migrations_bak_$BAK_TIMESTAMP
-cp -pr $SRC_DIR/resources/migrations $TMS_HOME/migrations
-chmod 0700 $TMS_HOME/migrations
+mv $ROOT_DIR/migrations $ROOT_DIR/migrations_bak_$BAK_TIMESTAMP
+cp -pr $SRC_DIR/resources/migrations $ROOT_DIR/migrations
+chmod 0700 $ROOT_DIR/migrations
 
 # Before updating version and starting up new tms_server perform the migration from sqlite to postgres
 echo
