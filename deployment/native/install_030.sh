@@ -98,6 +98,7 @@ if [ $RET_CODE -ne 0 ]; then
   echo "Exiting ..."
   exit $RET_CODE
 fi
+chmod 700 $ROOT_DIR
 
 # Set installation directory. Location of tms_server executable and tms.version.
 INSTALL_DEF_DIR="/opt/tms_server"
@@ -228,40 +229,39 @@ echo
 echo "===== Initialize server. Running tms_server --install as user: $INSTALL_USR"
 echo "========================================================================================="
 # Initialize the content of the install directory.
-set -xv
 INSTALL_INIT_CMD="$EXEC_DEST --install --root-dir $ROOT_DIR"
+# We must run from the top of the source code checkout so the files under resources are available
+cd $SRC_DIR
 $INSTALL_INIT_CMD > ${LOCAL_DIR}/tms-install.out 2>&1
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "ERROR: Error running tms_server init. Command: $INSTALL_INIT_CMD"
+  echo "       Please see output here: ${LOCAL_DIR}/tms-install.out"
   echo "Exiting ..."
   exit $RET_CODE
 fi
 chmod 600 ${LOCAL_DIR}/tms-install.out
 
-# TODO
-exit 0
-
 # If there are custom tms or log4s config then copy into place
 if [ -f $LOCAL_DIR/tms.toml ]; then
-  cp -p $LOCAL_DIR/tms.toml $ROOT_DIR/tms.toml
+  cp -p $LOCAL_DIR/tms.toml $ROOT_DIR/config
   RET_CODE=$?
   if [ $RET_CODE -ne 0 ]; then
     echo "ERROR: Unable to copy: $LOCAL_DIR/tms.toml"
     echo "Exiting ..."
     exit $RET_CODE
   fi
-  chmod 600 $ROOT_DIR/tms.toml
+  chmod 600 $ROOT_DIR/config/tms.toml
 fi
 if [ -f $LOCAL_DIR/log4rs.yml ]; then
-  cp -p $LOCAL_DIR/log4rs.yml $ROOT_DIR/log4rs.yml
+  cp -p $LOCAL_DIR/log4rs.yml $ROOT_DIR/config
   RET_CODE=$?
   if [ $RET_CODE -ne 0 ]; then
     echo "ERROR: Unable to copy file: $LOCAL_DIR/log4rs.yml"
     echo "Exiting ..."
     exit $RET_CODE
   fi
-  chmod 600 $ROOT_DIR/tms.toml
+  chmod 600 $ROOT_DIR/config/log4rs.toml
 fi
 
 # If no example cert related files exist then copy example cert and key path files into local directory.
@@ -270,19 +270,6 @@ if [ ! -f $LOCAL_DIR/cert.path ]; then
 fi
 if [ ! -f $LOCAL_DIR/key.path ]; then
   cp -p $SRC_DIR/deployment/native/key.path $LOCAL_DIR/key.path
-fi
-
-
-
-#
-# TODO
-# TODO
-# Start the service
-if [ "$TEST_MODE" != "true" ]; then
-  echo
-  echo "===== Starting TMS service"
-  echo "========================================================================================="
-  systemctl start tms_server
 fi
 
 # Remove the temporary file

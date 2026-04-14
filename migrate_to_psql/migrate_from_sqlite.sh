@@ -17,7 +17,7 @@ PRG_RELPATH=$(dirname "$0")
 cd "$PRG_RELPATH"/. || exit
 PRG_PATH=$(pwd)
 
-# Migrate script is located under migrate_to_psql. Some operations are relative to the top level source directory.
+# Some operations are relative to the top level source directory.
 SRC_DIR=$PRG_PATH/..
 
 # This script should only be run when upgrading from TMS server version 0.2.0 to 0.3.0
@@ -99,7 +99,7 @@ done
 echo "**********************************************************************"
 echo "   Initializing Postgres DB for TMS"
 echo "**********************************************************************"
-$PRG_PATH/tms_drop_db.sh
+$SRC_DIR/deployment/tms_drop_db.sh
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "tms_drop_db failed."
@@ -107,7 +107,7 @@ if [ $RET_CODE -ne 0 ]; then
   exit $RET_CODE
 fi
 
-$PRG_PATH/tms_init_db.sh
+$SRC_DIR/deployment/tms_init_db.sh
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "tms_init_db failed."
@@ -133,7 +133,7 @@ echo "   Importing tables into postgresql DB"
 echo "**********************************************************************"
 # Put PGPASSWORD in environment for psql to pick up
 export PGPASSWORD=${TMS_DB_USER_PASSWORD}
-PSQL_CMD="psql -h ${TMS_DB_HOST} -p ${TMS_DB_PORT} -U ${TMS_DB_USER} -d tmsdb -q -f"
+PSQL_CMD="psql -h ${TMS_DB_HOST} -p ${TMS_DB_PORT} -U ${TMS_DB_USER} -d tmsdb -q"
 
 # List of tables to populate. Note: order is important due to foreign key constraints. Tenants first.
 table_list_import="tenants clients user_mfa user_hosts admin delegations hosts reservations pubkeys"
@@ -141,10 +141,27 @@ for t in $table_list_import
 do
   in_file=${STG_DIR}/${t}.sql
   echo "Importing data for table: ${t}"
-  $PSQL_CMD ${in_file}
+  $PSQL_CMD -f ${in_file}
   RET_CODE=$?
   if [ $RET_CODE -ne 0 ]; then
     echo "TMS server schema migrate failed when importing sql for table: ${t}"
+    echo "Exiting ..."
+    exit $RET_CODE
+  fi
+done
+
+echo "**********************************************************************"
+echo "   Resetting table sequence IDs"
+echo "**********************************************************************"
+for t in $table_list_import
+do
+  echo "Resetting sequence ID for table: ${t}"
+  # Build sql string for the update. E.g. select setval('tenants_id_seq',(SELECT MAX(id) FROM tenants));
+  SQL_STR="SELECT setval('${t}_id_seq', (SELECT MAX(id) FROM ${t}));"
+  $PSQL_CMD -c "$SQL_STR"
+  RET_CODE=$?
+  if [ $RET_CODE -ne 0 ]; then
+    echo "TMS server schema migrate failed when resetting sequence ID for table: ${t}"
     echo "Exiting ..."
     exit $RET_CODE
   fi

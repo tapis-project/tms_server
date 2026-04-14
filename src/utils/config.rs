@@ -322,33 +322,50 @@ pub fn set_directories_and_check_install() {
                     ERROR: Option --schema-only may not be used along with --install. \n\
                   ***********************************************************************\n");
     }
-    let rootdir = get_root_dir();
-    let path = Path::new(&rootdir);
-    if path.is_file() {
-        // Expected  either nothing or a directory, but found a file.
+    // Construct root_dir path and perform checks
+    let root_dir = get_root_dir();
+    let root_path = Path::new(&root_dir);
+    if root_path.is_file() {
+        // Expected either nothing or a directory, but found a file.
         let msg = 
             format!("\n***********************************************************************\n\
-                    ERROR: Detected an existing file at install directory location here: {}. \n\n\
+                    ERROR: Detected an existing file at TMS root directory.\n\
+                    ERROR: Expected a directory or nothing at path. Path: {}\n\n\
                     Please correct the path and try again.\n\
-                    ***********************************************************************\n", rootdir);
+                    ***********************************************************************\n", root_dir);
         panic!("{}", msg);
     }
-    else if !path.is_dir() && !TMS_CMD_ARGS.install {
+    // Construct config_dir path from root_dir path and perform checks
+    let config_dir = format!("{}/config", root_dir);
+    let config_path = Path::new(&config_dir);
+
+    if config_path.is_file() {
+        // Expected either nothing or a directory, but found a file.
+        let msg =
+            format!("\n***********************************************************************\n\
+                    ERROR: Detected an existing file at TMS root config directory.\n\
+                    ERROR: Expected a directory or nothing at path. Path: {}\n\n\
+                    Please correct the path and try again.\n\
+                    ***********************************************************************\n", config_dir);
+        panic!("{}", msg);
+    }
+    if !config_path.is_dir() && !TMS_CMD_ARGS.install {
         // We are not installing and no directory found.
         let msg = 
             format!("\n***********************************************************************\n\
-                    ERROR: Expected the TMS root directory to exist at {}. \n\n\
-                    Please run 'tms_server --install' to install TMS's root directory in it's default \n\
-                    location or consult the README file for configuring a non-default root directory location.\n\
-                    ***********************************************************************\n", rootdir);
+                    ERROR: Expected the TMS root config directory to exist at path. Path: {}. \n\n\
+                    Please run 'tms_server --install' to initialize root directory at the default path \n\
+                    or consult the README file for configuring a non-default root directory location.\n\
+                    ***********************************************************************\n", config_dir);
         panic!("{}", msg);
-    } else if path.is_dir() && TMS_CMD_ARGS.install {
-        // We are installing and root directory already exists.
-        let msg = 
+    }
+    if config_path.is_dir() && TMS_CMD_ARGS.install {
+        // We are installing and root config directory already exists.
+        let msg =
             format!("\n***********************************************************************\n\
-                    ERROR: Cannot install over existing TMS root directory at {}. \n\n\
+                    ERROR: Cannot install over existing TMS root config directory at {}. \n\n\
                     Please correct or run tms_server without the --install option.\n\
-                    ***********************************************************************\n", rootdir);
+                    ***********************************************************************\n", config_dir);
         panic!("{}", msg);
     }
 }
@@ -372,12 +389,9 @@ fn init_tms_dirs() -> TmsDirs {
     // Check that each path is absolute and is a directory with the proper permissions assigned
     // if it exists. If directory does not exist then create it.
     let root_dir = get_root_dir();
+    println!("Checking root_dir: {}", root_dir);
     check_tms_dir(&root_dir, "root directory", &mistrust);
 
-    let migrations_dir = root_dir.clone() + MIGRATIONS_DIR;
-    dir_created = check_tms_dir(&migrations_dir, "migrations directory", &mistrust);
-    if dir_created {copy_resource_files(&migrations_dir, MIGRATIONS_DIR, &root_dir);}
-    
     let config_dir = root_dir.clone() + CONFIG_DIR;
     dir_created = check_tms_dir(&config_dir, "config directory", &mistrust);
     if dir_created {copy_resource_files(&config_dir, CONFIG_DIR, &root_dir);}
@@ -388,6 +402,10 @@ fn init_tms_dirs() -> TmsDirs {
     let certs_dir = root_dir.clone() + CERTS_DIR;
     dir_created = check_tms_dir(&certs_dir, "certs directory", &mistrust);
     if dir_created {copy_resource_files(&certs_dir, CERTS_DIR, &root_dir);}
+
+    let migrations_dir = root_dir.clone() + MIGRATIONS_DIR;
+    dir_created = check_tms_dir(&migrations_dir, "migrations directory", &mistrust);
+    if dir_created {copy_resource_files(&migrations_dir, MIGRATIONS_DIR, &root_dir);}
 
     // Package up and return the directories.
     TmsDirs {
@@ -454,6 +472,11 @@ fn check_tms_dir(dir: &String, msgname: &str, mistrust: &Mistrust) -> bool {
 fn copy_resource_files(target_dir: &String, dir_suffix: &str, root_dir: &String) {
     // Create the source directory pathname.
     let source_dir = RESOURCES_DIR.to_string() + dir_suffix;
+    let source_dir = get_absolute_path(&source_dir);
+    println!("copy_resource_files source_dir: {}", source_dir);
+    println!("copy_resource_files target_dir: {}", target_dir);
+    println!("copy_resource_files dir_suffix: {}", dir_suffix);
+    println!("copy_resource_files root_dir:   {}", root_dir);
 
     // Get the files in the specified resource directory.
     let pathbufs = match tms_utils::get_files_in_dir(source_dir.as_str()) {
@@ -466,8 +489,7 @@ fn copy_resource_files(target_dir: &String, dir_suffix: &str, root_dir: &String)
     // Don't call this function if there's nothing to copy.
     if pathbufs.is_empty() {
         let mut msg = format!("Installation aborted because no files were found in directory {}. ", &source_dir);
-        msg += "For new installations, copy the 'resources' directory from source code ";
-        msg += format!("and remove the TMS root directory ({}) before retrying.", &root_dir).as_str();
+        msg += "For new installations, please ensure that during the install the current working directory is at the top level of the tms_server source code tree.";
         panic!("{}", msg);
     }
 

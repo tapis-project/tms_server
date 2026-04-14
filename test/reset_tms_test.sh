@@ -13,13 +13,16 @@ PRG_RELPATH=$(dirname "$0")
 cd "$PRG_RELPATH"/. || exit
 PRG_PATH=$(pwd)
 
+# Some operations are relative to the top level source directory.
+SRC_DIR=$PRG_PATH/..
+
 if [ -z "${POSTGRES_PASSWORD}" ]; then
   echo "Please set env var POSTGRES_PASSWORD before running this script"
   exit 1
 fi
 
 # Move to the top level of tms_server src code directory
-cd $PRG_PATH/.. || exit 1
+cd $SRC_DIR || exit 1
 
 # Rebuild tms
 echo "**********************************************************************"
@@ -34,14 +37,14 @@ if [ $RET_CODE -ne 0 ]; then
 fi
 
 #  Reset the DB
-$PRG_PATH/../migrate_to_psql/tms_drop_db.sh
+$SRC_DIR/deployment/tms_drop_db.sh
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "tms_drop_db failed."
   echo "Exiting ..."
   exit $RET_CODE
 fi
-$PRG_PATH/../migrate_to_psql/tms_init_db.sh
+$SRC_DIR/deployment/tms_init_db.sh
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "tms_init_db failed."

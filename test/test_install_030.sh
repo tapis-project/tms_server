@@ -36,7 +36,7 @@ rm -f $TMS_INSTALL_DIR/tms.version
 echo "**********************************************************************"
 echo "   Initializing Postgres DB for TMS"
 echo "**********************************************************************"
-$SRC_DIR/migrate_to_psql/tms_drop_db.sh
+$SRC_DIR/deployment/tms_drop_db.sh
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "tms_drop_db failed."
@@ -44,7 +44,7 @@ if [ $RET_CODE -ne 0 ]; then
   exit $RET_CODE
 fi
 
-$SRC_DIR/migrate_to_psql/tms_init_db.sh
+$SRC_DIR/deployment/tms_init_db.sh
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "tms_init_db failed."
@@ -55,10 +55,10 @@ fi
 # Set up TMS local dir to have a custom tms.toml for local testing
 # TMS_LOCAL_DIR used for install output and custom tms.toml, log4rs.yml files.
 export TMS_LOCAL_DIR=$TMS_ROOT_DIR/local
-mkdir -p $LOCAL_DIR
-chmod 700 $LOCAL_DIR
-cp -p $SRC_DIR/test/tms_test_local.toml $LOCAL_DIR/tms.toml
-chmod 600 $LOCAL_DIR/tms.toml
+mkdir -p $TMS_LOCAL_DIR
+chmod 700 $TMS_LOCAL_DIR
+cp -p $SRC_DIR/test/tms_test_local.toml $TMS_LOCAL_DIR/tms.toml
+chmod 600 $TMS_LOCAL_DIR/tms.toml
 
 # Run the install
 cd $SRC_DIR

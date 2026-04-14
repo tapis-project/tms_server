@@ -193,6 +193,14 @@ if [ "$TEST_MODE" != "true" ]; then
 fi
 cp $EXEC_FILE $INSTALL_DIR/tms_server
 
+# If there is a customizations directory then rename it to local to match layout as of 0.3.0
+if [ -d ${HOME}/tms_customizations ]; then
+  echo
+  echo "===== Moving customizations directory from ${HOME}/tms_customizations to $ROOT_DIR/local"
+  echo "========================================================================================="
+  mv ${HOME}/tms_customizations $ROOT_DIR/local
+fi
+
 # Update migrations files.
 BAK_TIMESTAMP=`date  +%Y%m%d%H%M%S`
 mv $ROOT_DIR/migrations $ROOT_DIR/migrations_bak_$BAK_TIMESTAMP
