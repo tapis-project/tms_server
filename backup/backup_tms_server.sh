@@ -3,13 +3,18 @@
 # Script to create backup of TMS server DB and push to s3
 # NOTE: Based on tapis-deployer backup scripts located on tapisdeploy:/home/tapisprod/cron/scripts
 #
+# Crontab entry to run at 4am every day:
+#
+# 4 0 * * * /home/tms/tms_server/backup_tms_server.sh
+#
 # Determine absolute path to location from which we are running and change to that directory.
 RUN_DIR=$(pwd)
 PRG_RELPATH=$(dirname "$0")
 cd "$PRG_RELPATH"/. || exit
 PRG_PATH=$(pwd)
 
-TMS_HOME="/home/tms"
+TMS_ROOT="$HOME/.tms"
+TMS_HOME="$HOME"
 SERVICE=tms
 ENV=prod
 
@@ -23,11 +28,9 @@ backupfilepath="${backupdir}/${backupfilename}"
 backupfilegz="${backupfilepath}.gz"
 backups3path="s3://${bucketname}/${backupyear}/"
 
-backupsrcdb="$TMS_HOME/.tms/database/tms.db"
+backupsrcdb="$TMS_ROOT/database/tms.db"
 
 mkdir -p ${backupdir}
-
-SQ3_CMD="sqlite3 ${backupsrcdb}"
 
 # If file exists then log error and exit
 if [ -f ${backupfilegz} ]; then
@@ -38,6 +41,7 @@ if [ -f ${backupfilegz} ]; then
 fi
 
 # Make the backup
+SQ3_CMD="sqlite3 ${backupsrcdb}"
 echo "Creating backup using sqlite3 .backup command"
 $SQ3_CMD ".backup ${backupfilepath}"
 RET_CODE=$?
