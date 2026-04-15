@@ -1,0 +1,22 @@
+---
+version: "3"
+
+volumes:
+  tms-postgres-18-data:
+
+services:
+# Postgres for TMS
+  tms-postgres:
+    image: postgres:18.3
+    container_name: tms-postgres
+    labels:
+      name: tms-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - tms-postgres-18-data:/var/lib/postgresql/data_tms
