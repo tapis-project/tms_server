@@ -3,6 +3,8 @@
 # Script to create backup of TMS server DB and push to s3
 # NOTE: Based on tapis-deployer backup scripts located on tapisdeploy:/home/tapisprod/cron/scripts
 #
+# NOTE: If default installation directories are not used for TMS, please update TMS_ROOT and TMS_HOME
+#
 # Crontab entry to run at 4am every day:
 #
 # 4 0 * * * /home/tms/tms_server/backup_tms_server.sh
@@ -13,17 +15,18 @@ PRG_RELPATH=$(dirname "$0")
 cd "$PRG_RELPATH"/. || exit
 PRG_PATH=$(pwd)
 
+# Set TMS root and home directories to the default. Customize as needed.
 TMS_ROOT="$HOME/.tms"
 TMS_HOME="$HOME"
 SERVICE=tms
-ENV=prod
+HOST=$(hostname)
 
-bucketname=${SERVICE}-${ENV}-backups
+bucketname=${SERVICE}-${HOST}-backups
 
 backuptimestamp=`date +%Y%m%d`
 backupyear=$(date +%Y)
 backupdir="$TMS_HOME/backups/${SERVICE}"
-backupfilename=${ENV}-${SERVICE}-backup-${backuptimestamp}.sq3
+backupfilename=${HOST}-${SERVICE}-backup-${backuptimestamp}.sq3
 backupfilepath="${backupdir}/${backupfilename}"
 backupfilegz="${backupfilepath}.gz"
 backups3path="s3://${bucketname}/${backupyear}/"
@@ -34,8 +37,8 @@ mkdir -p ${backupdir}
 
 # If file exists then log error and exit
 if [ -f ${backupfilegz} ]; then
-  echo "ERROR: ${SERVICE}-${ENV} backup failed"
-  echo "${SERVICE}-${ENV} backup failed. File already exists. File: ${backupfilegz} "
+  echo "ERROR: ${SERVICE}-${HOST} backup failed"
+  echo "${SERVICE}-${HOST} backup failed. File already exists. File: ${backupfilegz} "
   echo "Exiting ..."
   exit 1
 fi
@@ -68,6 +71,9 @@ if [ ! -f ${backupfilegz} ]; then
   exit 1
 fi
 
+# Make the bucket in case this is the first run
+s3cmd mb "s3://${bucketname}"
+
 # Push the compressed backup to s3
 echo "Pushing backup file to s3 using path: ${backups3path}"
 s3cmd put ${backupfilegz} ${backups3path}
@@ -79,7 +85,7 @@ if [ $RET_CODE -ne 0 ]; then
 fi
 
 # We are done
-echo "${SERVICE}-${ENV} backup success"
+echo "${SERVICE}-${HOST} backup success"
 echo "Listing backups at ${backups3path}"
 s3cmd ls ${backups3path}
 

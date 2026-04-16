@@ -38,6 +38,13 @@ PRG_PATH=$(pwd)
 # Upgrade script is located under deployment/native. Some operations are relative to the top level source directory.
 SRC_DIR=$PRG_PATH/../..
 
+TMS_HOME="$HOME"
+BAK_DIR="$TMS_HOME/backups/tms"
+BAK_FILE="backup_tms_server.sh"
+BAK_FILE_PATH="$BAK_DIR/scripts/$BAK_FILE"
+# Timestamp to use when backing up existing files
+BAK_TIMESTAMP=`date  +%Y%m%d%H%M%S`
+
 # Check number of arguments
 if [ $# -gt 1 ]; then
   echo "$USAGE"
@@ -78,7 +85,7 @@ if [ $RET_CODE -ne 0 ]; then
 fi
 
 # Set root directory. Location of config, logs, etc.
-ROOT_DEF_DIR="$HOME/.tms"
+ROOT_DEF_DIR="$TMS_HOME/.tms"
 if [ -n "$TMS_ROOT_DIR" ]; then
   ROOT_DIR="$TMS_ROOT_DIR"
 else
@@ -99,6 +106,7 @@ if [ $RET_CODE -ne 0 ]; then
   exit $RET_CODE
 fi
 chmod 700 $ROOT_DIR
+chown $INSTALL_USR:$INSTALL_USR $ROOT_DIR
 
 # Set installation directory. Location of tms_server executable and tms.version.
 INSTALL_DEF_DIR="/opt/tms_server"
@@ -135,6 +143,7 @@ if [ $RET_CODE -ne 0 ]; then
 fi
 # Restrict it since it will contain secrets from the initialization run.
 chmod 700 $LOCAL_DIR
+chown $INSTALL_USR:$INSTALL_USR $LOCAL_DIR
 
 # Determine new version
 if [ "$TEST_MODE" == "true" ]; then
@@ -186,7 +195,6 @@ echo
 echo "===== Running build script as TMS install user. User: $INSTALL_USR"
 echo "========================================================================================="
 chmod +x $TMP_FILE
-chown $INSTALL_USR:$INSTALL_USR $TMP_FILE
 if [ "$TEST_MODE" != "true" ]; then
   su - $INSTALL_USR -c "$TMP_FILE"
   RET_CODE=$?
@@ -219,6 +227,7 @@ if [ $RET_CODE -ne 0 ]; then
   exit $RET_CODE
 fi
 chmod 770 $EXEC_DEST
+chown $INSTALL_USR:$INSTALL_USR $EXEC_DEST
 
 # Update version in install dir
 VERS_FILE=$INSTALL_DIR/tms.version
@@ -240,7 +249,8 @@ if [ $RET_CODE -ne 0 ]; then
   echo "Exiting ..."
   exit $RET_CODE
 fi
-chmod 600 ${LOCAL_DIR}/tms-install.out
+chmod 400 ${LOCAL_DIR}/tms-install.out
+chown $INSTALL_USR:$INSTALL_USR $LOCAL_DIR/tms-install.out
 
 # If there are custom tms or log4s config then copy into place
 if [ -f $LOCAL_DIR/tms.toml ]; then
@@ -263,14 +273,42 @@ if [ -f $LOCAL_DIR/log4rs.yml ]; then
   fi
   chmod 600 $ROOT_DIR/config/log4rs.toml
 fi
+chown -R $INSTALL_USR:$INSTALL_USR $ROOT_DIR/config
 
 # If no example cert related files exist then copy example cert and key path files into local directory.
 if [ ! -f $LOCAL_DIR/cert.path ]; then
   cp -p $SRC_DIR/deployment/native/cert.path $LOCAL_DIR/cert.path
+  chown $INSTALL_USR:$INSTALL_USR $LOCAL_DIR/cert.path
 fi
 if [ ! -f $LOCAL_DIR/key.path ]; then
   cp -p $SRC_DIR/deployment/native/key.path $LOCAL_DIR/key.path
+  chown $INSTALL_USR:$INSTALL_USR $LOCAL_DIR/key.path
 fi
+
+# Copy latest backup script into place.
+echo
+echo "===== Updating backup script. Target path: $BAK_FILE_PATH"
+echo "========================================================================================="
+mkdir -p $BAK_DIR/scripts
+# If backup script currently exists then back it up
+if [ -f "$BAK_FILE_PATH" ]; then
+  echo "Found existing backup script. Moving it to: ${BAK_FILE_PATH}.bak_${BAK_TIMESTAMP}"
+  mv "$BAK_FILE_PATH" "${BAK_FILE_PATH}.bak_${BAK_TIMESTAMP}"
+  if [ $RET_CODE -ne 0 ]; then
+    echo "ERROR: Unable to move original backup script"
+    echo "Exiting ..."
+    exit $RET_CODE
+  fi
+fi
+cp -pr "${SRC_DIR}/backup/$BAK_FILE" "$BAK_FILE_PATH"
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+  echo "ERROR: Unable to copy backup script FROM: ${SRC_DIR}/backup/$BAK_FILE TO: $BAK_FILE_PATH"
+  echo "Exiting ..."
+  exit $RET_CODE
+fi
+chmod +x "$BAK_FILE_PATH"
+chown $INSTALL_USR:$INSTALL_USR "$BAK_FILE_PATH"
 
 # Remove the temporary file
 rm -f $TMP_FILE

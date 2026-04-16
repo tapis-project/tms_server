@@ -30,6 +30,13 @@ PRG_PATH=$(pwd)
 # Upgrade script is located under deployment/native. Some operations are relative to the top level source directory.
 SRC_DIR=$PRG_PATH/../..
 
+TMS_HOME="$HOME"
+BAK_DIR="$TMS_HOME/backups/tms"
+BAK_FILE="backup_tms_server.sh"
+BAK_FILE_PATH="$BAK_DIR/scripts/$BAK_FILE"
+# Timestamp to use when backing up existing files
+BAK_TIMESTAMP=`date  +%Y%m%d%H%M%S`
+
 # Check number of arguments
 if [ $# -gt 1 ]; then
   echo "$USAGE"
@@ -160,7 +167,6 @@ echo
 echo "===== Running build script as TMS install user. User: $INSTALL_USR"
 echo "========================================================================================="
 chmod +x $TMP_FILE
-chown $INSTALL_USR:$INSTALL_USR $TMP_FILE
 if [ "$TEST_MODE" != "true" ]; then
   su - $INSTALL_USR -c "$TMP_FILE"
   RET_CODE=$?
@@ -192,20 +198,34 @@ if [ "$TEST_MODE" != "true" ]; then
   systemctl stop tms_server
 fi
 cp $EXEC_FILE $INSTALL_DIR/tms_server
+chown $INSTALL_USR:$INSTALL_USR $INSTALL_DIR/tms_server
 
 # If there is a customizations directory then rename it to local to match layout as of 0.3.0
-if [ -d ${HOME}/tms_customizations ]; then
+if [ -d ${TMS_HOME}/tms_customizations ]; then
   echo
-  echo "===== Moving customizations directory from ${HOME}/tms_customizations to $ROOT_DIR/local"
+  echo "===== Moving customizations directory from ${TMS_HOME}/tms_customizations to $ROOT_DIR/local"
   echo "========================================================================================="
-  mv ${HOME}/tms_customizations $ROOT_DIR/local
+  mv ${TMS_HOME}/tms_customizations $ROOT_DIR/local
 fi
 
 # Update migrations files.
-BAK_TIMESTAMP=`date  +%Y%m%d%H%M%S`
-mv $ROOT_DIR/migrations $ROOT_DIR/migrations_bak_$BAK_TIMESTAMP
-cp -pr $SRC_DIR/resources/migrations $ROOT_DIR/migrations
-chmod 0700 $ROOT_DIR/migrations
+mv $ROOT_DIR/migrations "${ROOT_DIR}/migrations.bak_${BAK_TIMESTAMP}"
+cp -pr "${SRC_DIR}/resources/migrations" "${ROOT_DIR}/migrations"
+chmod 0700 "${ROOT_DIR}/migrations"
+chown $INSTALL_USR:$INSTALL_USR "${ROOT_DIR}/migrations"
+
+# Copy latest backup script into place.
+echo
+echo "===== Updating backup script. Target path: $BAK_FILE_PATH"
+echo "========================================================================================="
+mkdir -p $BAK_DIR/scripts
+# If backup script currently exists then back it up
+if [ -f "$BAK_FILE_PATH" ]; then
+  echo "Found existing backup script. Moving it to: ${BAK_FILE_PATH}.bak_${BAK_TIMESTAMP}"
+  mv "$BAK_FILE_PATH" "${BAK_FILE_PATH}.bak_${BAK_TIMESTAMP}"
+fi
+cp -pr "${SRC_DIR}/backup/$BAK_FILE" "$BAK_FILE_PATH"
+chown $INSTALL_USR:$INSTALL_USR "$BAK_FILE_PATH"
 
 # Before updating version and starting up new tms_server perform the migration from sqlite to postgres
 echo
