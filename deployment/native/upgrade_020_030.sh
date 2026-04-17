@@ -163,8 +163,15 @@ VERS_OLD=$(cat $VERS_FILE)
 # Determine new version
 if [ "$TEST_MODE" == "true" ]; then
   VERS_NEW=$(cd $SRC_DIR; cargo pkgid | cut -d "#" -f2)
+  RET_CODE=$?
 else
   VERS_NEW=$(su - $INSTALL_USR -c 'cd tms_server; cargo pkgid | cut -d "#" -f2')
+  RET_CODE=$?
+fi
+if [ $RET_CODE -ne 0 ]; then
+  echo "Error determining new TMS version"
+  echo "Exiting ..."
+  exit $RET_CODE
 fi
 
 # Set path to built executable
@@ -269,10 +276,15 @@ echo
 echo "===== Migrating DB from sqlite to postgres"
 echo "========================================================================================="
 # Fill in some defaults as needed before running migration
-export TMS_DB_HOST TMS_DB_PORT TMS_DB_USER
+TMS_TEST_MODE=$TEST_MODE
 if [ -z "$TMS_DB_HOST" ]; then TMS_DB_HOST="localhost"; fi
-if [ -z "$TMS_DB_PORT" ]; then TMS_DB_HOST="5432"; fi
+if [ -z "$TMS_DB_PORT" ]; then TMS_DB_PORT="5432"; fi
 if [ -z "$TMS_DB_USER" ]; then TMS_DB_USER="tms"; fi
+# Set TMS_ROOT_DIR and TMS_INSTALL_DIR to the final resolved values
+TMS_ROOT_DIR=$ROOT_DIR
+TMS_INSTALL_DIR=$INSTALL_DIR
+TMS_VER_NEW=$VERS_NEW
+export TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_ROOT_DIR TMS_INSTALL_DIR TMS_TEST_MODE TMS_VER_NEW
 
 $SRC_DIR/migrate_to_psql/migrate_from_sqlite.sh
 RET_CODE=$?

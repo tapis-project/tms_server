@@ -27,7 +27,7 @@ VERS_NEW_REQUIRED="0.3.0"
 
 # Check that all required env variables are set
 FAILED=false
-env_list="POSTGRES_PASSWORD TMS_ROOT_DIR TMS_INSTALL_DIR TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_DB_USER_PASSWORD"
+env_list="POSTGRES_PASSWORD TMS_ROOT_DIR TMS_INSTALL_DIR TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_DB_USER_PASSWORD TMS_TEST_MODE TMS_VER_NEW"
 for name in $env_list
 do
   if [[ -z "${!name}" ]]; then
@@ -50,8 +50,7 @@ if [ ! -f "$VERS_FILE" ]; then
   exit 1
 fi
 VERS_OLD=$(cat $VERS_FILE)
-VERS_NEW=$(cargo pkgid | cut -d "#" -f2)
-if [ "$VERS_OLD" != "$VERS_OLD_REQUIRED" ] || [ "$VERS_NEW" != "$VERS_NEW_REQUIRED" ]; then
+if [ "$VERS_OLD" != "$VERS_OLD_REQUIRED" ] || [ "$TMS_VERS_NEW" != "$VERS_NEW_REQUIRED" ]; then
   echo "This script should only be run when upgrading form version 0.2.0. Found version: $VERS_OLD"
   echo "Exiting ..."
   exit 1
