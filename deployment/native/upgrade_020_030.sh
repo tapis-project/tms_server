@@ -64,11 +64,28 @@ else
   INSTALL_USR=tms
 fi
 
+# Check required enviornment variables
+# Check that all required env variables are set
+FAILED=false
+env_list="POSTGRES_PASSWORD TMS_DB_USER_PASSWORD"
+for name in $env_list
+do
+  if [[ -z "${!name}" ]]; then
+    echo "Please set env var ${name} before running this script"
+    FAILED=true
+  fi
+done
+if [ "$FAILED" = true ]; then
+  echo "Please set required environment variables"
+  echo "Exiting ..."
+  exit 1
+fi
+
 # Determine home directory of install user.
 if [ "$TEST_MODE" == "true" ]; then
   TMS_HOME="$HOME"
 else
-  TMS_HOME=$(su - $INSTALL_USR  -c '$HOME')
+  TMS_HOME=$(su - $INSTALL_USR -c 'echo $HOME')
 fi
 
 # Define backup script related settings
@@ -177,6 +194,9 @@ cd $SRC_DIR
 cargo build --release
 EOB
 
+# Let the install user run the tmp script
+chmod 755 $TMP_FILE
+
 # Remove any existing executable
 rm -f $EXEC_FILE
 # Run the script to build the new executable
@@ -248,6 +268,11 @@ chown $INSTALL_USR:$INSTALL_USR "$BAK_FILE_PATH"
 echo
 echo "===== Migrating DB from sqlite to postgres"
 echo "========================================================================================="
+# Fill in some defaults as needed before running migration
+export TMS_DB_HOST TMS_DB_PORT TMS_DB_USER
+if [ -z "$TMS_DB_HOST" ]; then TMS_DB_HOST="localhost"; fi
+if [ -z "$TMS_DB_PORT" ]; then TMS_DB_HOST="5432"; fi
+if [ -z "$TMS_DB_USER" ]; then TMS_DB_USER="tms"; fi
 
 $SRC_DIR/migrate_to_psql/migrate_from_sqlite.sh
 RET_CODE=$?

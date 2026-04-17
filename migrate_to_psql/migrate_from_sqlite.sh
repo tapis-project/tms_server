@@ -4,7 +4,7 @@
 # Script assumes SQLite and postgres psql are installed.
 #
 # Required env variables:
-#   TMS_ROOT_DIR e.g. ~/.tms
+#   TMS_ROOT_DIR e.g. $HOME/.tms
 #   TMS_INSTALL_DIR e.g. /opt/tms_server
 #   TMS_DB_HOST     e.g. localhost
 #   TMS_DB_PORT     e.g. 5431
