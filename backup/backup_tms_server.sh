@@ -12,7 +12,7 @@
 #
 # Crontab entry to run at 4am every day:
 #
-# 4 0 * * * /home/tms/tms_server/backup_tms_server.sh
+# 4 0 * * * /home/tms/tms_server/backup/backup_tms_server.sh
 #
 # Determine absolute path to location from which we are running and change to that directory.
 RUN_DIR=$(pwd)

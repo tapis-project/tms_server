@@ -35,7 +35,7 @@ BAK_DIR="$TMS_HOME/backups/tms"
 BAK_FILE="backup_tms_server.sh"
 BAK_FILE_PATH="$BAK_DIR/scripts/$BAK_FILE"
 # Timestamp to use when backing up existing files
-BAK_TIMESTAMP=`date  +%Y%m%d%H%M%S`
+BAK_TIMESTAMP=$(date  +%Y%m%d%H%M%S)
 
 # Check number of arguments
 if [ $# -gt 1 ]; then
