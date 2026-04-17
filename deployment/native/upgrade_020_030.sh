@@ -2,8 +2,11 @@
 # Build and deploy the latest native version TMS Server
 # This script must be run as root or run in --test mode.
 # This script builds a release version and updates files in the install and root directories as needed.
+#
 # Default install directory is /opt/tms_server. May be overridden using env variable TMS_INSTALL_DIR.
-# Default root directory is ~/.tms. May be overridden using env variable TMS_ROOT_DIR.
+#
+# Default root directory is $HOME/.tms as the install user. May be overridden using env variable TMS_ROOT_DIR.
+#
 # User used to build and install TMS may be given on the command line. Default user is "tms"
 #
 # Assumptions:
@@ -30,19 +33,13 @@ PRG_PATH=$(pwd)
 # Upgrade script is located under deployment/native. Some operations are relative to the top level source directory.
 SRC_DIR=$PRG_PATH/../..
 
-TMS_HOME="$HOME"
-BAK_DIR="$TMS_HOME/backups/tms"
-BAK_FILE="backup_tms_server.sh"
-BAK_FILE_PATH="$BAK_DIR/scripts/$BAK_FILE"
-# Timestamp to use when backing up existing files
-BAK_TIMESTAMP=$(date  +%Y%m%d%H%M%S)
-
 # Check number of arguments
 if [ $# -gt 1 ]; then
   echo "$USAGE"
   exit 1
 fi
 
+# Determine if this is a normal run or a test run
 TEST_MODE=false
 if [ "$1" == "--test" ]; then
   echo "*******************************"
@@ -58,15 +55,6 @@ if [ "$TEST_MODE" == "false" ] && [ "$EUID" != 0 ]; then
   exit 1
 fi
 
-# Make sure rust is installed.
-rustc --version
-RET_CODE=$?
-if [ $RET_CODE -ne 0 ]; then
-    echo "ERROR: Unable to access rustc. Install the latest stable version of Rust if necessary."
-    echo "Exiting ..."
-    exit $RET_CODE
-fi
-
 # Determine TMS install user
 if [ "$TEST_MODE" == "true" ]; then
   INSTALL_USR=$USER
@@ -74,6 +62,35 @@ elif [ -n "$1" ]; then
   INSTALL_USR="$1"
 else
   INSTALL_USR=tms
+fi
+
+# Determine home directory of install user.
+if [ "$TEST_MODE" == "true" ]; then
+  TMS_HOME="$HOME"
+else
+  TMS_HOME=$(su - $INSTALL_USR  -c '$HOME')
+fi
+
+# Define backup script related settings
+BAK_DIR="$TMS_HOME/backups/tms"
+BAK_FILE="backup_tms_server.sh"
+BAK_FILE_PATH="$BAK_DIR/scripts/$BAK_FILE"
+# Timestamp to use when backing up existing files
+BAK_TIMESTAMP=$(date  +%Y%m%d%H%M%S)
+
+# Make sure rust is installed.
+if [ "$TEST_MODE" == "true" ]; then
+  rustc --version
+  RET_CODE=$?
+else
+  su - $INSTALL_USR  -c 'rustc --version'
+  RET_CODE=$?
+fi
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+    echo "ERROR: Unable to access rustc. Install the latest stable version of Rust if necessary."
+    echo "Exiting ..."
+    exit $RET_CODE
 fi
 
 # Make sure the specified user for the TMS install exists
@@ -85,8 +102,8 @@ if [ $RET_CODE -ne 0 ]; then
     exit $RET_CODE
 fi
 
-# Set root directory.
-ROOT_DEF_DIR="$HOME/.tms"
+# Set TMS root directory.
+ROOT_DEF_DIR="$TMS_HOME/.tms"
 if [ -n "$TMS_ROOT_DIR" ]; then
   ROOT_DIR="$TMS_ROOT_DIR"
 else

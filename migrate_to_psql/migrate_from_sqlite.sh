@@ -1,7 +1,8 @@
 #!/bin/bash
-#
 # Script to migrate data from an SQLite DB to a postgresql DB
+#
 # Script assumes SQLite and postgres psql are installed.
+#
 # Required env variables:
 #   TMS_ROOT_DIR e.g. ~/.tms
 #   TMS_INSTALL_DIR e.g. /opt/tms_server
