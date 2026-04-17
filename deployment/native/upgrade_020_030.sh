@@ -64,7 +64,7 @@ else
   INSTALL_USR=tms
 fi
 
-# Check required enviornment variables
+# Check required environment variables
 # Check that all required env variables are set
 FAILED=false
 env_list="POSTGRES_PASSWORD TMS_DB_USER_PASSWORD"

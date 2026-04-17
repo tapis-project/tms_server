@@ -51,7 +51,7 @@ if [ ! -f "$VERS_FILE" ]; then
 fi
 VERS_OLD=$(cat $VERS_FILE)
 if [ "$VERS_OLD" != "$VERS_OLD_REQUIRED" ] || [ "$TMS_VERS_NEW" != "$VERS_NEW_REQUIRED" ]; then
-  echo "This script should only be run when upgrading form version 0.2.0 to 0.3.0."
+  echo "This script should only be run when upgrading from version 0.2.0 to 0.3.0."
   echo "Found VERS_OLD=$VERS_OLD and VERS_NEW=$TMS_VERS_NEW"
   echo "Exiting ..."
   exit 1
@@ -96,18 +96,12 @@ do
   $PRG_PATH/gres_r.sh "',0,'" "',0::bool,'" ${out_file}
 done
 
-# Reset the postgres DB
+# Initialize the postgres DB
+# TODO Should we check first that the tables do not yet exist?
+#      Would it be bad if upgrade fails part way through and we re-run this and it re-imported some data? or would that fail?
 echo "**********************************************************************"
 echo "   Initializing Postgres DB for TMS"
 echo "**********************************************************************"
-$SRC_DIR/deployment/tms_drop_db.sh
-RET_CODE=$?
-if [ $RET_CODE -ne 0 ]; then
-  echo "tms_drop_db failed."
-  echo "Exiting ..."
-  exit $RET_CODE
-fi
-
 $SRC_DIR/deployment/tms_init_db.sh
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
@@ -121,8 +115,13 @@ echo "   Creating TMS postgres DB schema"
 echo "*********************************************************************************"
 # Create the initial tms schema
 #export TMS_DB_URL="postgres://${TMS_DB_USER}:${TMS_DB_USER_PASSWORD}@${TMS_DB_HOST}:${TMS_DB_PORT}/tmsdb"
-$SRC_DIR/target/release/tms_server --schema-only
-RET_CODE=$?
+if [ "$TEST_MODE" == "true" ]; then
+  $SRC_DIR/target/release/tms_server --schema-only
+  RET_CODE=$?
+else
+  su - $INSTALL_USR -c "$SRC_DIR/target/release/tms_server --schema-only"
+  RET_CODE=$?
+fi
 if [ $RET_CODE -ne 0 ]; then
   echo "TMS server schema create failed"
   echo "Exiting ..."
