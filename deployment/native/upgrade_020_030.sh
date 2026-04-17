@@ -187,8 +187,8 @@ echo "#!/bin/bash" > $TMP_FILE
 # Place various env variables into script
 echo "SRC_DIR=$SRC_DIR" >> $TMP_FILE
 echo "INSTALL_DIR=$INSTALL_DIR" >> $TMP_FILE
-echo "VER_OLD=$VERS_OLD" >> $TMP_FILE
-echo "VER_NEW=$VERS_NEW" >> $TMP_FILE
+echo "VERS_OLD=$VERS_OLD" >> $TMP_FILE
+echo "VERS_NEW=$VERS_NEW" >> $TMP_FILE
 
 # Construct second part of script
 cat >> $TMP_FILE << EOB
@@ -283,8 +283,8 @@ if [ -z "$TMS_DB_USER" ]; then TMS_DB_USER="tms"; fi
 # Set TMS_ROOT_DIR and TMS_INSTALL_DIR to the final resolved values
 TMS_ROOT_DIR=$ROOT_DIR
 TMS_INSTALL_DIR=$INSTALL_DIR
-TMS_VER_NEW=$VERS_NEW
-export TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_ROOT_DIR TMS_INSTALL_DIR TMS_TEST_MODE TMS_VER_NEW
+TMS_VERS_NEW=$VERS_NEW
+export TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_ROOT_DIR TMS_INSTALL_DIR TMS_TEST_MODE TMS_VERS_NEW
 
 $SRC_DIR/migrate_to_psql/migrate_from_sqlite.sh
 RET_CODE=$?
