@@ -45,6 +45,13 @@ if [ "$FAILED" = true ]; then
   exit 1
 fi
 
+# Write env variables to a temporary file
+cat >> $TMP_FILE_ENV << EOB
+export TMS_DB_HOST=$TMS_DB_HOST
+export TMS_DB_PORT=$TMS_DB_PORT
+export TMS_DB_USER=$TMS_DB_USER
+export TMS_DB_USER_PASSWORD=$TMS_DB_USER_PASSWORD
+EOB
 # Make sure this is an upgrade from TMS Server 0.2.0 to 0.3.0
 # Determine old and new versions
 VERS_FILE=$TMS_INSTALL_DIR/tms.version
@@ -65,7 +72,7 @@ fi
 TMP_FILE=$(mktemp)
 STG_DIR=/tmp/tms_migrate
 mkdir -p $STG_DIR
-
+TMP_FILE_ENV=$STG_DIR/tms.env
 # Path to SQLite3 DB file
 TMS_SQ3_DB_PATH=$TMS_ROOT_DIR/database/tms.db
 
@@ -123,7 +130,7 @@ if [ "$TMS_TEST_MODE" == "true" ]; then
   $SRC_DIR/target/release/tms_server --schema-only
   RET_CODE=$?
 else
-  su - $TMS_USR -c "$SRC_DIR/target/release/tms_server --schema-only"
+  su - $TMS_USR -c ". $TMP_FILE_ENV; $SRC_DIR/target/release/tms_server --schema-only"
   RET_CODE=$?
 fi
 if [ $RET_CODE -ne 0 ]; then
@@ -180,6 +187,7 @@ echo "**********************************************************************"
 echo "   Final cleanup"
 echo "**********************************************************************"
 rm $TMP_FILE
+rm $TMP_FILE_ENV
 rm $STG_DIR/*.sql
 rmdir $STG_DIR
 cd $RUN_DIR
