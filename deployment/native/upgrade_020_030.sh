@@ -89,7 +89,7 @@ else
 fi
 
 # Define backup script related settings
-BAK_DIR="$TMS_HOME/backups/tms"
+BAK_DIR="$TMS_HOME/backups"
 BAK_FILE="backup_tms_server.sh"
 BAK_FILE_PATH="$BAK_DIR/scripts/$BAK_FILE"
 # Timestamp to use when backing up existing files
@@ -258,6 +258,31 @@ cp -pr "${SRC_DIR}/resources/migrations" "${ROOT_DIR}/migrations"
 chmod 0700 "${ROOT_DIR}/migrations"
 chown $INSTALL_USR:$INSTALL_USR "${ROOT_DIR}/migrations"
 
+# Before updating version and starting up new tms_server perform the migration from sqlite to postgres
+echo
+echo "===== Migrating DB from sqlite to postgres"
+echo "========================================================================================="
+# Fill in some defaults as needed before running migration
+TMS_TEST_MODE=$TEST_MODE
+TMS_USR=$INSTALL_USR
+if [ -z "$TMS_DB_HOST" ]; then TMS_DB_HOST="localhost"; fi
+if [ -z "$TMS_DB_PORT" ]; then TMS_DB_PORT="5432"; fi
+if [ -z "$TMS_DB_USER" ]; then TMS_DB_USER="tms"; fi
+# Set TMS_ROOT_DIR and TMS_INSTALL_DIR to the final resolved values
+TMS_ROOT_DIR=$ROOT_DIR
+TMS_INSTALL_DIR=$INSTALL_DIR
+TMS_VERS_NEW=$VERS_NEW
+export TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_ROOT_DIR TMS_INSTALL_DIR TMS_TEST_MODE TMS_VERS_NEW TMS_USR
+
+$SRC_DIR/migrate_to_psql/migrate_from_sqlite.sh
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+  echo
+  echo "*************** Error running migration script"
+  echo "Exiting ..."
+  exit $RET_CODE
+fi
+
 # Copy latest backup script into place.
 echo
 echo "===== Updating backup script. Target path: $BAK_FILE_PATH"
@@ -270,30 +295,6 @@ if [ -f "$BAK_FILE_PATH" ]; then
 fi
 cp -pr "${SRC_DIR}/backup/$BAK_FILE" "$BAK_FILE_PATH"
 chown $INSTALL_USR:$INSTALL_USR "$BAK_FILE_PATH"
-
-# Before updating version and starting up new tms_server perform the migration from sqlite to postgres
-echo
-echo "===== Migrating DB from sqlite to postgres"
-echo "========================================================================================="
-# Fill in some defaults as needed before running migration
-TMS_TEST_MODE=$TEST_MODE
-if [ -z "$TMS_DB_HOST" ]; then TMS_DB_HOST="localhost"; fi
-if [ -z "$TMS_DB_PORT" ]; then TMS_DB_PORT="5432"; fi
-if [ -z "$TMS_DB_USER" ]; then TMS_DB_USER="tms"; fi
-# Set TMS_ROOT_DIR and TMS_INSTALL_DIR to the final resolved values
-TMS_ROOT_DIR=$ROOT_DIR
-TMS_INSTALL_DIR=$INSTALL_DIR
-TMS_VERS_NEW=$VERS_NEW
-export TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_ROOT_DIR TMS_INSTALL_DIR TMS_TEST_MODE TMS_VERS_NEW
-
-$SRC_DIR/migrate_to_psql/migrate_from_sqlite.sh
-RET_CODE=$?
-if [ $RET_CODE -ne 0 ]; then
-  echo
-  echo "*************** Error running migration script"
-  echo "Exiting ..."
-  exit $RET_CODE
-fi
 
 # Update version in install dir
 echo "$VERS_NEW" > $VERS_FILE

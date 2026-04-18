@@ -10,6 +10,9 @@
 #   TMS_DB_PORT     e.g. 5431
 #   TMS_DB_USER     e.g. tms
 #   TMS_DB_USER_PASSWORD
+#   TMS_USR         e.g. tms
+#   TMS_TEST_MODE   e.g. false
+#   TMS_VERS_NEW    e.g. 0.3.0
 #   POSTGRES_PASSWORD
 #
 # Determine absolute path to location from which we are running and change to that directory.
@@ -27,7 +30,8 @@ VERS_NEW_REQUIRED="0.3.0"
 
 # Check that all required env variables are set
 FAILED=false
-env_list="POSTGRES_PASSWORD TMS_ROOT_DIR TMS_INSTALL_DIR TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_DB_USER_PASSWORD TMS_TEST_MODE TMS_VERS_NEW"
+env_list="POSTGRES_PASSWORD TMS_ROOT_DIR TMS_INSTALL_DIR TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_DB_USER_PASSWORD" \
+         " TMS_TEST_MODE TMS_VERS_NEW TMS_USR"
 for name in $env_list
 do
   if [[ -z "${!name}" ]]; then
@@ -115,11 +119,11 @@ echo "   Creating TMS postgres DB schema"
 echo "*********************************************************************************"
 # Create the initial tms schema
 #export TMS_DB_URL="postgres://${TMS_DB_USER}:${TMS_DB_USER_PASSWORD}@${TMS_DB_HOST}:${TMS_DB_PORT}/tmsdb"
-if [ "$TEST_MODE" == "true" ]; then
+if [ "$TMS_TEST_MODE" == "true" ]; then
   $SRC_DIR/target/release/tms_server --schema-only
   RET_CODE=$?
 else
-  su - $INSTALL_USR -c "$SRC_DIR/target/release/tms_server --schema-only"
+  su - $TMS_USR -c "$SRC_DIR/target/release/tms_server --schema-only"
   RET_CODE=$?
 fi
 if [ $RET_CODE -ne 0 ]; then
