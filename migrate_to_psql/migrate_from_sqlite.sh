@@ -45,13 +45,6 @@ if [ "$FAILED" = true ]; then
   exit 1
 fi
 
-# Write env variables to a temporary file
-cat >> $TMP_FILE_ENV << EOB
-export TMS_DB_HOST=$TMS_DB_HOST
-export TMS_DB_PORT=$TMS_DB_PORT
-export TMS_DB_USER=$TMS_DB_USER
-export TMS_DB_USER_PASSWORD=$TMS_DB_USER_PASSWORD
-EOB
 # Make sure this is an upgrade from TMS Server 0.2.0 to 0.3.0
 # Determine old and new versions
 VERS_FILE=$TMS_INSTALL_DIR/tms.version
@@ -75,6 +68,14 @@ mkdir -p $STG_DIR
 TMP_FILE_ENV=$STG_DIR/tms.env
 # Path to SQLite3 DB file
 TMS_SQ3_DB_PATH=$TMS_ROOT_DIR/database/tms.db
+
+# Write env variables to a temporary file
+cat >> $TMP_FILE_ENV << EOB
+export TMS_DB_HOST=$TMS_DB_HOST
+export TMS_DB_PORT=$TMS_DB_PORT
+export TMS_DB_USER=$TMS_DB_USER
+export TMS_DB_USER_PASSWORD=$TMS_DB_USER_PASSWORD
+EOB
 
 echo "**********************************************************************"
 echo "   Exporting tables from SQLite DB: ${TMS_SQ3_DB_PATH}"
