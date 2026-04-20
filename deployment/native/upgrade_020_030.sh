@@ -284,16 +284,21 @@ if [ $RET_CODE -ne 0 ]; then
 fi
 
 # Copy latest backup script into place.
+mkdir -p $BAK_DIR/scripts
 echo
 echo "===== Updating backup script. Target path: $BAK_FILE_PATH"
 echo "========================================================================================="
-mkdir -p $BAK_DIR/scripts
 # If backup script currently exists then back it up
 if [ -f "$BAK_FILE_PATH" ]; then
-  echo "Found existing backup script. Moving it to: ${BAK_FILE_PATH}.bak_${BAK_TIMESTAMP}"
-  mv "$BAK_FILE_PATH" "${BAK_FILE_PATH}.bak_${BAK_TIMESTAMP}"
+  # First check to see if we need to back it up.
+  diff -q "${SRC_DIR}/backup/$BAK_FILE" "$BAK_FILE_PATH" 1>/dev/null
+  RET_CODE=$?
+  if [ $RET_CODE -ne 0 ]; then
+    echo "Found existing backup script. Moving it to: ${BAK_FILE_PATH}.bak_${BAK_TIMESTAMP}"
+    mv "$BAK_FILE_PATH" "${BAK_FILE_PATH}.bak_${BAK_TIMESTAMP}"
+  fi
 fi
-cp -pr "${SRC_DIR}/backup/$BAK_FILE" "$BAK_FILE_PATH"
+cp -p "${SRC_DIR}/backup/$BAK_FILE" "$BAK_FILE_PATH"
 chown $INSTALL_USR:$INSTALL_USR "$BAK_FILE_PATH"
 
 # Update version in install dir

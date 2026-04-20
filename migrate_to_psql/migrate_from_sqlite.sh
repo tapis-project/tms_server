@@ -109,8 +109,6 @@ do
 done
 
 # Initialize the postgres DB
-# TODO Should we check first that the tables do not yet exist?
-#      Would it be bad if upgrade fails part way through and we re-run this and it re-imported some data? or would that fail?
 echo "**********************************************************************"
 echo "   Initializing Postgres DB for TMS"
 echo "**********************************************************************"

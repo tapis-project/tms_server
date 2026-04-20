@@ -8,7 +8,13 @@
 # Support backup for two types of DB, postgres and sqlite. For TMS 0.2.0 and earlier use SQLITE.
 #    For 0.3.0 and later use POSTGRES.
 #
-# For POSTGRES the host is set to localhost and the port is set to 5432. Update as needed.
+# For POSTGRES the file ~/.tms/local/tms-db-env must contain the DB configuration, for example:
+#   PG_USER=tms
+#   PG_DBNAME=tmsdb
+#   PG_HOST="localhost"
+#   PG_PORT="5432"
+#   PG_PASSWORD="*******"
+#   PG_DEPLOYMENT="tms-postgres"
 #
 # Crontab entry to run at 4am every day:
 #
@@ -41,18 +47,8 @@ if [ "$DB_TYPE" == "SQLITE" ]; then
   backupsrcdb="$TMS_ROOT/database/tms.db"
 elif [ "$DB_TYPE" == "POSTGRES" ]; then
   backupfilename=${HOST}-${SERVICE}-backup-${backuptimestamp}.sql
-  # TODO
-  echo "TODO"
-  PG_USER=tms
-  PG_DBNAME=tmsdb
-  PG_HOST="localhost"
-  PG_PORT="5432"
-  # TODO
-  PG_PASSWORD=#`kubectl get secret tapis-${SERVICE}-secrets -o json | jq -r '.data["postgres-password"]' | base64 -d`
-  PG_DEPLOYMENT=${SERVICE}-postgres
+  source "$TMS_ROOT/local/tms-db-env"
   PG_URL="postgresql://$PG_USER:$PG_PASSWORD@$PG_HOST:$PG_PORT/$PG_DBNAME"
-  echo "TODO"
-  exit 1
 else
   echo "Unsupported DB_TYPE: $DB_TYPE"
   echo "Exiting ..."
@@ -75,23 +71,18 @@ fi
 
 # Make the backup based on DB_TYPE
 if [ "$DB_TYPE" == "SQLITE" ]; then
-  SQ3_CMD="sqlite3 ${backupsrcdb}"
   echo "Creating backup using sqlite3 .backup command"
-  $SQ3_CMD ".backup ${backupfilepath}"
+  sqlite3 "${backupsrcdb}" ".backup ${backupfilepath}"
   RET_CODE=$?
 elif [ "$DB_TYPE" == "POSTGRES" ]; then
-  # TODO
-  echo "TODO"
   echo "Creating backup using postgres pg_dump command"
   docker exec -it "$PG_DEPLOYMENT" /bin/bash -c "pg_dump --dbname=$PG_URL" > "${backupfilepath}"
   RET_CODE=$?
-  exit 1
 else
   echo "Unsupported DB_TYPE: $DB_TYPE"
   echo "Exiting ..."
   exit 1
 fi
-
 # Check return code of backup execution
 if [ $RET_CODE -ne 0 ]; then
   echo "Backup command failed for DB_TYPE=$DB_TYPE"
