@@ -2,9 +2,10 @@
 # Clean install of TMS Server
 # Build and deploy the latest native version TMS Server
 # This script must be run as root or run in --test mode.
-# This script builds a release version and updates files in the install directory as needed.
+# This script builds a release version and installs it as a service.
 #
-# Default install directory is /opt/tms_server. May be overridden using env variable TMS_INSTALL_DIR.
+# Default install directory for server executable and service configuration is /opt/tms_server.
+#   May be overridden using env variable TMS_INSTALL_DIR.
 #
 # Default root directory is ~/.tms. May be overridden using env variable TMS_ROOT_DIR.
 #
@@ -15,16 +16,17 @@
 #
 # Assumptions:
 #  - We are running from a checkout of tms_server github repo.
-#  - Following are installed: rust tool chain (cargo, rustc).
-#  - TMS postgres DB is set up and available.
-#  - Following env variables are set:
-#    - TMS_DB_HOST     e.g. localhost
-#    - TMS_DB_PORT     e.g. 5431
-#    - TMS_DB_USER_PASSWORD
-#    - POSTGRES_PASSWORD
+#  - Following are installed: rust tool chain (cargo, rustc), postgres psql.
+#
+# Configuration:
+#  - Following env variables are set at minimum: POSTGRES_PASSWORD, TMS_DB_USER_PASSWORD
+#  - Other env variables that can be set to override defaults:
+#    - TMS_DB_HOST    default = localhost
+#    - TMS_DB_PORT    default = 5432
 #
 # A --test mode is supported allowing for execution as a non-root user and tms_install_user is taken to be current user.
 
+# TODO COMMON code between install and upgrade.
 PrgName=$(basename "$0")
 USAGE="Usage: $PrgName [ <tms_install_user> | --test ]"
 
@@ -34,15 +36,8 @@ PRG_RELPATH=$(dirname "$0")
 cd "$PRG_RELPATH"/. || exit
 PRG_PATH=$(pwd)
 
-# Upgrade script is located under deployment/native. Some operations are relative to the top level source directory.
+# This script is located under deployment/native. Some operations are relative to the top level source directory.
 SRC_DIR=$PRG_PATH/../..
-
-TMS_HOME="$HOME"
-BAK_DIR="$TMS_HOME/backups/tms"
-BAK_FILE="backup_tms_server.sh"
-BAK_FILE_PATH="$BAK_DIR/scripts/$BAK_FILE"
-# Timestamp to use when backing up existing files
-BAK_TIMESTAMP=`date  +%Y%m%d%H%M%S`
 
 # Check number of arguments
 if [ $# -gt 1 ]; then
@@ -50,6 +45,7 @@ if [ $# -gt 1 ]; then
   exit 1
 fi
 
+# Determine if this is a normal run or a test run
 TEST_MODE=false
 if [ "$1" == "--test" ]; then
   echo "*******************************"
@@ -74,6 +70,51 @@ else
   INSTALL_USR=tms
 fi
 
+# Check that all required env variables are set
+FAILED=false
+env_list="POSTGRES_PASSWORD TMS_DB_USER_PASSWORD"
+for name in $env_list
+do
+  if [[ -z "${!name}" ]]; then
+    echo "Please set env var ${name} before running this script"
+    FAILED=true
+  fi
+done
+if [ "$FAILED" = true ]; then
+  echo "Please set required environment variables"
+  echo "Exiting ..."
+  exit 1
+fi
+
+# Determine home directory of install user.
+if [ "$TEST_MODE" == "true" ]; then
+  TMS_HOME="$HOME"
+else
+  TMS_HOME=$(su - $INSTALL_USR -c 'echo $HOME')
+fi
+
+# Define backup script related settings
+BAK_DIR="$TMS_HOME/backups"
+BAK_FILE="backup_tms_server.sh"
+BAK_FILE_PATH="$BAK_DIR/scripts/$BAK_FILE"
+# Timestamp to use when backing up existing files
+BAK_TIMESTAMP=$(date  +%Y%m%d%H%M%S)
+
+# Make sure rust is installed.
+if [ "$TEST_MODE" == "true" ]; then
+  rustc --version
+  RET_CODE=$?
+else
+  su - $INSTALL_USR  -c 'rustc --version'
+  RET_CODE=$?
+fi
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+    echo "ERROR: Unable to access rustc. Install the latest stable version of Rust if necessary."
+    echo "Exiting ..."
+    exit $RET_CODE
+fi
+
 # Make sure the specified user for the TMS install exists
 id "$INSTALL_USR" >/dev/null 2>&1
 RET_CODE=$?
@@ -83,13 +124,17 @@ if [ $RET_CODE -ne 0 ]; then
     exit $RET_CODE
 fi
 
-# Set root directory. Location of config, logs, etc.
+# Set TMS root directory. Location of config, logs, etc.
 ROOT_DEF_DIR="$TMS_HOME/.tms"
 if [ -n "$TMS_ROOT_DIR" ]; then
   ROOT_DIR="$TMS_ROOT_DIR"
 else
   ROOT_DIR="$ROOT_DEF_DIR"
 fi
+# TODO COMMON code between install and upgrade.
+
+
+# TODO/TBD: This is the first install specific step? We really should combine install/upgrade
 # This is an install, so there should not be an existing installation
 if [ -e "$ROOT_DIR/config" ]; then
   echo "ERROR: TMS Server appears to already be installed under root directory: $ROOT_DIR. Path found: $ROOT_DIR/config"

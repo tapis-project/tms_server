@@ -30,7 +30,7 @@ PRG_RELPATH=$(dirname "$0")
 cd "$PRG_RELPATH"/. || exit
 PRG_PATH=$(pwd)
 
-# Upgrade script is located under deployment/native. Some operations are relative to the top level source directory.
+# This script is located under deployment/native. Some operations are relative to the top level source directory.
 SRC_DIR=$PRG_PATH/../..
 
 # Check number of arguments
@@ -64,7 +64,6 @@ else
   INSTALL_USR=tms
 fi
 
-# Check required environment variables
 # Check that all required env variables are set
 FAILED=false
 env_list="POSTGRES_PASSWORD TMS_DB_USER_PASSWORD"
@@ -119,13 +118,17 @@ if [ $RET_CODE -ne 0 ]; then
     exit $RET_CODE
 fi
 
-# Set TMS root directory.
+# Set TMS root directory. Location of config, logs, etc.
 ROOT_DEF_DIR="$TMS_HOME/.tms"
 if [ -n "$TMS_ROOT_DIR" ]; then
   ROOT_DIR="$TMS_ROOT_DIR"
 else
   ROOT_DIR="$ROOT_DEF_DIR"
 fi
+# TODO/TBD: This is the first upgrade specific step? We really should combine install/upgrade
+
+
+
 # This is an upgrade, so there should be an existing installation
 if [ ! -d "$ROOT_DIR/config" ]; then
   echo "Unable to find TMS Server configuration under directory: $ROOT_DIR. Path not found: $ROOT_DIR/config"

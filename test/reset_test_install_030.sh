@@ -14,8 +14,19 @@ PRG_PATH=$(pwd)
 # Some operations are relative to the top level source directory.
 SRC_DIR=$PRG_PATH/..
 
-if [ -z "${POSTGRES_PASSWORD}" ]; then
-  echo "Please set env var POSTGRES_PASSWORD before running this script"
+# Check that all required env variables are set
+FAILED=false
+env_list="POSTGRES_PASSWORD TMS_DB_USER_PASSWORD"
+for name in $env_list
+do
+  if [[ -z "${!name}" ]]; then
+    echo "Please set env var ${name} before running this script"
+    FAILED=true
+  fi
+done
+if [ "$FAILED" = true ]; then
+  echo "Please set required environment variables"
+  echo "Exiting ..."
   exit 1
 fi
 
@@ -26,7 +37,7 @@ cd $SRC_DIR || exit 1
 echo "**********************************************************************"
 echo "   Rebuilding TMS server"
 echo "**********************************************************************"
-cargo build
+cargo build --release
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "TMS server build failed"
@@ -55,4 +66,11 @@ echo "**********************************************************************"
 echo "   Removing current installation"
 echo "**********************************************************************"
 rm -fr ~/.tms
+
+echo "**********************************************************************"
+echo "   Removing service exec and config"
+echo "**********************************************************************"
+rm /opt/tms_server/tms*
+rm -fr /opt/tms_server/lib
+
 cd $RUN_DIR
