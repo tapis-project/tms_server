@@ -277,6 +277,12 @@ chown $INSTALL_USR:$INSTALL_USR $EXEC_DEST
 VERS_FILE=$INSTALL_DIR/tms.version
 echo "$VERS_NEW" > $VERS_FILE
 
+
+
+
+
+
+
 # First Time Install Processing. Save output to LOCAL_DIR
 echo
 echo "===== Initialize server. Running tms_server --install as user: $INSTALL_USR"
