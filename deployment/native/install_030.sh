@@ -20,7 +20,6 @@
 #  - Following env variables are set:
 #    - TMS_DB_HOST     e.g. localhost
 #    - TMS_DB_PORT     e.g. 5431
-#    - TMS_DB_USER     e.g. tms
 #    - TMS_DB_USER_PASSWORD
 #    - POSTGRES_PASSWORD
 #

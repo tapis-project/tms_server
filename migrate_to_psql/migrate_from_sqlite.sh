@@ -8,7 +8,6 @@
 #   TMS_INSTALL_DIR e.g. /opt/tms_server
 #   TMS_DB_HOST     e.g. localhost
 #   TMS_DB_PORT     e.g. 5431
-#   TMS_DB_USER     e.g. tms
 #   TMS_DB_USER_PASSWORD
 #   TMS_USR         e.g. tms
 #   TMS_TEST_MODE   e.g. false
@@ -30,8 +29,7 @@ VERS_NEW_REQUIRED="0.3.0"
 
 # Check that all required env variables are set
 FAILED=false
-env_list="POSTGRES_PASSWORD TMS_ROOT_DIR TMS_INSTALL_DIR TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_DB_USER_PASSWORD" \
-         " TMS_TEST_MODE TMS_VERS_NEW TMS_USR"
+env_list="POSTGRES_PASSWORD TMS_ROOT_DIR TMS_INSTALL_DIR TMS_DB_HOST TMS_DB_PORT TMS_DB_USER_PASSWORD TMS_TEST_MODE TMS_VERS_NEW TMS_USR"
 for name in $env_list
 do
   if [[ -z "${!name}" ]]; then
@@ -73,7 +71,6 @@ TMS_SQ3_DB_PATH=$TMS_ROOT_DIR/database/tms.db
 cat >> $TMP_FILE_ENV << EOB
 export TMS_DB_HOST=$TMS_DB_HOST
 export TMS_DB_PORT=$TMS_DB_PORT
-export TMS_DB_USER=$TMS_DB_USER
 export TMS_DB_USER_PASSWORD=$TMS_DB_USER_PASSWORD
 EOB
 
@@ -124,7 +121,7 @@ echo "**************************************************************************
 echo "   Creating TMS postgres DB schema"
 echo "*********************************************************************************"
 # Create the initial tms schema
-#export TMS_DB_URL="postgres://${TMS_DB_USER}:${TMS_DB_USER_PASSWORD}@${TMS_DB_HOST}:${TMS_DB_PORT}/tmsdb"
+#export TMS_DB_URL="postgres://tms:${TMS_DB_USER_PASSWORD}@${TMS_DB_HOST}:${TMS_DB_PORT}/tmsdb"
 if [ "$TMS_TEST_MODE" == "true" ]; then
   $SRC_DIR/target/release/tms_server --schema-only
   RET_CODE=$?
@@ -143,7 +140,7 @@ echo "   Importing tables into postgresql DB"
 echo "**********************************************************************"
 # Put PGPASSWORD in environment for psql to pick up
 export PGPASSWORD=${TMS_DB_USER_PASSWORD}
-PSQL_CMD="psql -h ${TMS_DB_HOST} -p ${TMS_DB_PORT} -U ${TMS_DB_USER} -d tmsdb -q"
+PSQL_CMD="psql -h ${TMS_DB_HOST} -p ${TMS_DB_PORT} -U tms -d tmsdb -q"
 
 # List of tables to populate. Note: order is important due to foreign key constraints. Tenants first.
 table_list_import="tenants clients user_mfa user_hosts admin delegations hosts reservations pubkeys"

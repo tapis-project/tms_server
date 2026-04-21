@@ -19,7 +19,6 @@ The following environment variables must be set before running the migrations sc
   - TMS_INSTALL_DIR - Path to location of TMS server installation
   - TMS_DB_HOST - Postgresql server host
   - TMS_DB_PORT - Postgresql server port
-  - TMS_DB_USER - Postgresql user
   - TMS_DB_PASSWORD - Postgresql user password 
   - POSTGRES_PASSWORD - Password for root user "postgres"
 

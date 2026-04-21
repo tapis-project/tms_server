@@ -12,15 +12,12 @@ if [ -z "$TMS_DB_PORT" ]; then
   TMS_DB_PORT=5432
 fi
 
-if [ -z "$TMS_DB_USER" ]; then
-  TMS_DB_USER=tms
-fi
-
 PSQL_CMD="psql --host=${TMS_DB_HOST} --port=${TMS_DB_PORT}"
 
 DB_USER=postgres
 DB_NAME=tmsdb
 DB_SCHEMA=tms
+TMS_DB_USER=tms
 
 if [ -z "${POSTGRES_PASSWORD}" ]; then
   echo "Please set env var POSTGRES_PASSWORD before running this script"

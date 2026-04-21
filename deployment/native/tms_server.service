@@ -1,14 +1,25 @@
 [Unit]
 Description=TMS service
 After=network.target
-StartLimitIntervalSec=0
+# Allow 40 re-start attempts within 15 minutes
+StartLimitIntervalSec=15min
+StartLimitBurst=40
+
+# Action when the burst limit is exceeded. Options: none (default), reboot, reboot-force, poweroff, exit, exit-force
+StartLimitAction=none
+
+[Install]
+WantedBy=multi-user.target
 
 [Service]
 Type=simple
 User=tms
-Restart=always
-RestartSec=1
-ExecStart=/opt/tms_server/tms_server
 
-[Install]
-WantedBy=multi-user.target
+# Restart only on non-zero exit code. Wait 20 seconds between restart attempts
+Restart=on-failure
+RestartSec=20s
+
+# Path to service executable
+# ExecStart=/opt/tms_server/tms_server
+# Environment file with settings for service startup, e.g. TMS_DB_HOST, TMS_DB_PORT, etc.
+# EnvironmentFile=/home/tms/.tms/local/tms_service.env

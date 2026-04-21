@@ -12,12 +12,12 @@
 # Assumptions:
 #  - We are running from a checkout of tms_server github repo.
 #  - Following are installed: rust tool chain (cargo, rustc), SQLite and postgres psql.
-#  - Following env variables are set:
-#    - TMS_DB_HOST     e.g. localhost
-#    - TMS_DB_PORT     e.g. 5431
-#    - TMS_DB_USER     e.g. tms
-#    - TMS_DB_USER_PASSWORD
-#    - POSTGRES_PASSWORD
+#
+# Configuration:
+#  - Following env variables are set at minimum: POSTGRES_PASSWORD, TMS_DB_USER_PASSWORD
+#  - Other env variables that can be set to override defaults:
+#    - TMS_DB_HOST    default = localhost
+#    - TMS_DB_PORT    default = 5432
 #
 # A --test mode is supported allowing for execution as a non-root user and tms_install_user is taken to be current user.
 
@@ -243,17 +243,18 @@ if [ "$TEST_MODE" != "true" ]; then
 fi
 cp $EXEC_FILE $INSTALL_DIR/tms_server
 chown $INSTALL_USR:$INSTALL_USR $INSTALL_DIR/tms_server
+chmod 770 $INSTALL_DIR/tms_server
 
 # If there is a customizations directory then rename it to local to match layout as of 0.3.0
 if [ -d ${TMS_HOME}/tms_customizations ]; then
   echo
   echo "===== Moving customizations directory from ${TMS_HOME}/tms_customizations to $ROOT_DIR/local"
   echo "========================================================================================="
-  mv ${TMS_HOME}/tms_customizations $ROOT_DIR/local
+  mv "${TMS_HOME}/tms_customizations" "$ROOT_DIR/local"
 fi
 
 # Update migrations files.
-mv $ROOT_DIR/migrations "${ROOT_DIR}/migrations.bak_${BAK_TIMESTAMP}"
+mv "$ROOT_DIR/migrations" "${ROOT_DIR}/migrations.bak_${BAK_TIMESTAMP}"
 cp -pr "${SRC_DIR}/resources/migrations" "${ROOT_DIR}/migrations"
 chmod 0700 "${ROOT_DIR}/migrations"
 chown $INSTALL_USR:$INSTALL_USR "${ROOT_DIR}/migrations"
@@ -267,12 +268,11 @@ TMS_TEST_MODE=$TEST_MODE
 TMS_USR=$INSTALL_USR
 if [ -z "$TMS_DB_HOST" ]; then TMS_DB_HOST="localhost"; fi
 if [ -z "$TMS_DB_PORT" ]; then TMS_DB_PORT="5432"; fi
-if [ -z "$TMS_DB_USER" ]; then TMS_DB_USER="tms"; fi
 # Set TMS_ROOT_DIR and TMS_INSTALL_DIR to the final resolved values
 TMS_ROOT_DIR=$ROOT_DIR
 TMS_INSTALL_DIR=$INSTALL_DIR
 TMS_VERS_NEW=$VERS_NEW
-export TMS_DB_HOST TMS_DB_PORT TMS_DB_USER TMS_ROOT_DIR TMS_INSTALL_DIR TMS_TEST_MODE TMS_VERS_NEW TMS_USR
+export TMS_DB_HOST TMS_DB_PORT TMS_ROOT_DIR TMS_INSTALL_DIR TMS_TEST_MODE TMS_VERS_NEW TMS_USR
 
 $SRC_DIR/migrate_to_psql/migrate_from_sqlite.sh
 RET_CODE=$?
@@ -301,14 +301,35 @@ fi
 cp -p "${SRC_DIR}/backup/$BAK_FILE" "$BAK_FILE_PATH"
 chown $INSTALL_USR:$INSTALL_USR "$BAK_FILE_PATH"
 
+# TODO Create environment file for backup script
+
 # Update version in install dir
 echo "$VERS_NEW" > $VERS_FILE
 
-# Start the service
-echo
-echo "===== Starting TMS service"
-echo "========================================================================================="
+# Configure and start the service
 if [ "$TEST_MODE" != "true" ]; then
+  echo
+  echo "===== Configuring TMS service"
+  echo "========================================================================================="
+    SVC_CFG_DIR="$INSTALL_DIR/lib/systemd/system"
+    SVC_CFG_PATH="$SVC_CFG_DIR/tms_server.service"
+    SVC_ENV_PATH="$ROOT_DIR/local/tms_service.env"
+    mkdir -p $SVC_CFG_DIR
+    # TODO Copy service config into place
+    cp -p "${SRC_DIR}/deployment/native/tms_server.service" "$SVC_CFG_PATH"
+
+
+
+    # TODO Update service file to point to executable and environment settings file
+    echo "ExecStart=$INSTALL_DIR/tms_server" >> $SVC_CFG_PATH
+    echo "EnvironmentFile=$ROOT_DIR/local/tms_service.env" >> $SVC_CFG_PATH
+  echo
+  echo "===== Starting TMS service"
+  echo "========================================================================================="
+  # TODO Create environment file for service
+
+  # TODO Update service config file at /opt/tms_server/lib/systemd/system/tms_server.service to point to env file.
+
   systemctl start tms_server
 fi
 
