@@ -1,6 +1,8 @@
 #!/bin/bash
+# Combined build/upgrade script for TMS Server
 # Build and deploy the latest native version TMS Server
 # This script must be run as root or run in --test mode.
+#
 # This script builds a release version and updates files in the install and root directories as needed.
 #
 # Default install directory is /opt/tms_server. May be overridden using env variable TMS_INSTALL_DIR.
@@ -11,7 +13,8 @@
 #
 # Assumptions:
 #  - We are running from a checkout of tms_server github repo.
-#  - Following are installed: rust tool chain (cargo, rustc), SQLite and postgres psql.
+#  - Following are installed: rust tool chain (cargo, rustc), postgres psql.
+#  - If this is an upgrade from TMS version 0.2.0 then SQLite must also be installed.
 #
 # Configuration:
 #  - Following env variables are set at minimum: POSTGRES_PASSWORD, TMS_DB_USER_PASSWORD
@@ -22,7 +25,6 @@
 # A --test mode is supported allowing for execution as a non-root user and tms_install_user is taken to be current user.
 
 PrgName=$(basename "$0")
-USAGE="Usage: $PrgName [ <tms_install_user> | --test ]"
 
 # Determine absolute path to location from which we are running and change to that directory.
 RUN_DIR=$(pwd)
@@ -33,33 +35,69 @@ PRG_PATH=$(pwd)
 # This script is located under deployment/native. Some operations are relative to the top level source directory.
 SRC_DIR=$PRG_PATH/../..
 
-# Check number of arguments
-if [ $# -gt 1 ]; then
-  echo "$USAGE"
+# Define USAGE message
+function usage() {
+  echo "$PrgName [--upgrade] [--test] [--user install_user]"
+  echo "OPTIONS:"
+  echo "     --upgrade"
+  echo "        This is an upgrade. Default is install."
+  echo "     --test"
+  echo "        Run in test mode as non-root user. Default is to require running as root user."
+  echo "     --user"
+  echo "        The TMS install user. Default is tms. In test mode this will always be the current user."
   exit 1
-fi
+}
 
-# Determine if this is a normal run or a test run
+# Process command line arguments
+UPGRADE=false
 TEST_MODE=false
-if [ "$1" == "--test" ]; then
-  echo "*******************************"
-  echo "     Running in test mode"
-  echo "*******************************"
-  TEST_MODE=true
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --user)
+      USR="$2"
+      shift # past argument
+      shift # past value
+      # If no user given or --user followed by one of the other args then abort
+      if [ -z "$USR" ] || [ "$USR" == "--upgrade" ] || [ "$USR" == "--test" ]; then
+        usage
+      fi
+      ;;
+    --upgrade)
+      UPGRADE=true
+      shift # past argument
+      ;;
+    --test)
+      TEST_MODE=true
+      shift # past argument
+      ;;
+    -*)
+      echo "Unknown option $1"
+      usage
+      ;;
+    *)
+      echo "Unknown positional argument $1"
+      usage
+  esac
+done
+
+# Disallow use of --test with --user
+if [ "$TEST_MODE" == "true" ] && [ -n "$USR" ]; then
+  echo "--test may not be used with --user"
+  usage
 fi
 
 # Make sure we are running as root or are in test mode
 if [ "$TEST_MODE" == "false" ] && [ "$EUID" != 0 ]; then
-  echo "This program must be run as the root user"
+  echo "This program must be run as the root user or in test mode"
   echo "Exiting ..."
-  exit 1
+  usage
 fi
 
 # Determine TMS install user
 if [ "$TEST_MODE" == "true" ]; then
   INSTALL_USR=$USER
-elif [ -n "$1" ]; then
-  INSTALL_USR="$1"
+elif [ -n "$USR" ]; then
+  INSTALL_USR="$USR"
 else
   INSTALL_USR=tms
 fi
@@ -125,18 +163,6 @@ if [ -n "$TMS_ROOT_DIR" ]; then
 else
   ROOT_DIR="$ROOT_DEF_DIR"
 fi
-# TODO/TBD: This is the first upgrade specific step? We really should combine install/upgrade
-
-
-
-# This is an upgrade, so there should be an existing installation
-if [ ! -d "$ROOT_DIR/config" ]; then
-  echo "Unable to find TMS Server configuration under directory: $ROOT_DIR. Path not found: $ROOT_DIR/config"
-  echo "If you have not set env variable TMS_ROOT_DIR, you may do so to specify a non-default path for TMS root."
-  echo "Default path for TMS root: $ROOT_DEF_DIR"
-  echo "Exiting ..."
-  exit 1
-fi
 
 # Set installation directory.
 INSTALL_DEF_DIR="/opt/tms_server"
@@ -145,23 +171,6 @@ if [ -n "$TMS_INSTALL_DIR" ]; then
 else
   INSTALL_DIR="$INSTALL_DEF_DIR"
 fi
-# This is an upgrade, so there should be an executable in the install dir
-if [ ! -f "$INSTALL_DIR/tms_server" ]; then
-  echo "Unable to find TMS Server executable at path: $INSTALL_DIR"
-  echo "If you have not set env variable TMS_INSTALL_DIR, you may do so to specify a non-default path for the installation."
-  echo "Default path for the installation: $INSTALL_DEF_DIR"
-  echo "Exiting ..."
-  exit 1
-fi
-
-# Determine existing version
-VERS_FILE=$INSTALL_DIR/tms.version
-if [ ! -f "$VERS_FILE" ]; then
-  echo "Unable to determine existing TMS version. Cannot find file: $VERS_FILE"
-  echo "Exiting ..."
-  exit 1
-fi
-VERS_OLD=$(cat $VERS_FILE)
 
 # Determine new version
 if [ "$TEST_MODE" == "true" ]; then
@@ -177,8 +186,56 @@ if [ $RET_CODE -ne 0 ]; then
   exit $RET_CODE
 fi
 
-# Set path to built executable
-EXEC_FILE=$SRC_DIR/target/release/tms_server
+# Output configuration
+echo "******* Install / Upgrade Settings ************************"
+echo "******* TMS Version: $VERS_NEW ********************************"
+echo "   TEST_MODE=$TEST_MODE"
+echo "   UPGRADE=$UPGRADE"
+echo "   INSTALL_USR=$INSTALL_USR"
+echo "   ROOT_DIR=$ROOT_DIR"
+echo "   INSTALL_DIR=$INSTALL_DIR"
+echo "***********************************************************"
+
+# Set paths to source and destination of tms_server executable
+EXEC_FILE_SRC=$SRC_DIR/target/release/tms_server
+EXEC_FILE_DST=$INSTALL_DIR/tms_server
+
+exit 0
+
+# =====================================================================================
+#  Perform install/upgrade specific checks related to previous install
+# =====================================================================================
+if [ "$UPGRADE" == "true" ]; then
+  # There should be an existing installation.
+  if [ ! -d "$ROOT_DIR/config" ]; then
+    echo "ERROR: Unable to find TMS Server configuration under directory: $ROOT_DIR. Path not found: $ROOT_DIR/config"
+    echo "If you have not set env variable TMS_ROOT_DIR, you may do so to specify a non-default path for TMS root."
+    echo "Default path for TMS root: $ROOT_DEF_DIR"
+    echo "Exiting ..."
+    exit 1
+  fi
+  # There should be an executable in the install dir
+  if [ ! -f "$EXEC_FILE_DST" ]; then
+    echo "ERROR: Unable to find TMS Server executable at path: $EXEC_FILE_DST"
+    echo "If you have not set env variable TMS_INSTALL_DIR, you may do so to specify a non-default path for the installation."
+    echo "Default path for the installation: $INSTALL_DEF_DIR"
+    echo "Exiting ..."
+    exit 1
+  fi
+else
+  # There should not be an existing installation
+  if [ -e "$ROOT_DIR/config" ]; then
+    echo "ERROR: TMS Server appears to already be installed under root directory: $ROOT_DIR. Path found: $ROOT_DIR/config"
+    echo "Exiting ..."
+    exit 1
+  fi
+  # There should not be an executable in the install dir.
+  if [ -e  "$EXEC_FILE_DST" ]; then
+    echo "ERROR: Found existing tms_server executable at path: $EXEC_FILE_DST"
+    echo "Exiting ..."
+    exit 1
+  fi
+fi
 
 # Construct script to be used by install user to build new executable
 echo
@@ -208,7 +265,7 @@ EOB
 chmod 755 $TMP_FILE
 
 # Remove any existing executable
-rm -f $EXEC_FILE
+rm -f $EXEC_FILE_SRC
 # Run the script to build the new executable
 echo
 echo "===== Running build script as TMS install user. User: $INSTALL_USR"
@@ -230,12 +287,34 @@ if [ $RET_CODE -ne 0 ]; then
 fi
 
 # Make sure executable was built
-if [ ! -f "$EXEC_FILE" ]; then
-  echo "There appears to have been a problem building a new executable. File not found at path: $EXEC_FILE"
+if [ ! -f "$EXEC_FILE_SRC" ]; then
+  echo "There appears to have been a problem building a new executable. File not found at path: $EXEC_FILE_SRC"
   echo "Please check for build errors"
   echo "Exiting ..."
   exit 1
 fi
+
+# =====================================================================================
+#  Begin install/upgrade specific code
+# =====================================================================================
+
+
+
+
+
+
+
+
+# Determine existing version
+VERS_FILE=$INSTALL_DIR/tms.version
+if [ ! -f "$VERS_FILE" ]; then
+  echo "Unable to determine existing TMS version. Cannot find file: $VERS_FILE"
+  echo "Exiting ..."
+  exit 1
+fi
+VERS_OLD=$(cat $VERS_FILE)
+
+
 
 # Shut down the service, copy the new executable into place
 if [ "$TEST_MODE" != "true" ]; then
@@ -244,9 +323,9 @@ if [ "$TEST_MODE" != "true" ]; then
   echo "========================================================================================="
   systemctl stop tms_server
 fi
-cp $EXEC_FILE $INSTALL_DIR/tms_server
-chown $INSTALL_USR:$INSTALL_USR $INSTALL_DIR/tms_server
-chmod 770 $INSTALL_DIR/tms_server
+cp $EXEC_FILE_SRC $EXEC_FILE_DST
+chown $INSTALL_USR:$INSTALL_USR $EXEC_FILE_DST
+chmod 770 $EXEC_FILE_DST
 
 # If there is a customizations directory then rename it to local to match layout as of 0.3.0
 if [ -d ${TMS_HOME}/tms_customizations ]; then
@@ -324,7 +403,7 @@ if [ "$TEST_MODE" != "true" ]; then
 
 
     # TODO Update service file to point to executable and environment settings file
-    echo "ExecStart=$INSTALL_DIR/tms_server" >> $SVC_CFG_PATH
+    echo "ExecStart=$EXEC_FILE_DST" >> $SVC_CFG_PATH
     echo "EnvironmentFile=$ROOT_DIR/local/tms_service.env" >> $SVC_CFG_PATH
   echo
   echo "===== Starting TMS service"
