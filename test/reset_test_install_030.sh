@@ -33,18 +33,18 @@ fi
 # Move to the top level of tms_server src code directory
 cd $SRC_DIR || exit 1
 
-# Rebuild tms
-echo "**********************************************************************"
-echo "   Rebuilding TMS server"
-echo "**********************************************************************"
-cargo build --release
-RET_CODE=$?
-if [ $RET_CODE -ne 0 ]; then
-  echo "TMS server build failed"
-  echo "Exiting ..."
-  exit $RET_CODE
-fi
-
+## Rebuild tms
+#echo "**********************************************************************"
+#echo "   Rebuilding TMS server"
+#echo "**********************************************************************"
+#cargo build --release
+#RET_CODE=$?
+#if [ $RET_CODE -ne 0 ]; then
+#  echo "TMS server build failed"
+#  echo "Exiting ..."
+#  exit $RET_CODE
+#fi
+#
 #  Reset the DB
 $SRC_DIR/deployment/tms_drop_db.sh
 RET_CODE=$?
@@ -65,12 +65,15 @@ fi
 echo "**********************************************************************"
 echo "   Removing current installation"
 echo "**********************************************************************"
+# TODO use config ROOT_DIR
 rm -fr ~/.tms
 
 echo "**********************************************************************"
 echo "   Removing service exec and config"
 echo "**********************************************************************"
-rm /opt/tms_server/tms*
-rm -fr /opt/tms_server/lib
+# TODO use config INSTALL_DIR
+rm -fr /tmp/tms_server
+#rm /opt/tms_server/tms*
+#rm -fr /opt/tms_server/lib
 
 cd $RUN_DIR

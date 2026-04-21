@@ -215,6 +215,9 @@ SVC_CFG_DIR="$INSTALL_DIR/lib/systemd/system"
 if [ -z "$TMS_DB_HOST" ]; then TMS_DB_HOST="localhost"; fi
 if [ -z "$TMS_DB_PORT" ]; then TMS_DB_PORT="5432"; fi
 
+# Set location of version file for installed version
+VERS_FILE=$INSTALL_DIR/tms.version
+
 # Output configuration
 echo "******* Install / Upgrade Settings ************************"
 echo "******* TMS Version: $VERS_NEW ********************************"
@@ -227,7 +230,7 @@ echo "   INSTALL_DIR=$INSTALL_DIR"
 echo "   SVC_CFG_DIR=$SVC_CFG_DIR"
 echo "   BAK_FILE_PATH=$BAK_FILE_PATH"
 echo "   TMS_DB_HOST=$TMS_DB_HOST"
-echo "   TMS_DB_PORT=$TMS_DB_PORT"
+echo "   VERS_FILE=$VERS_FILE"
 echo "***********************************************************"
 
 # =====================================================================================
@@ -352,6 +355,37 @@ cp $EXEC_FILE_SRC $EXEC_FILE_DST
 chown $INSTALL_USR:$INSTALL_USR $EXEC_FILE_DST
 chmod 770 $EXEC_FILE_DST
 
+# Configure service
+echo
+echo "===== Configuring TMS service"
+echo "========================================================================================="
+SVC_CFG_FILE="$SVC_CFG_DIR/tms_server.service"
+SVC_ENV_PATH="$LOCAL_DIR/tms_service.env"
+# Copy service config into place
+cp -p "${SRC_DIR}/deployment/native/tms_server.service" "$SVC_CFG_FILE"
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+  echo
+  echo "*************** Error copying service config to: $SVC_CFG_FILE"
+  echo "Exiting ..."
+  exit $RET_CODE
+fi
+
+# Update service file to point to executable and environment settings file
+echo -e "ExecStart=$EXEC_FILE_DST\n" >> $SVC_CFG_FILE
+echo -e "EnvironmentFile=$SVC_ENV_PATH\n" >> $SVC_CFG_FILE
+
+# Create environment file for service
+cat >> $SVC_ENV_PATH << EOB
+TMS_DB_USER="tms"
+TMS_DB_DB_NAME="tmsdb"
+TMS_DB_HOST="$TMS_DB_HOST"
+TMS_DB_PORT="$TMS_DB_PORT"
+TMS_DB_USER_PASSWORD="$TMS_DB_USER_PASSWORD"
+EOB
+chown $INSTALL_USR:$INSTALL_USR "$SVC_ENV_PATH"
+chmod 400 "$SVC_ENV_PATH"
+
 # Copy latest backup script into place.
 echo
 echo "===== Updating backup script. Target path: $BAK_FILE_PATH"
@@ -395,7 +429,6 @@ if [ "$UPGRADE" == "true" ]; then
   # Upgrade specific steps
   # --------------------------------------
   # Determine existing version
-  VERS_FILE=$INSTALL_DIR/tms.version
   if [ ! -f "$VERS_FILE" ]; then
     echo "Unable to determine existing TMS version. Cannot find file: $VERS_FILE"
     echo "Exiting ..."
@@ -447,7 +480,8 @@ else
   echo "===== Initialize server. Running tms_server --install as user: $INSTALL_USR"
   echo "========================================================================================="
   # Initialize the content of the install directory.
-  INSTALL_INIT_CMD="$EXEC_DEST --install --root-dir $ROOT_DIR"
+ set -xv
+  INSTALL_INIT_CMD="$EXEC_FILE_DST --install --root-dir $ROOT_DIR"
   # We must run from the top of the source code checkout so the files under resources are available
   cd $SRC_DIR || exit 1
   $INSTALL_INIT_CMD > ${LOCAL_DIR}/tms-install.out 2>&1
@@ -500,37 +534,6 @@ fi
 
 # Update version in install dir
 echo "$VERS_NEW" > $VERS_FILE
-
-# Configure service
-echo
-echo "===== Configuring TMS service EOB"
-echo "========================================================================================="
-SVC_CFG_FILE="$SVC_CFG_DIR/tms_server.service"
-SVC_ENV_PATH="$LOCAL_DIR/tms_service.env"
-# Copy service config into place
-cp -p "${SRC_DIR}/deployment/native/tms_server.service" "$SVC_CFG_FILE"
-RET_CODE=$?
-if [ $RET_CODE -ne 0 ]; then
-  echo
-  echo "*************** Error copying service config to: $SVC_CFG_FILE"
-  echo "Exiting ..."
-  exit $RET_CODE
-fi
-
-# Update service file to point to executable and environment settings file
-echo "ExecStart=$EXEC_FILE_DST" >> $SVC_CFG_FILE
-echo "EnvironmentFile=$SVC_ENV_PATH" >> $SVC_CFG_FILE
-
-# Create environment file for service
-cat >> $SVC_ENV_PATH << EOB
-TMS_DB_USER="tms"
-TMS_DB_DB_NAME="tmsdb"
-TMS_DB_HOST="$TMS_DB_HOST"
-TMS_DB_PORT="$TMS_DB_PORT"
-TMS_DB_USER_PASSWORD="$TMS_DB_USER_PASSWORD"
-EOB
-chown $INSTALL_USR:$INSTALL_USR "$SVC_ENV_PATH"
-chmod 400 "$SVC_ENV_PATH"
 
 # Start up the service
 if [ "$TEST_MODE" != "true" ]; then
