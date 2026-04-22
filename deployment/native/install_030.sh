@@ -480,7 +480,6 @@ else
   echo "===== Initialize server. Running tms_server --install as user: $INSTALL_USR"
   echo "========================================================================================="
   # Initialize the content of the install directory.
- set -xv
   INSTALL_INIT_CMD="$EXEC_FILE_DST --install --root-dir $ROOT_DIR"
   # We must run from the top of the source code checkout so the files under resources are available
   cd $SRC_DIR || exit 1
