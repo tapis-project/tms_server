@@ -17,6 +17,7 @@
 #
 # Assumptions:
 #  - We are running from a checkout of tms_server github repo.
+#  - When running in non-test mode (i.e. as root), the source code is checked out under $HOME/tms_server.
 #  - Following are installed: rust tool chain (cargo, rustc), postgres psql.
 #  - If this is an upgrade from TMS version 0.2.0 then SQLite must also be installed.
 #
@@ -143,7 +144,7 @@ if [ "$TEST_MODE" == "true" ]; then
   rustc --version
   RET_CODE=$?
 else
-  su - $INSTALL_USR  -c 'rustc --version'
+  su - $INSTALL_USR -c 'rustc --version'
   RET_CODE=$?
 fi
 RET_CODE=$?
@@ -195,7 +196,7 @@ if [ "$TEST_MODE" == "true" ]; then
   VERS_NEW=$(cd $SRC_DIR; cargo pkgid | cut -d "#" -f2)
   RET_CODE=$?
 else
-  VERS_NEW=$(su - $INSTALL_USR -c 'cd tms_server; cargo pkgid | cut -d "#" -f2')
+  VERS_NEW=$(su - $INSTALL_USR -c 'cd $SRC_DIR; cargo pkgid | cut -d "#" -f2')
   RET_CODE=$?
 fi
 if [ $RET_CODE -ne 0 ]; then
@@ -306,14 +307,14 @@ echo "Install directory: $INSTALL_DIR"
 # Build executable
 echo "Building executable from directory: $SRC_DIR"
 cd $SRC_DIR
-# TODO cargo build --release > $SRC_DIR/cargo_build.log 2>&1
+cargo build --release > $SRC_DIR/cargo_build.log 2>&1
 EOB
 
 # Let the install user run the tmp script
 chmod 755 $TMP_FILE
 
 # Remove any existing executable
-# TODO rm -f $EXEC_FILE_SRC
+rm -f $EXEC_FILE_SRC
 # Run the script to build the new executable
 echo
 echo "===== Running build script as TMS install user. User: $INSTALL_USR"
@@ -482,9 +483,14 @@ else
   # Initialize the content of the install directory.
   INSTALL_INIT_CMD="$EXEC_FILE_DST --install --root-dir $ROOT_DIR"
   # We must run from the top of the source code checkout so the files under resources are available
-  cd $SRC_DIR || exit 1
-  $INSTALL_INIT_CMD > ${LOCAL_DIR}/tms-install.out 2>&1
-  RET_CODE=$?
+  if [ "$TEST_MODE" != "true" ]; then
+    su - $INSTALL_USR -c "cd $SRC_DIR; $INSTALL_INIT_CMD > ${LOCAL_DIR}/tms-install.out 2>&1"
+    RET_CODE=$?
+  else
+    cd $SRC_DIR || exit 1
+    $INSTALL_INIT_CMD > ${LOCAL_DIR}/tms-install.out 2>&1
+    RET_CODE=$?
+  fi
   if [ $RET_CODE -ne 0 ]; then
     echo "ERROR: Error running tms_server init. Command: $INSTALL_INIT_CMD"
     echo "       Please see output here: ${LOCAL_DIR}/tms-install.out"

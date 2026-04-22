@@ -55,7 +55,14 @@ fi
 echo "**********************************************************************"
 echo "   Removing current installation"
 echo "**********************************************************************"
-rm -fr ~/.tms
+# For a non-test (i.e. root) install we will remove ~tms/.tms, for test mode install ~/.tms
+ls -l ~tms
+RET_CODE=$?
+if [ $RET_CODE -eq 0 ]; then
+  rm -fr ~tms/.tms
+else
+  rm -fr ~/.tms
+fi
 
 echo "**********************************************************************"
 echo "   Removing service exec and config"
