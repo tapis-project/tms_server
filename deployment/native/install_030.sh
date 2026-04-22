@@ -378,11 +378,11 @@ echo -e "EnvironmentFile=$SVC_ENV_PATH\n" >> $SVC_CFG_FILE
 
 # Create environment file for service
 cat >> $SVC_ENV_PATH << EOB
-TMS_DB_USER="tms"
-TMS_DB_DB_NAME="tmsdb"
-TMS_DB_HOST="$TMS_DB_HOST"
-TMS_DB_PORT="$TMS_DB_PORT"
-TMS_DB_USER_PASSWORD="$TMS_DB_USER_PASSWORD"
+export TMS_DB_USER="tms"
+export TMS_DB_DB_NAME="tmsdb"
+export TMS_DB_HOST="$TMS_DB_HOST"
+export TMS_DB_PORT="$TMS_DB_PORT"
+export TMS_DB_USER_PASSWORD="$TMS_DB_USER_PASSWORD"
 EOB
 chown $INSTALL_USR:$INSTALL_USR "$SVC_ENV_PATH"
 chmod 400 "$SVC_ENV_PATH"
@@ -484,7 +484,7 @@ else
   INSTALL_INIT_CMD="$EXEC_FILE_DST --install --root-dir $ROOT_DIR"
   # We must run from the top of the source code checkout so the files under resources are available
   if [ "$TEST_MODE" != "true" ]; then
-    su - $INSTALL_USR -c "cd $SRC_DIR; $INSTALL_INIT_CMD > ${LOCAL_DIR}/tms-install.out 2>&1"
+    su - $INSTALL_USR -c "cd $SRC_DIR; source $SVC_ENV_PATH; $INSTALL_INIT_CMD > ${LOCAL_DIR}/tms-install.out 2>&1"
     RET_CODE=$?
   else
     cd $SRC_DIR || exit 1

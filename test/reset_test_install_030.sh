@@ -53,20 +53,17 @@ fi
 # NOTE: Leave these paths hard-coded to avoid chance of serious mistake,
 #       e.g. rm -fr $ROOT_DIR where ROOT_DIR ends up being "/"
 echo "**********************************************************************"
-echo "   Removing current installation"
+echo "   Removing current installation, service exec and service config"
 echo "**********************************************************************"
 # For a non-test (i.e. root) install we will remove ~tms/.tms, for test mode install ~/.tms
 ls -l ~tms
-RET_CODE=$?
-if [ $RET_CODE -eq 0 ]; then
+TEST_INSTALL=$?
+if [ $TEST_INSTALL -eq 0 ]; then
   rm -fr ~tms/.tms
+  rm -fr /tmp/tms_server
 else
   rm -fr ~/.tms
+  rm -fr /opt/tms_server
 fi
-
-echo "**********************************************************************"
-echo "   Removing service exec and config"
-echo "**********************************************************************"
-rm -fr /tmp/tms_server
 
 cd $RUN_DIR
