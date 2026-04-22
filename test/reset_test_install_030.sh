@@ -60,10 +60,10 @@ ls -l ~tms
 TEST_INSTALL=$?
 if [ $TEST_INSTALL -eq 0 ]; then
   rm -fr ~tms/.tms
-  rm -fr /tmp/tms_server
+  rm -fr /opt/tms_server
 else
   rm -fr ~/.tms
-  rm -fr /opt/tms_server
+  rm -fr /tmp/tms_server
 fi
 
 cd $RUN_DIR

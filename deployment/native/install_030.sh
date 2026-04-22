@@ -196,7 +196,7 @@ if [ "$TEST_MODE" == "true" ]; then
   VERS_NEW=$(cd $SRC_DIR; cargo pkgid | cut -d "#" -f2)
   RET_CODE=$?
 else
-  VERS_NEW=$(su - $INSTALL_USR -c 'cd $SRC_DIR; cargo pkgid | cut -d "#" -f2')
+  VERS_NEW=$(su - $INSTALL_USR -c "cd $SRC_DIR; cargo pkgid | cut -d '#' -f2")
   RET_CODE=$?
 fi
 if [ $RET_CODE -ne 0 ]; then
