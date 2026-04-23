@@ -1,0 +1,7 @@
+title = "TMS DEV Server"
+http_addr = "https://tms-server-dev.tacc.utexas.edu/v1"
+http_port = 3000
+enable_mvp = true
+new_clients = "allow"
+enable_test_tenant = true
+server_urls = ["https://tms-server-dev.tacc.utexas.edu:3000/v1", "https://localhost:3000/v1"]
