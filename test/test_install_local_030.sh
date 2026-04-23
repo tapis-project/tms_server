@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-# Script to test clean install of 0.3.0
+# Script to test clean install of 0.3.0 on local host
 #  - remove previous local install from ~/.tms
 #  - setup env variables for install
-#  - run tms_server --install for initialization
-#  - copy tms_server executable into place
+#  - reset the DB
+#  - run the install
 #  - as final check run tms_server to get the version
 #
 # Determine absolute path to location from which we are running and change to that directory.
@@ -16,21 +16,24 @@ PRG_PATH=$(pwd)
 # Some operations are relative to the top level source directory.
 SRC_DIR=$PRG_PATH/..
 
-# Directory for location of executable and version. Override for local test. Default is under /opt.
-export TMS_INSTALL_DIR=/tmp/tms_server
 
 # Remove current install
 echo "**********************************************************************"
 echo "   Removing previous installation"
 echo "**********************************************************************"
 # For local test use standard tms home dir of ~/.tms
+# Use hard-coded paths to avoid mistakes
+rm -fr ~/.tms
+rm -f /tmp/tms_server/tms_server
+rm -f /tmp/tms_server/tms.version
+rm -fr /tmp/tms_server/lib
+rmdir /tmp/tms_server
+
+export TMS_INSTALL_DIR=/tmp/tms_server
 export TMS_ROOT_DIR=~/.tms
-rm -fr $TMS_ROOT_DIR
-rm -f $TMS_INSTALL_DIR/tms_server
-rm -f $TMS_INSTALL_DIR/tms.version
 
 # Set up env variables for running install
-. $PRG_PATH/local_install.env
+. $PRG_PATH/test_install_local.env
 
 # Reset the postgres DB
 echo "**********************************************************************"
@@ -52,16 +55,22 @@ if [ $RET_CODE -ne 0 ]; then
   exit $RET_CODE
 fi
 
-# Set up TMS local dir to have a custom tms.toml for local testing
+if [ -n "$TMS_LOCAL_DIR" ]; then
+  LOCAL_DIR="$TMS_LOCAL_DIR"
+else
+  LOCAL_DIR="$ROOT_DIR/local"
+fi
+# Set up TMS local dir to have a custom files for testing
 # TMS_LOCAL_DIR used for install output and custom tms.toml, log4rs.yml files.
-export TMS_LOCAL_DIR=$TMS_ROOT_DIR/local
-mkdir -p $TMS_LOCAL_DIR
-chmod 700 $TMS_LOCAL_DIR
-cp -p $SRC_DIR/test/tms_test_local.toml $TMS_LOCAL_DIR/tms.toml
-chmod 600 $TMS_LOCAL_DIR/tms.toml
+mkdir -p $LOCAL_DIR
+chmod 700 $LOCAL_DIR
+cp -p $SRC_DIR/test/tms_test_local.toml $LOCAL_DIR/tms.toml
+chmod 600 $LOCAL_DIR/tms.toml
+cp -p $SRC_DIR/test/tms_test_cert.path $LOCAL_DIR/cert.path
+cp -p $SRC_DIR/test/tms_test_cert.path $LOCAL_DIR/key.path
+chmod 600 $LOCAL_DIR/*.path
 
 # Run the install
-cd $SRC_DIR
 $SRC_DIR/deployment/native/install_030.sh --test
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then

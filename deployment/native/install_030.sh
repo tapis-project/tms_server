@@ -1,9 +1,10 @@
 #!/bin/bash
 # Combined build/upgrade script for TMS Server
-# Build and deploy the latest native version TMS Server
+# Build and install the latest native version TMS Server
 # This script must be run as root or run in --test mode.
 #
-# This script builds a release version and updates files in the install and root directories as needed.
+# This script builds a release version and either updates or installs files in the
+# install and root directories as needed.
 #
 # Default install directory is /opt/tms_server. May be overridden using env variable TMS_INSTALL_DIR.
 #   In test mode this defaults to /tmp/tms_server so any user can perform the service related config.
@@ -22,7 +23,11 @@
 #  - If this is an upgrade from TMS version 0.2.0 then SQLite must also be installed.
 #
 # Configuration:
-#  - Following env variables are set at minimum: POSTGRES_PASSWORD, TMS_DB_USER_PASSWORD
+#  - Following env variables are set at minimum:
+#    - POSTGRES_PASSWORD
+#    - TMS_DB_USER_PASSWORD
+#    - TMS_SSL_CERT_PATH
+#    - TMS_SSL_KEY_PATH
 #  - Other env variables that can be set to override defaults:
 #    - TMS_DB_HOST    default = localhost
 #    - TMS_DB_PORT    default = 5432
@@ -100,18 +105,9 @@ if [ "$TEST_MODE" == "false" ] && [ "$EUID" != 0 ]; then
   usage
 fi
 
-# Determine TMS install user
-if [ "$TEST_MODE" == "true" ]; then
-  INSTALL_USR=$USER
-elif [ -n "$USR" ]; then
-  INSTALL_USR="$USR"
-else
-  INSTALL_USR=tms
-fi
-
 # Check that all required env variables are set
 FAILED=false
-env_list="POSTGRES_PASSWORD TMS_DB_USER_PASSWORD"
+env_list="POSTGRES_PASSWORD TMS_DB_USER_PASSWORD TMS_SSL_CERT_PATH TMS_SSL_KEY_PATH"
 for name in $env_list
 do
   if [[ -z "${!name}" ]]; then
@@ -125,19 +121,21 @@ if [ "$FAILED" = true ]; then
   exit 1
 fi
 
+# Determine TMS install user
+if [ "$TEST_MODE" == "true" ]; then
+  INSTALL_USR=$USER
+elif [ -n "$USR" ]; then
+  INSTALL_USR="$USR"
+else
+  INSTALL_USR=tms
+fi
+
 # Determine home directory of install user.
 if [ "$TEST_MODE" == "true" ]; then
   TMS_HOME="$HOME"
 else
   TMS_HOME=$(su - $INSTALL_USR -c 'echo $HOME')
 fi
-
-# Define backup script related settings
-BAK_DIR="$TMS_HOME/backups"
-BAK_FILE="backup_tms_server.sh"
-BAK_FILE_PATH="$BAK_DIR/scripts/$BAK_FILE"
-# Timestamp to use when backing up existing files
-BAK_TIMESTAMP=$(date  +%Y%m%d%H%M%S)
 
 # Make sure rust is installed.
 if [ "$TEST_MODE" == "true" ]; then
@@ -171,7 +169,7 @@ else
   ROOT_DIR="$ROOT_DEF_DIR"
 fi
 
-# Set installation directory.
+# Set installation directory. Location of tms_server, tms.version and lib/
 if [ "$TEST_MODE" == "true" ]; then
   INSTALL_DEF_DIR="/tmp/tms_server"
 else
@@ -219,6 +217,28 @@ if [ -z "$TMS_DB_PORT" ]; then TMS_DB_PORT="5432"; fi
 # Set location of version file for installed version
 VERS_FILE=$INSTALL_DIR/tms.version
 
+# Define backup script related settings
+BAK_DIR="$TMS_HOME/backups"
+BAK_FILE="backup_tms_server.sh"
+BAK_FILE_PATH="$BAK_DIR/scripts/$BAK_FILE"
+# Timestamp to use when backing up existing files
+BAK_TIMESTAMP=$(date  +%Y%m%d%H%M%S)
+
+# Make sure the SSL cert files are at the specified paths.
+RET_CODE=0
+if [ ! -r "$TMS_SSL_CERT_PATH" ]; then
+  echo "ERROR: SSL cert file not found at specified path: $TMS_SSL_CERT_PATH"
+  RET_CODE=1
+fi
+if [ ! -r "$TMS_SSL_KEY_PATH" ]; then
+  echo "ERROR: SSL key file not found at specified path: $TMS_SSL_KEY_PATH"
+  RET_CODE=1
+fi
+if [ $RET_CODE -ne 0 ]; then
+    echo "Exiting ..."
+    exit $RET_CODE
+fi
+
 # Output configuration
 echo "******* Install / Upgrade Settings ************************"
 echo "******* TMS Version: $VERS_NEW ********************************"
@@ -232,7 +252,15 @@ echo "   SVC_CFG_DIR=$SVC_CFG_DIR"
 echo "   BAK_FILE_PATH=$BAK_FILE_PATH"
 echo "   TMS_DB_HOST=$TMS_DB_HOST"
 echo "   VERS_FILE=$VERS_FILE"
+echo "   TMS_SSL_CERT_PATH=$TMS_SSL_CERT_PATH"
+echo "   TMS_SSL_KEY_PATH=$TMS_SSL_KEY_PATH"
 echo "***********************************************************"
+echo
+read -p "Please review above settings. If they are correct enter Y to continue: " resp
+case $resp in
+  [yY]* ) echo "Continuing ... " ;;
+  *) echo "Install cancelled. Exiting ... " ; exit 1 ;;
+esac
 
 # =====================================================================================
 #  Perform install/upgrade specific checks related to previous install
@@ -256,7 +284,7 @@ if [ "$UPGRADE" == "true" ]; then
     exit 1
   fi
 else
-  # There should not be an existing installation
+  # This is an install, there should not be an existing installation
   if [ -e "$ROOT_DIR/config" ]; then
     echo "ERROR: TMS Server appears to already be installed under root directory: $ROOT_DIR. Path found: $ROOT_DIR/config"
     echo "Exiting ..."
@@ -438,11 +466,16 @@ if [ "$UPGRADE" == "true" ]; then
   VERS_OLD=$(cat $VERS_FILE)
 
   # If there is a customizations directory then rename it to local to match layout as of 0.3.0
-  if [ -d ${TMS_HOME}/tms_customizations ]; then
+  CUST_DIR="${TMS_HOME}/tms_customizations"
+  if [ -d ${CUST_DIR} ]; then
     echo
-    echo "===== Moving customizations directory from ${TMS_HOME}/tms_customizations to $LOCAL_DIR"
+    echo "===== Backing up customizations directory from ${CUST_DIR} to ${CUST_DIR}.bak_${BAK_TIMESTAMP}"
     echo "========================================================================================="
-    mv "${TMS_HOME}/tms_customizations" "$LOCAL_DIR"
+    cp -pr "${CUST_DIR}" "${CUST_DIR}.bak_${BAK_TIMESTAMP}"
+    echo
+    echo "===== Moving customizations directory from ${CUST_DIR} to $LOCAL_DIR"
+    echo "========================================================================================="
+    mv "${CUST_DIR}" "$LOCAL_DIR"
   fi
 
   # Update migrations files.
@@ -477,6 +510,14 @@ else
   # Clean install specific steps
   # --------------------------------------
   # First Time Install Processing. Save output to LOCAL_DIR
+
+  # Copy the SSL cert files into place
+  mkdir -p $TMS_ROOT_DIR/certs
+  chmod 700 $TMS_ROOT_DIR/certs
+  cp -p $TMS_SSL_CERT_PATH $TMS_ROOT_DIR/certs/cert.pem
+  cp -p $TMS_SSL_KEY_PATH $TMS_ROOT_DIR/certs/key.pem
+  chown $INSTALL_USR:$INSTALL_USR $TMS_ROOT_DIR/certs/*.pem
+  chmod 600 $TMS_ROOT_DIR/certs/*.pem
   echo
   echo "===== Initialize server. Running tms_server --install as user: $INSTALL_USR"
   echo "========================================================================================="
@@ -543,9 +584,9 @@ echo "$VERS_NEW" > $VERS_FILE
 # Start up the service
 if [ "$TEST_MODE" != "true" ]; then
   echo
-  echo "===== Starting TMS service"
+  echo "===== To start the TMS service, please run:"
+  echo "  systemctl start tms_server"
   echo "========================================================================================="
-  systemctl start tms_server
 fi
 
 # Remove the temporary file
