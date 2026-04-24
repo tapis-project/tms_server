@@ -66,9 +66,6 @@ mkdir -p $LOCAL_DIR
 chmod 700 $LOCAL_DIR
 cp -p $SRC_DIR/test/tms_test_local.toml $LOCAL_DIR/tms.toml
 chmod 600 $LOCAL_DIR/tms.toml
-cp -p $SRC_DIR/test/tms_test_cert.path $LOCAL_DIR/cert.path
-cp -p $SRC_DIR/test/tms_test_cert.path $LOCAL_DIR/key.path
-chmod 600 $LOCAL_DIR/*.path
 
 # Run the install
 $SRC_DIR/deployment/native/install_030.sh --test
