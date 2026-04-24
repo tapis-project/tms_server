@@ -516,7 +516,7 @@ else
   chmod 700 $TMS_ROOT_DIR/certs
   cp -p $TMS_SSL_CERT_PATH $TMS_ROOT_DIR/certs/cert.pem
   cp -p $TMS_SSL_KEY_PATH $TMS_ROOT_DIR/certs/key.pem
-  chown $INSTALL_USR:$INSTALL_USR $TMS_ROOT_DIR/certs/*.pem
+  chown -R $INSTALL_USR:$INSTALL_USR $TMS_ROOT_DIR/certs
   chmod 600 $TMS_ROOT_DIR/certs/*.pem
   echo
   echo "===== Initialize server. Running tms_server --install as user: $INSTALL_USR"
