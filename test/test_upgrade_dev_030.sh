@@ -2,7 +2,7 @@
 #
 # Script to test upgrade from 0.2.0 to 0.3.0 in the DEV environment, tms-server-dev.tacc.utexas.edu
 #  - remove previous install from ~tms/.tms
-#  - restore a saved copy of 0.2.0 install to ~/.tms
+#  - restore a saved copy of 0.2.0 install to ~tms/.tms
 #  - setup env variables for install
 #  - reset the DB
 #  - run the upgrade
@@ -42,12 +42,12 @@ export TMS_ROOT_DIR=~tms/.tms
 # Set up env variables for running install
 . $PRG_PATH/test_install_dev.env
 
-# Simulate a previous 0.2.0 install by restoring a backed up ~/.tms install directory
+# Simulate a previous 0.2.0 install by restoring a backed up ~tms/.tms install directory
 #   and creating a version file and a fake executable file under /tmp/tms_server
 echo "*********************************************************************************"
 echo "   Restoring backed up TMS server 0.2.0 install to standard install dir: $TMS_ROOT_DIR"
 echo "*********************************************************************************"
-ROOT_BAK_DIR=~/dot_tms_bak
+ROOT_BAK_DIR=~tms/dot_tms_bak
 /bin/cp -pr $ROOT_BAK_DIR $TMS_ROOT_DIR
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
