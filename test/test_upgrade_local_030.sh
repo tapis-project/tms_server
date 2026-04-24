@@ -1,30 +1,41 @@
 #!/bin/bash
 #
-# Script to reset a manual test of upgrade script upgrade_020_030.sh
+# Script to test upgrade from 0.2.0 to 0.3.0 on local host
 #  - remove previous local install from ~/.tms
-#  - restore a saved copy of 0.2.0 install to ~/.tms. Copy most be located at ~/dot_tms_bak
-#  - reset the postgres DB
+#  - restore a saved copy of 0.2.0 install to ~/.tms
+#  - setup env variables for install
+#  - reset the DB
+#  - run the upgrade
+#  - as final check run tms_server to get the version
 #
 # Determine absolute path to location from which we are running and change to that directory.
 RUN_DIR=$(pwd)
 PRG_RELPATH=$(dirname "$0")
 cd "$PRG_RELPATH"/. || exit
 PRG_PATH=$(pwd)
+
 # Some operations are relative to the top level source directory.
 SRC_DIR=$PRG_PATH/..
 
-# By default, upgrade script sets install dir to /opt/tms_server, so override for testing.
-export TMS_INSTALL_DIR=/opt/tms_server
 
 # Remove current install
 echo "**********************************************************************"
 echo "   Removing previous installation"
 echo "**********************************************************************"
-# For local test use to standard tms root dir of ~/.tms
+# For local test use standard tms home dir of ~/.tms
+# Use hard-coded paths to avoid mistakes
+rm -fr ~/.tms
+rm -f /tmp/tms_server/tms_server
+rm -f /tmp/tms_server/tms.version
+rm -fr /tmp/tms_server/lib
+rmdir /tmp/tms_server
+
+# By default, upgrade script sets install dir to /opt/tms_server, so override for testing locally.
+export TMS_INSTALL_DIR=/tmp/tms_server
 export TMS_ROOT_DIR=~/.tms
-rm -fr $TMS_ROOT_DIR
-rm -f $TMS_INSTALL_DIR/tms_server
-rm -f $TMS_INSTALL_DIR/tms.version
+
+# Set up env variables for running install
+. $PRG_PATH/test_install_local.env
 
 # Simulate a previous 0.2.0 install by restoring a backed up ~/.tms install directory
 #   and creating a version file and a fake executable file under /tmp/tms_server
@@ -46,10 +57,6 @@ chmod +x $TMS_INSTALL_DIR/tms_server
 mv $TMS_ROOT_DIR/tms.version $TMS_INSTALL_DIR
 
 # Reset the postgres DB
-echo "*********************************************************************************"
-echo "   Resetting postgres DB"
-echo "*********************************************************************************"
-source $TMS_ROOT_DIR/db.env
 echo "**********************************************************************"
 echo "   Initializing Postgres DB for TMS"
 echo "**********************************************************************"
@@ -69,8 +76,40 @@ if [ $RET_CODE -ne 0 ]; then
   exit $RET_CODE
 fi
 
+if [ -n "$TMS_LOCAL_DIR" ]; then
+  LOCAL_DIR="$TMS_LOCAL_DIR"
+else
+  LOCAL_DIR="$ROOT_DIR/local"
+fi
+# Set up TMS local dir to have a custom files for testing
+# TMS_LOCAL_DIR used for install output and custom tms.toml, log4rs.yml files.
+mkdir -p $LOCAL_DIR
+chmod 700 $LOCAL_DIR
+cp -p $SRC_DIR/test/tms_test_local.toml $LOCAL_DIR/tms.toml
+chmod 600 $LOCAL_DIR/tms.toml
 
-cd $RUN_DIR
+echo "*********************************************************************************"
+echo "   Running upgrade script"
+echo "*********************************************************************************"
+# Run the upgrade script in test mode
+$SRC_DIR/deployment/native/install_030.sh --upgrade --test
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+  echo "Upgrade of tms_server failed."
+  echo "Exiting ..."
+  exit $RET_CODE
+fi
+
+# Check that install appears to have worked by running tms_server --version
+$TMS_INSTALL_DIR/tms_server --version
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+  echo "TMS server --version failed"
+  echo "Exiting ..."
+  exit $RET_CODE
+fi
+
 echo "*****************"
 echo "     SUCCESS"
 echo "*****************"
+cd $RUN_DIR
