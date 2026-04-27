@@ -5,8 +5,10 @@ The native installation of the TMS Server (TMSS) sets up the `tms_server` binary
 by `systemctl`. This file describes the installation, configuration and execution of the `tms_server` binary.
 
 ## One-Time Installation Prerequisite Procedures
-Perform the following one-time installation steps prior to installing TMSS for the first time or upgrading from
-version `0.2`. These steps will not be needed when upgrading from later versions.
+Perform the following one-time installation steps prior to installing TMSS for the first time.
+
+Note that the steps related to setting up for PostgreSQL will also be needed when upgrading from version `0.2`.
+These steps will not be needed when upgrading from later versions.
 
 ### Install PostgreSQL
 This may be installed and running almost anywhere. The simplest option is to install locally as a docker deployment.
@@ -83,17 +85,75 @@ cd ~tms/tms_server
 ./deployment/native/install_030.sh
 ```
 
+You will be prompted to review and accept the detected settings before continuing. Once installation is complete,
+output of the initialization run may be found in file `$TMS_LOCAL_DIR/tms-install.out`. By default, this file
+is located at `~tms/.tms/tms-install.out`.
+
+This output file contains the administrator credentials for the *test* and more importantly *default* tenant.
+**This is only place where these credentials are displayed. Losing this information prevents administrative actions in
+these two tenants and will likely make reinstallation necessary.**
+
+The installation script will:
+- Create and update ownership of various directories and files, such as `$TMS_ROOT_DIR`, `$TMS_INSTALL_DIR`, etc.
+- Build TMSS from source files
+- Copy the SSL certificate files into place
+- Initialize the configuration by running `tms_server --install --root-dir $TMS_ROOT_DIR`
+- If needed copy custom `tms.toml` and `log4rs.yml` files from `$TMS_LOCAL_DIR`.
+
+## Upgrading TMSS from version `0.2`
+When installing or upgrading TMSS you must be running as the root user. After the installation or upgrade  all operations
+except for starting and stopping the service should be performed as the user `tms`.
+
+### Install and initialize PostgreSQL
+When upgrading from version `0.2` it will be necessary to perform the prerequisite steps described above for
+setting up and initializing the PostgreSQL DB. These steps will not be needed when upgrading from later versions.
+
+### Run the installation script with upgrade option
+Once the prerequisite steps are taken and the required and optional environment variables are set, simply run the
+installation script as root specifying the option `--upgrade`:
+????
+```
+sudo su -
+cd ~tms/tms_server
+./deployment/native/install_030.sh --upgrade ?????????????????
+```
+
 You will be prompted to review and accept the detected settings before continuing.
 
 
-## Upgrading TMSS
-When installing or upgrading TMSS you must be running as the root user. After the installation or upgrade  all operations
-except for starting and stopping the service should be performed as the user `tms`.
+????????/Once TODO upgrade is complete,
+output of the initialization run may be found in file `$TMS_LOCAL_DIR/tms-install.out`. By default, this file
+is located at `~tms/.tms/tms-install.out`.
+
+
+?????
+
+## Running TMSS
+Note that the installation script will not start the service after installing or upgrading.
+
+A convenient way to run TMSS is via `systemctl`. The installation script places a service configuration file
+at `$TMS_INSTALL_DIR/lib/systemd/system/tms_server.service` which provides a starting point for a systemd unit
+definition. The configuration may be used as-is. This file (or its derivative) can be copied to /etc/systemd/system or
+referenced in place using a symbolic link. The following commands may then be used to manage and monitor the service:
+```
+systemctl start tms_server.service
+systemctl stop tms_server.service
+systemctl status tms_server.service
+journalctl -u tms_server.service -n 500 -b -f
+```
+
+## Logging
+The log configuration and formatting for `tms_server` is specified in the configuration file
+`$TMS_ROOT_DIR/config/log4rs.yml`. By default the log level is set to `INFO` and log messages are written to the file
+`$TMS_ROOT_DIR/logs/tms_roller.log`.
 
 ## Managing SSL Certificate
 An important consideration for administrators is how to manage certificate expiration. We assume some administrative
 process external to TMSS replaces the certificate and key before they expire. Ideally, this event will trigger the
-TMSS certificate and key file processing just described and then restart TMSS (see below TODO???????????????).
+TMSS certificate and key file processing just described and then restart TMSS.
+
+
+
 
 
 # ????
@@ -152,39 +212,4 @@ then the following actions are taken in addition to the ones listed in the previ
 
 To replace an existing installation with a new one, simply delete the *~/.tms* directory subtree.  You can optionally remove all, some or none of the
 *~/tms_customizations* content.
-
-
-
-
-
 ???????????????
-
-An important consideration for administrators is how to manage certificate/key expiration.  We assume some administrative process external to TMSS replaces
-the host's certificate and key before they expire.  Ideally, this event will trigger the TMSS certificate and key file processing just described and then restart TMSS (see below). 
-
-# Running TMSS
-A convenient way to run TMSS is via systemctl.  The *tms_server.service* file that is written to the
-*/opt/tms_server/lib/systemd/system* directory can be used as is or as a starting point for a systemd unit definition.
-This file (or its derivative) can be copied to /etc/systemd/system or referenced in place using a symbolic link.
-Either way, issuing *systemctl start tms_server* as root will start TMSS.  If TMSS is already running, then
-*systemctl restart tms_server* should be used, such as after a new host certificate has been installed.
-
-# Reinstalling TMSS
-
-Once TMSS is installed and running on a machine, reinstalling entails rebuilding the latest code and copying the executable to the /opt/tms_server directory.
-If you launch TMSS using systemctl, you'll need to stop the service, copy the executable and then restart the service.
-
-To build the latest code from the ~/tms_server directory, issue:
-
-   - *git pull*
-   - *cargo build --release*
-
-To copy the new executable to /opt/tms_server, first stop *tms_server*, issue the command below, and then restart *tms_server*:    
-
-   - *cp -p target/release/tms_server /opt/tms_server/*
-
-
-The log for the service may be monitored using journalctl (running as root), for example:
-
-`sudo journalctl -u tms_server.service -n 1000 -b -f
-`
