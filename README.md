@@ -1,8 +1,19 @@
-# tms_server
+# TMS Server
 
 Trust Manager System (TMS) web server
 
-TMS is currently being developed for a Minimal Viable Product release.  As development proceeds the SQLite database schema may change.  To upgrade to the new schema delete all tms.db* files from the *database* directory under the TMS root directory (all content will be lost).  TMS will automatically create a new database with the updated schema when run.
+TMS is currently deployed as a Minimal Viable Product release in three environments: DEV, STAGING and PROD.
+All deployments are native installations as opposed to docker deployments. Initially an SQLite database was
+used. As of version `0.3.0` a PostgreSQL database is used. For installation and upgrade details please
+see file `deployment/native/README-NATIVE.md`.
+
+Please note that this README covers manual installation and configuration. Although this README has received some
+updates, not all information has been recently tested so it may be out of date. For the latest information on
+installing and configuring please see the file `deployment/native/README-NATIVE.md`.
+
+The TMS Server (TMSS) is currently deploy on three hosts: *tms-server-dev*, *tms-server-stage* and *tms-server-prod*.
+
+For more documentation on TMS please see [tms-documentation.readthedocs.io](https://tms-documentation.readthedocs.io/en/latest/).
 
 ## Running the TMS Server (TMSS)
 
@@ -14,15 +25,21 @@ There are 3 ways to start TMSS:
 
   3. To run the server from the directory in which the server's executable resides, such as *target/debug*, issue "./tms_server".  
   
-  Note that the current directory from which TMSS is lauched must have a **resources** subdirectory.  The resources directory must match the resources directory in the source code repository, including all its subdirectories and files.  This requirement is automatically met by launch methods 1 and 2 above, but usually requires a manual or automated process to copy content from the source code repository for method 3. 
+  Note that the current directory from which TMSS is launched must have a **resources** subdirectory.
+  The resources directory must match the resources directory in the source code repository, including all its
+  subdirectories and files. This requirement is automatically met by launch methods 1 and 2 above, but usually requires
+  a manual or automated process to copy content from the source code repository for method 3.
 
 Use the --help flag to see the supported command line options.
 
-The automatically generated livedocs can be accessed by pointing your browser to https://localhost:3000.  The various APIs can be executed by filling in form data.
+The automatically generated `live-docs` can be accessed by pointing your browser to https://localhost:3000.
+The various APIs can be executed by filling in form data.
 
 ## TMS Root Data Directory
 
-TMSS expects certain externals files to exist in a well-defined directory structure.  By default, TMSS will create its directory subtree rooted at **~/.tms**.  The root directory has the following subdirectories:
+TMSS expects certain externals files to exist in a well-defined directory structure.
+By default, TMSS will create its directory subtree rooted at `~/.tms`.
+The root directory has the following subdirectories:
 
   - ~/.tms
       - certs
@@ -33,56 +50,61 @@ TMSS expects certain externals files to exist in a well-defined directory struct
 
 ## Initializing the TMS Root Data Directory
 
-The TMSS automatically initializes its root data directory on startup.  Initialization includes creating the root directory and all its subdirectories as well as moving the default configuration files into those subdirectories.  These default files include these:
-
+The TMSS automatically initializes its root data directory on startup. Initialization includes creating the root
+directory and all its subdirectories as well as moving the default configuration files into those subdirectories.
+The default files are:
   - ~/.tms/certs/cert.pem
-
   - ~/.tms/certs/key.pem
-
   - ~/.tms/config/log4rs.yml
-
   - ~/.tms/config/tms.toml
+  - ~/.tms/migrations/1001_init.sql
 
-  - ~/.tms/migrations/20240315211037_tms_init.sql
+TMSS sets owner-only permissions on it directories and files. The files in the `config` subdirectory can be modified
+for development or production purposes. The `log4rs.yml` controls logging to the console and to rolling log files in
+the `~/.tms/logs` directory. See `log4rs.yml` for instructions on changing the output directory for the rolling log.
 
-TMSS sets owner-only permissions on it directories and files.  The files in the **config** subdirectory can be modified for development or production purposes.  The **log4rs.yml** controls logging to the console and to rolling log files in the **~/.tms/logs** directory.  See **log4rs.yml** for instructions on changing the output directory for the rolling log.
-
-The **tms.toml** file specifies the server's options that can be customized at runtime.  At least one server url should be specified so that the generated livedocs can execute commands (localhost is convenient).
+The `tms.toml` file specifies the server's options that can be customized at runtime. At least one server url should be
+specified so that the generated `live-docs` can execute commands (localhost is convenient).
 
 ## Customizing the Configuration
 
-TMSS must be run with the *--install* option before it can be run for request handling.  Here's how to install TMSS:
+TMSS must be run with the `--install` option before it can be run for request handling. Here's how to install TMSS:
+```
+ ./tms_server --install
+```
 
-  - ./tms_server --install
-
-Installation initializes TMSS's root directory, sets up the standard tenants (*default* and *test*), inserts test records into the database and then immediately exits.  By exiting, the configuration files in the TMSS root directory can be customized before TMS starts handling requests.  Once customization is complete, TMSS can be invoked as follows:
-
-  - ./tms_server
+Installation initializes TMSS's root directory, sets up the standard tenants (*default* and *test*), inserts test
+records into the database and then immediately exits. By exiting, the configuration files in the TMSS root directory
+can be customized before TMSS starts handling requests. Once customization is complete, TMSS can be invoked as follows:
+```
+ ./tms_server
+```
 
 ### Non-Default Root Directory Initialization
 
-The --root-dir works in conjunction with the --install option to define a non-default TMSS root directory.
-
-  - ./tms_server --install --root-dir MYDIR
+The `--root-dir` option works in conjunction with the `--install` option to define a non-default TMSS root directory.
+```
+./tms_server --install --root-dir MYDIR
+```
 
 ### Non-Default Root Directory Execution
 
-At runtime TMSS needs to be pointed at MYDIR to use it as its root directory.  This can be done in two ways.
-
+At runtime TMSS needs to be pointed at MYDIR to use it as its root directory. This can be done in two ways.
   1. Set the TMS_ROOT_DIR environment variable to MYDIR, or
-
   2. Start the server with a command line argument:  ./tms_server --root-dir MYDIR
 
 If both methods are used, the environment variable setting takes priority.
 
 ## Tenancy 
 
-When TMS initializes its database it creates two tenants: *default* and *test*.  The former is the standard TMS tenant used in production; the latter is a tenant for use in development.   
+When TMS initializes its database it creates two tenants: *default* and *test*. The former is the standard TMS tenant
+used in production; the latter is a tenant for use in development.
 
 ## The Test Tenant
 
-As part of database initialization, TMS populates the *test* tenant with test data useful for running the */creds/sshkeys* and */creds/publickey* APIs.  This preloaded test data includes records in the clients, user_mfa, user_hosts and delgations tables.  These records establish the following entities:
-
+As part of database initialization, TMS populates the *test* tenant with test data useful for running the
+`/creds/sshkeys` and `/creds/publickey` APIs. This preloaded test data includes records in the clients, user_mfa,
+user_hosts and delgations tables. These records establish the following entities:
 - **Client ID:** testclient1
 - **Client Secret:** secret1
 - **User:** testuser1
@@ -93,8 +115,8 @@ As part of database initialization, TMS populates the *test* tenant with test da
 
 ## Testing Public Key Creation
 
-One can create test keys using the livedocs interface in a browser (https://localhost:3000).  Select the */creds/sshkeys* API and submit this input:
-
+One can create test keys using the `live-docs` interface in a browser (https://localhost:3000).
+Select the `/creds/sshkeys` API and submit this input:
 ```
 {
   "client_id": "testclient1",
@@ -109,10 +131,7 @@ One can create test keys using the livedocs interface in a browser (https://loca
 }        
 ```
 
-The following algorithms can be specifed in the *key_type*, with the default being ED25519:
-
+The following algorithms can be specified in the `key_type`, with the default being `ED25519`:
 - **RSA**
 - **ECDSA**
 - **ED25519**
-
- 

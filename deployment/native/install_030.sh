@@ -31,10 +31,13 @@
 #  - Other env variables that can be set to override defaults:
 #    - TMS_DB_HOST    default = localhost
 #    - TMS_DB_PORT    default = 5432
+#  - Other less common env variable overrides:
+#    - TMS_ROOT_DIR     default = $HOME/.tms
+#    - TMS_INSTALL_DIR  default = /opt/tms_server or /tmp/tms_server in test mode
 #
 # A --test mode is supported allowing for execution as a non-root user and tms_install_user is taken to be current user.
 # NOTE that in test mode we perform all of the TMS service related steps except for starting and stopping.
-#   Set TMS_INSTALL_DIR=/tmp/tms_server which should allow any user to perform the service related config.
+# For test mode please set TMS_INSTALL_DIR=/tmp/tms_server so any user may perform the service related config.
 
 PrgName=$(basename "$0")
 
