@@ -4,12 +4,12 @@
 The native installation of the TMS Server (TMSS) sets up the `tms_server` binary to run as a service that is managed
 by `systemctl`. This file describes the installation, configuration and execution of the `tms_server` binary.
 
-## One-Time Installation Procedures
-Perform the following one-time installation steps prior to installing TMSS for the first time. These steps will not
-be needed when upgrading.
+## One-Time Installation Prerequisite Procedures
+Perform the following one-time installation steps prior to installing TMSS for the first time or upgrading from
+version `0.2`. These steps will not be needed when upgrading from later versions.
 
 ### Install PostgreSQL
-This may be installed almost anywhere. The simplest option is to install locally as a docker deployment.
+This may be installed and running almost anywhere. The simplest option is to install locally as a docker deployment.
 Please see files under the directory `deployment/postgres` for an example docker compose file and scripts that may
 be used to deploy a local postgres server. In order to use the scripts in this repo you will need to have the
 postgres admin user as `postgres` and save the admin password for later use when initializing the DB for TMSS.
@@ -28,7 +28,7 @@ git clone https://github.com/tapis-project/tms_server.git
 
 ### As user `tms` initialize the PostgreSQL database
 Prior to installing TMSS Server for the first time the DB must be initialized by creating the database and schema.
-The database will be namde `tmsdb` and the schema (aka user) will be named `tms`. Note that if this is a re-install
+The database will be namde `tmsdb` and the schema (aka user) will be named `tms`. Note that if this is a re-installation
 and you wish to destructively remove a previous install you may use the script located at
 `deployment/postgres/tms_drop.sh`. To initialize the DB you will need to choose a DB user password, set two environment
 variables and run the init script, as follows:
@@ -40,13 +40,60 @@ export TMS_DB_USER_PASSWORD=<tms_user_password>
 ./deployment/tms_init_db.sh
 ```
 
-If the PostgreSQL deployment is not running on `localhost` at port `5432` then the environment variables `TMS_DB_HOST`
+If the PostgreSQL deployment is not running on `localhost` at port `5432`, then the environment variables `TMS_DB_HOST`
 and `TMS_DB_PORT` may be used to override the settings.
 
+## Environment variables used during installation and upgrade
+
+### Required
+The following environment variables are required when installing TMSS:
+- POSTGRES_PASSWORD
+  - Password for the postgresql admin user `postgres`
+- TMS_DB_USER_PASSWORD
+  - Password for the TMS DB user
+- TMS_SSL_CERT_PATH
+  - Path to the SSL fullchain certificate file in PEM format that is loaded at startup.
+- TMS_SSL_KEY_PATH
+  - Path to the private key file in PEM format associated with the server SSL certificate.
+
+### Optional
+Other env variables that can be set to override defaults:
+- TMS_DB_HOST
+  - Host server running PostgreSQL. default = localhost
+- TMS_DB_PORT
+  - Port at which PostgreSQL server is running. default = 5432 :
+
+Other less common env variable overrides:
+- TMS_ROOT_DIR
+  - Location of `certs/`, `config/`, `logs/`, `migrations/`. default = $HOME/.tms
+- TMS_INSTALL_DIR
+  - Location of `tms_server` executable, `tms.version` and `lib/`. default = /opt/tms_server
+- TMS_LOCAL_DIR
+  - Location of install output and optional custom `tms.toml`, `log4rs.yml`. default = $TMS_ROOT_DIR/local
+
 ## Installing TMSS
+When installing or upgrading TMSS you must be running as the root user. After the installation or upgrade, all operations
+except for starting and stopping the service should be performed as the user `tms`.
+
+Once the prerequisite steps are taken and the required and optional environment envariables are set, simply run the
+installation script as root:
+```
+sudo su -
+cd ~tms/tms_server
+./deployment/native/install_030.sh
+```
+
+You will be prompted to review and accept the detected settings before continuing.
+
+
+## Upgrading TMSS
 When installing or upgrading TMSS you must be running as the root user. After the installation or upgrade  all operations
 except for starting and stopping the service should be performed as the user `tms`.
 
+## Managing SSL Certificate
+An important consideration for administrators is how to manage certificate expiration. We assume some administrative
+process external to TMSS replaces the certificate and key before they expire. Ideally, this event will trigger the
+TMSS certificate and key file processing just described and then restart TMSS (see below TODO???????????????).
 
 
 # ????
@@ -106,18 +153,11 @@ then the following actions are taken in addition to the ones listed in the previ
 To replace an existing installation with a new one, simply delete the *~/.tms* directory subtree.  You can optionally remove all, some or none of the
 *~/tms_customizations* content.
 
-## native_copy_certs.sh
-The *native_copy_certs.sh* utility program can be used to copy the host fullchain certificate and private key to the *~/.tms/certs/cert.pem* and
-*~/.tms/certs/key.pem* files, respectively.  Here's what *native_copy_certs.sh* does:
 
-1. Copies two files.
-   1. It uses the *~/tms_customizations/cert.path* content as the source file path.  It copies the file at that source path to *~/.tms/certs/cert.pem*.
-   1. It uses the *~/tms_customizations/key.path* content as the source file path.  It copies the file at that source path to *~/.tms/certs/key.pem*.
-2. Changes r/w access to owner-only (600) on both copied files.
-3. Changes owner:group of both copied files to tms:tms.
 
-TMSS administrators can use any method they like to accomplish the same tasks; *native_copy_certs.sh* does not have to be used as long as the end state
-regarding file placement, permissions and ownership is the same.
+
+
+???????????????
 
 An important consideration for administrators is how to manage certificate/key expiration.  We assume some administrative process external to TMSS replaces
 the host's certificate and key before they expire.  Ideally, this event will trigger the TMSS certificate and key file processing just described and then restart TMSS (see below). 

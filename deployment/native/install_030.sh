@@ -26,8 +26,8 @@
 #  - Following env variables are set at minimum:
 #    - POSTGRES_PASSWORD
 #    - TMS_DB_USER_PASSWORD
-#    - TMS_SSL_CERT_PATH
-#    - TMS_SSL_KEY_PATH
+#    - TMS_SSL_CERT_PATH    : Path to the SSL fullchain certificate file in PEM format.
+#    - TMS_SSL_KEY_PATH     : Path to the private key file in PEM format associated with the SSL certificate.
 #  - Other env variables that can be set to override defaults:
 #    - TMS_DB_HOST    default = localhost
 #    - TMS_DB_PORT    default = 5432
@@ -515,12 +515,12 @@ else
   # First Time Install Processing. Save output to LOCAL_DIR
 
   # Copy the SSL cert files into place
-  mkdir -p $TMS_ROOT_DIR/certs
-  chmod 700 $TMS_ROOT_DIR/certs
-  cp -p $TMS_SSL_CERT_PATH $TMS_ROOT_DIR/certs/cert.pem
-  cp -p $TMS_SSL_KEY_PATH $TMS_ROOT_DIR/certs/key.pem
-  chown -R $INSTALL_USR:$INSTALL_USR $TMS_ROOT_DIR/certs
-  chmod 600 $TMS_ROOT_DIR/certs/*.pem
+  mkdir -p $ROOT_DIR/certs
+  chmod 700 $ROOT_DIR/certs
+  cp -p $TMS_SSL_CERT_PATH $ROOT_DIR/certs/cert.pem
+  cp -p $TMS_SSL_KEY_PATH $ROOT_DIR/certs/key.pem
+  chown -R $INSTALL_USR:$INSTALL_USR $ROOT_DIR/certs
+  chmod 600 $ROOT_DIR/certs/*.pem
   echo
   echo "===== Initialize server. Running tms_server --install as user: $INSTALL_USR"
   echo "========================================================================================="
