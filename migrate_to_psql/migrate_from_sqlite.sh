@@ -109,7 +109,7 @@ done
 echo "**********************************************************************"
 echo "   Initializing Postgres DB for TMS"
 echo "**********************************************************************"
-$SRC_DIR/deployment/tms_init_db.sh
+$SRC_DIR/deployment/postgres/tms_init_db.sh
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
   echo "tms_init_db failed."
