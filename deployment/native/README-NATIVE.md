@@ -1,4 +1,4 @@
-# Installing and Upgrading the TMS Server
+# Installing and Upgrading the TMS Server version 0.3
 
 ## Overview
 A native installation of the TMS Server (TMSS) sets up the `tms_server` binary to run as a service that is managed
@@ -17,7 +17,7 @@ be used to deploy a local postgres server. In order to use the scripts in this r
 postgres admin user as `postgres` and save the admin password for later use when initializing the DB for TMSS.
 
 ### Create user named tms
-Create a user named `tms` on the linux where `tms_server` will run:
+Create a user named `tms` on the linux host where `tms_server` will run:
 ```
 useradd -m tms
 ```
@@ -30,7 +30,7 @@ git clone https://github.com/tapis-project/tms_server.git
 
 ### As user `tms` initialize the PostgreSQL database
 Prior to installing TMSS Server for the first time the DB must be initialized by creating the database and schema.
-The database will be namde `tmsdb` and the schema (aka user) will be named `tms`. Note that if this is a re-installation
+The database will be named `tmsdb` and the schema (aka user) will be named `tms`. Note that if this is a re-installation
 and you wish to destructively remove a previous install you may use the script located at
 `deployment/postgres/tms_drop.sh`. To initialize the DB you will need to choose a DB user password, set two environment
 variables and run the init script, as follows:
@@ -54,7 +54,7 @@ The following environment variables are required when installing TMSS:
 - TMS_DB_USER_PASSWORD
   - Password for the TMS DB user
 - TMS_SSL_CERT_PATH
-  - Path to the SSL fullchain certificate file in PEM format that is loaded at startup.
+  - Path to the SSL full-chain certificate file in PEM format that is loaded at startup.
 - TMS_SSL_KEY_PATH
   - Path to the private key file in PEM format associated with the server SSL certificate.
 
@@ -90,8 +90,8 @@ output of the initialization run may be found in file `$TMS_LOCAL_DIR/tms-instal
 is located at `~tms/.tms/tms-install.out`.
 
 This output file contains the administrator credentials for the *test* and more importantly the *default* tenant.
-**This is only place where these credentials are displayed. Losing this information prevents administrative actions in
-these two tenants and will likely make reinstallation necessary.**
+**WARNING This is only place where these credentials are displayed. Losing this information prevents administrative
+actions in these two tenants and will likely make reinstallation necessary.**
 
 The installation script will:
 - Create and update ownership of various directories and files, such as `$TMS_ROOT_DIR`, `$TMS_INSTALL_DIR`, etc.
@@ -128,10 +128,9 @@ The upgrade script will:
 - The new `migrations` directory will be copied into place from `~tms/tms_server/resources/migrations`.
 - Data will be migrated from the SQLite DB to the PostgreSQL DB.
 - The SQLite DB under `$TMS_ROOT_DIR/database` will be moved to a backup directory.
-- If needed copy custom `tms.toml` and `log4rs.yml` files from `$TMS_LOCAL_DIR`.
 
-Please note that the update script will not overwrite the `tms.toml` or `log4rs.yml` files. Any customizations
-will remain in place.
+Please note that the update script will not overwrite the `tms.toml` or `log4rs.yml` files located in
+`$TMS_ROOT_DIR/config`. Any customizations will remain in place.
 
 ## Running TMSS
 Note that the installation script will not start the service after installing or upgrading.  
@@ -174,35 +173,32 @@ TMSS certificate and key file processing just described and then restart TMSS.
 
 In this section we list the directories and files that are part of a TMSS installation.
 
+Defaults:
+```
+TMS_ROOT_DIR    : ~tms/.tms
+TMS_LOCAL_DIR   : ~tms/.tms/local
+TMS_INSTALL_DIR : /opt/tms_server 
+```
+
 Under `$TMS_ROOT_DIR`
+1. Directory **certs/** - Files:
+     * *cert.pem* - Full-chain SSL certificate. Loaded at startup. In PEM format.
+     * *key.pem* - Private key associated with the SSL certificate. In PEM format.
+2. Directory **config** - Files:
+    * *tms.toml* - The tms_server parameter file, which specifies the runtime options with which TMSS executes.
+    * *log4rs.yml* - The log configuration and formatting for tms_server.
+3. Directory **logs** - Default location of log files as configured in *log4rs.yml*.
+4. Directory **migrations** - Files defining the DB schema.
 
+Under `$TMS_LOCAL_DIR`
+1. File *tms-db-env* - PostgreSQL DB settings. Used by backup script.
+2. File *tms-install.out* - Output generated during installation, including administrator credentials.
+   * **WARNING This is only place where these credentials are displayed. Losing them will likely make reinstallation necessary.**  
+3. File *tms_service.env* - Settings required when running `tms_server` as a service.
+4. File *tms.toml* - (Optional) Local customizations of TMSS configuration settings.
+5. File *log4rs.toml* - (Optional) Local customizations of TMSS log settings.
 
-
-
-???
-## The ~/.tms Runtime Directory
-After installation, tms_server uses the *~/.tms* directory during execution.  The directory contains these subdirectories.
-
-1. **certs** contains these files:
-   * *cert.pem* - The fullchain certificate file in PEM format that tms_server loads at startup.  A self-signed certificate file is shipped with TMSS, which is useful to get up and running for testing purposes, but is not meant for production.
-   * *key.pem* - A private key that works with the self-signed certificate.
-   * These two files should be replaced with a certificate/key combination generated for the TMSS host by a trusted certificate authority.  Below we discuss the *native_copy_certs.sh* utility program that helps with certificate and key management.
-
-2. **config** contains these files:
-   * *tms.toml* - The tms_server parameter file, which specifies the runtime options with which TMSS executes.
-   * *log4rs.yml* - The log configuration and formatting for tms_server.
-
-3. **database** contains the sqlite database files managed solely by tms_server.
-4. **logs** contains the log files that were configured in *log4rs.yml*.
-5. **migration** contains the database schema migration files.
-
-## The ~/tms_customizations Directory
-The *~/tms_customizations* directory contains information generated during installation and optional local customizations supplied by the TMSS administrator.
-The files contained in this directory can include:
-1. **cert.path** - An example pathname to a fullchain certificate file.  The *native_copy_certs.sh* utility program uses the path contained in this file to locate the source certificate file.
-2. **key.path** - An example pathname to the private key file associated with the host's certificate.  The *native_copy_certs.sh* utility program uses the path contained in this file to locate the source key file.
-3. **tms-install.out** - The installation program's output during new installations, including the *default* and *test* tenants' administrator credentials.  *This is only place where these credentials are displayed; losing this information prevents administrative actions in these two tenants and will likely make reinstallation necessary.* 
-4. **Optional Files** - TMSS administrators can copy zero or more files from the *~/.tms/config* directory and modify them here.  The modified files are written to the *~/.tms/config* directory everytime *native_build_install_tms.sh* is invoked, whether on a new or existing installation.  This mechanism provides a convenient way to maintain a customized TMSS configuration across upgrades and reinstallations.  See the next section for details.
-
-## native_build_install_tms.sh
-Here's a more detailed explanation on how *native_build_install_tms.sh* sets up the runtime environment and how it can be leveraged.  There are basically two installation scenarios, new and existing, and different processing takes place in each case.
+Under `~tms/backups`
+1. Directory **scripts/** - Files:
+    * *backup_tms_server.sh* - Script to back up TMSS DB. Typically run as a cron job. Please see *backup/README.md*.
+2. Directory **tms/** - Directory containing compressed backup files.

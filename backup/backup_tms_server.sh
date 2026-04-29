@@ -27,7 +27,7 @@ cd "$PRG_RELPATH"/. || exit
 PRG_PATH=$(pwd)
 
 # Set DB_TYPE. Two types supported, SQLITE and POSTGRES
-DB_TYPE="SQLITE"
+DB_TYPE="POSTGRES"
 
 # Set TMS root and home directories to the default. Customize as needed.
 TMS_ROOT="$HOME/.tms"
