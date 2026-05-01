@@ -583,6 +583,7 @@ fi
 
 # Update version in install dir
 echo "$VERS_NEW" > $VERS_FILE
+chown $INSTALL_USR:$INSTALL_USR $VERS_FILE
 
 # Start up the service
 if [ "$TEST_MODE" != "true" ]; then

@@ -125,4 +125,10 @@ echo "${SERVICE}-${HOST} backup success"
 echo "Listing backups at ${backups3path}"
 s3cmd ls "${backups3path}"
 
+# Remove old backups, leaving most recent 180 in place
+echo "======================================================================"
+echo "Removing old backup files"
+echo "======================================================================"
+cd $backupdir && ls -tp | grep -v '/$' | tail -n +180 | xargs -I {} rm -- {}
+
 cd $RUN_DIR

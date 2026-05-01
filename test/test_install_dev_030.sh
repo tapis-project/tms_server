@@ -23,7 +23,10 @@ if [ "$EUID" != 0 ]; then
   exit 1
 fi
 
-# Remove current install
+echo "**********************************************************************"
+echo "   Stopping TMS Server Service"
+echo "**********************************************************************"
+systemctl stop tms_server.service
 echo "**********************************************************************"
 echo "   Removing previous installation"
 echo "**********************************************************************"
