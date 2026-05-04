@@ -140,7 +140,7 @@ else
   TMS_HOME=$(su - $INSTALL_USR -c 'echo $HOME')
 fi
 
-# Make sure rust is installed.
+# Make sure rust and psql are installed.
 if [ "$TEST_MODE" == "true" ]; then
   rustc --version
   RET_CODE=$?
@@ -150,7 +150,20 @@ else
 fi
 RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
-    echo "ERROR: Unable to access rustc. Install the latest stable version of Rust if necessary."
+    echo "ERROR: Unable to access rustc. Install the latest stable version of Rust."
+    echo "Exiting ..."
+    exit $RET_CODE
+fi
+if [ "$TEST_MODE" == "true" ]; then
+  psql --version
+  RET_CODE=$?
+else
+  su - $INSTALL_USR -c 'psql --version'
+  RET_CODE=$?
+fi
+RET_CODE=$?
+if [ $RET_CODE -ne 0 ]; then
+    echo "ERROR: Unable to access psql. Install the latest stable version of postgresql-client."
     echo "Exiting ..."
     exit $RET_CODE
 fi
