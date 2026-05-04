@@ -148,7 +148,6 @@ else
   su - $INSTALL_USR -c 'rustc --version'
   RET_CODE=$?
 fi
-RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
     echo "ERROR: Unable to access rustc. Install the latest stable version of Rust."
     echo "Exiting ..."
@@ -161,7 +160,6 @@ else
   su - $INSTALL_USR -c 'psql --version'
   RET_CODE=$?
 fi
-RET_CODE=$?
 if [ $RET_CODE -ne 0 ]; then
     echo "ERROR: Unable to access psql. Install the latest stable version of postgresql-client."
     echo "Exiting ..."
