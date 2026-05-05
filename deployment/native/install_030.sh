@@ -447,6 +447,9 @@ cp -p "${SRC_DIR}/backup/$BAK_FILE" "$BAK_FILE_PATH"
 chown $INSTALL_USR:$INSTALL_USR "$BAK_FILE_PATH"
 chmod +x "$BAK_FILE_PATH"
 
+# Make sure everything under BAK_DIR is owned by the install user.
+chown -R $INSTALL_USR:$INSTALL_USR $BAK_DIR
+
 # Create environment file for backup script
 DB_ENV_FILE="$LOCAL_DIR/tms-db-env"
 echo

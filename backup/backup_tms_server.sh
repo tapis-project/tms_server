@@ -76,7 +76,7 @@ if [ "$DB_TYPE" == "SQLITE" ]; then
   RET_CODE=$?
 elif [ "$DB_TYPE" == "POSTGRES" ]; then
   echo "Creating backup using postgres pg_dump command"
-  docker exec -it "$PG_DEPLOYMENT" /bin/bash -c "pg_dump --dbname=$PG_URL" > "${backupfilepath}"
+  docker exec "$PG_DEPLOYMENT" /bin/bash -c "pg_dump --dbname=$PG_URL" > "${backupfilepath}"
   RET_CODE=$?
 else
   echo "Unsupported DB_TYPE: $DB_TYPE"
