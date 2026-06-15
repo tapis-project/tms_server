@@ -3,61 +3,33 @@
 {
   description = "A Nix Flake for the TMS Server";
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    simple-flake.url = "github:waltermoreira/simple-flake";
+    shell-utils.url = "github:waltermoreira/shell-utils";
     crane.url = "github:ipetkov/crane";
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
-    };
   };
 
-  outputs =
-    { self
-    , nixpkgs
-    , flake-utils
-    , crane
-    , rust-overlay
-    }:
-
-    flake-utils.lib.eachDefaultSystem (system:
-    let
-      # Standard nix packages
-      # pkgs = nixpkgs.legacyPackages.${system};
-      pkgs = import nixpkgs {
-        inherit system;
-        overlays = [ (import rust-overlay) ];
-      };
-
-      # Crane is used for building the Rust TMS Server        
-      craneLib = crane.lib.${system};
-
-      # Build the TMS server
-      tms_server =
-        craneLib.buildPackage
-          {
-            src = craneLib.cleanCargoSource ./.;
-            nativeBuildInputs = with pkgs; [
-              pkg-config
-              pkgs.sqlx-cli
-              git
-            ];
-            GIT_BRANCH = "foo";
-            GIT_COMMIT_SHORT = "foo";
-            GIT_DIRTY = "foo";
-            SOURCE_TIMESTAMP = "foo";
-            RUSTC_VERSION = "foo";
+  outputs = inputs@{ self, simple-flake, ... }:
+    simple-flake.lib.mkFlake { inherit inputs; } {
+      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
+      perSystem = { pkgs, inputs', system, ... }:
+        let
+          craneLib = inputs.crane.mkLib pkgs; 
+          tms-server = pkgs.callPackage ./nix/tms-server.nix { 
+            inherit craneLib;
           };
-    in
-    rec {
-      packages = {
-        tms_server_package = tms_server;
-        default = packages.tms_server_package;
-      };
-
-    });
-
+          shell = pkgs.callPackage ./nix/shell.nix { 
+            inherit craneLib;
+            inherit (inputs'.shell-utils.lib) shell;
+          };
+        in
+        {
+          packages = { 
+            default = tms-server;
+          };
+          devShells = { 
+            default = shell;
+          };
+        };
+    };
 }
