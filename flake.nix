@@ -28,18 +28,10 @@
           ./nix/shell.nix
         ];
         systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-        # perSystem = { config, pkgs, inputs', system, ... }:
-        #   let
-        #     shell = pkgs.callPackage ./nix/shell.nix {
-        #       # inherit craneLib;
-        #       inherit (inputs'.shell-utils.lib) shell;
-        #     };
-        #   in
-        #   {
-        #     packages.default = config.tms-server;
-        #     devShells = {
-        #       default = shell;
-        #     };
-        #   };
+        perSystem = { ... }: {
+          config.git_branch = "baz";
+          config.git_commit_short = self.shortRev or self.dirtyShortRev or "unknown";
+          config.git_dirty = if self ? dirtyShortRev then "true" else "false";
+        };
       });
 }
