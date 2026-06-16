@@ -7,6 +7,10 @@
     simple-flake.url = "github:waltermoreira/simple-flake";
     shell-utils.url = "github:waltermoreira/shell-utils";
     crane.url = "github:ipetkov/crane";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs@{ self, simple-flake, ... }:
@@ -14,20 +18,27 @@
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
       perSystem = { pkgs, inputs', system, ... }:
         let
-          craneLib = inputs.crane.mkLib pkgs; 
-          tms-server = pkgs.callPackage ./nix/tms-server.nix { 
+          craneLib = pkgs.callPackage ./nix/rust.nix {
+            crane = inputs.crane;
+           };
+          tms-server = pkgs.callPackage ./nix/tms-server.nix {
             inherit craneLib;
           };
-          shell = pkgs.callPackage ./nix/shell.nix { 
+          shell = pkgs.callPackage ./nix/shell.nix {
             inherit craneLib;
             inherit (inputs'.shell-utils.lib) shell;
           };
         in
         {
-          packages = { 
-            default = tms-server;
+          _module.args.pkgs = import inputs.nixpkgs {
+            inherit system;
+            overlays = [ (import inputs.rust-overlay) ];
           };
-          devShells = { 
+          packages = {
+            default = tms-server;
+            my_rust = pkgs.rust-bin.stable.latest.default;
+          };
+          devShells = {
             default = shell;
           };
         };
