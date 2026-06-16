@@ -1,7 +1,11 @@
-{ craneLib, shell, ... }:
-let
-  cargoShell = craneLib.devShell.override {
-    mkShell = shell;
+{ ... }:
+{
+  imports = [ ./rust.nix ];
+  config = {
+    perSystem = { config, inputs', ... }: {
+      devShells.default = (config.craneLib.devShell.override {
+        mkShell = inputs'.shell-utils.lib.shell;
+      }) { };
+    };
   };
-in
-cargoShell { }
+}
