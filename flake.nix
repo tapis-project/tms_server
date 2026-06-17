@@ -14,15 +14,10 @@
   };
 
   outputs = inputs@{ self, simple-flake, ... }:
-    simple-flake.lib.mkFlake { inherit inputs; } ({ flake-parts-lib, ... }:
-      let
-        inherit (flake-parts-lib) importApply;
-        initModule = importApply ./nix/init.nix { inherit inputs; };
-      in
+    simple-flake.lib.mkFlake { inherit inputs; }
       {
         debug = true;
         imports = [
-          initModule
           ./nix/rust.nix
           ./nix/tms-server.nix
           ./nix/shell.nix
@@ -33,5 +28,5 @@
           config.git_commit_short = self.shortRev or self.dirtyShortRev or "unknown";
           config.git_dirty = if self ? dirtyShortRev then "true" else "false";
         };
-      });
+      };
 }
