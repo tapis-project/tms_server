@@ -24,7 +24,7 @@
         ];
         systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
         perSystem = { ... }: {
-          config.git_branch = "baz";
+          config.git_branch = "main";
           config.git_commit_short = self.shortRev or self.dirtyShortRev or "unknown";
           config.git_dirty = if self ? dirtyShortRev then "true" else "false";
         };
