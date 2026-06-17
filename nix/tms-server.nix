@@ -5,8 +5,7 @@
     perSystem = { config, pkgs, ... }:
       let
         rustc_version = builtins.readFile (pkgs.runCommand "rustc-version" { } ''
-          # TODO: make rust version an option for the module
-          ${pkgs.rust-bin.stable.latest.default}/bin/rustc --version > $out
+          ${config.rust-bin}/bin/rustc --version > $out
         '');
         tms-server =
           let
