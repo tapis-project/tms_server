@@ -1,0 +1,3114 @@
+openapi: 3.0.0
+info:
+  title: TMS Server
+  version: 0.3.0
+servers:
+- url: https://localhost:3000/v1
+tags: []
+paths:
+  /tms/hello:
+    get:
+      parameters:
+      - name: name
+        schema:
+          type: string
+        in: query
+        required: false
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            text/plain; charset=utf-8:
+              schema:
+                type: string
+  /tms/pubkeys/creds:
+    post:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqNewSshKeys'
+        required: true
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespNewSshKeys'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/pubkeys/creds/retrieve:
+    post:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqPublicKey'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespPublicKey'
+        '404':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/version:
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespVersion'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/client:
+    post:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqCreateClient'
+        required: true
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespCreateClient'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/client/{client_id}:
+    get:
+      parameters:
+      - name: client_id
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespGetClient'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '404':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/client/upd/{client_id}:
+    patch:
+      parameters:
+      - name: client_id
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      - name: app_version
+        schema:
+          type: string
+        in: query
+        required: false
+        deprecated: false
+        explode: true
+      - name: enabled
+        schema:
+          type: boolean
+        in: query
+        required: false
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespUpdateClient'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/client/del/{client_id}:
+    delete:
+      parameters:
+      - name: client_id
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespDeleteClient'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/client/secret/{client_id}:
+    patch:
+      parameters:
+      - name: client_id
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespUpdateClientSecret'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/client/list:
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespListClient'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/usermfa:
+    post:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqCreateUserMfa'
+        required: true
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespCreateUserMfa'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/usermfa/{tms_user_id}:
+    get:
+      parameters:
+      - name: tms_user_id
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespGetUserMfa'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '404':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/usermfa/upd:
+    patch:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqUpdateUserMfa'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespUpdateUserMfa'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/usermfa/del/{tms_user_id}:
+    delete:
+      parameters:
+      - name: tms_user_id
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespDeleteUserMfa'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/usermfa/list:
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespListUserMfa'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/pubkeys/id/{seqno}:
+    get:
+      parameters:
+      - name: seqno
+        schema:
+          type: integer
+          format: int32
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespGetPubkeys'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '404':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/pubkeys/list:
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespListPubkeys'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/pubkeys/del:
+    delete:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqDeletePubkey'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespDeletePubkey'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/pubkeys:
+    patch:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqUpdatePubkey'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespUpdatePubkey'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '404':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/userhosts:
+    post:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqCreateUserHosts'
+        required: true
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespCreateUserHosts'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/userhosts/{id}:
+    get:
+      parameters:
+      - name: id
+        schema:
+          type: integer
+          format: int32
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespGetUserHosts'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '404':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/userhosts/list:
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespListUserHosts'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/userhosts/del:
+    delete:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqDeleteUserHosts'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespDeleteUserHosts'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/userhosts/upd:
+    patch:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqUpdateUserHosts'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespUpdateUserHosts'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/delegations:
+    post:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqCreateDelegations'
+        required: true
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespCreateDelegations'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/delegations/{id}:
+    get:
+      parameters:
+      - name: id
+        schema:
+          type: integer
+          format: int32
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespGetDelegations'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '404':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/delegations/list:
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespListDelegations'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/delegations/del:
+    delete:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqDeleteDelegations'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespDeleteDelegations'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/delegations/upd:
+    patch:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqUpdateDelegations'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespUpdateDelegations'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/tenants/{tenant}:
+    post:
+      parameters:
+      - name: tenant
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespCreateTenants'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/tenants/{tenant}:
+    get:
+      parameters:
+      - name: tenant
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespGetTenants'
+        '404':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/tenants/list:
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespListTenants'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/tenants/del/{tenant}:
+    delete:
+      parameters:
+      - name: tenant
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespDeleteTenants'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/tenants/upd:
+    patch:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqUpdateTenants'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespUpdateTenants'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/tenants/wipe/{tenant}:
+    delete:
+      parameters:
+      - name: tenant
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespWipeTenants'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/hosts:
+    post:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqCreateHost'
+        required: true
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespCreateHost'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/hosts/{id}:
+    get:
+      parameters:
+      - name: id
+        schema:
+          type: integer
+          format: int32
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespGetHosts'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '404':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/hosts/del:
+    delete:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqDeleteHosts'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespDeleteHosts'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/hosts/list:
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespListHosts'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/reservations/{client_id}/{resid}:
+    get:
+      parameters:
+      - name: client_id
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      - name: resid
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespGetReservation'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '404':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/reservations/del/{client_id}/{resid}:
+    delete:
+      parameters:
+      - name: client_id
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      - name: resid
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespDeleteReservation'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/reservations:
+    post:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqCreateReservation'
+        required: true
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespCreateReservation'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '404':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/reservations/extend:
+    post:
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/ReqExtendReservation'
+        required: true
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespExtendReservation'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '404':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+  /tms/reservations/del/related/{client_id}/{resid}:
+    delete:
+      parameters:
+      - name: client_id
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      - name: resid
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespDeleteRelatedReservations'
+        '400':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '401':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '403':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+components:
+  schemas:
+    ClientListElement:
+      type: object
+      required:
+      - id
+      - tenant
+      - app_name
+      - app_version
+      - client_id
+      - enabled
+      - created
+      - updated
+      properties:
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        app_name:
+          type: string
+        app_version:
+          type: string
+        client_id:
+          type: string
+        enabled:
+          type: integer
+          format: int32
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    DelegationsListElement:
+      type: object
+      required:
+      - id
+      - tenant
+      - client_id
+      - client_user_id
+      - expires_at
+      - created
+      - updated
+      properties:
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        client_id:
+          type: string
+        client_user_id:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    HostsListElement:
+      type: object
+      required:
+      - id
+      - tenant
+      - host
+      - addr
+      - created
+      - updated
+      properties:
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        host:
+          type: string
+        addr:
+          type: string
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    HttpResult:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+    PubkeysListElement:
+      type: object
+      required:
+      - id
+      - tenant
+      - client_id
+      - client_user_id
+      - host
+      - host_account
+      - public_key_fingerprint
+      - public_key
+      - key_type
+      - key_bits
+      - max_uses
+      - remaining_uses
+      - initial_ttl_minutes
+      - expires_at
+      - created
+      - updated
+      properties:
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        client_id:
+          type: string
+        client_user_id:
+          type: string
+        host:
+          type: string
+        host_account:
+          type: string
+        public_key_fingerprint:
+          type: string
+        public_key:
+          type: string
+        key_type:
+          type: string
+        key_bits:
+          type: integer
+          format: int32
+        max_uses:
+          type: integer
+          format: int32
+        remaining_uses:
+          type: integer
+          format: int32
+        initial_ttl_minutes:
+          type: integer
+          format: int32
+        expires_at:
+          type: string
+          format: date-time
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    ReqCreateClient:
+      type: object
+      required:
+      - client_id
+      - tenant
+      - app_name
+      - app_version
+      properties:
+        client_id:
+          type: string
+        tenant:
+          type: string
+        app_name:
+          type: string
+        app_version:
+          type: string
+    ReqCreateDelegations:
+      type: object
+      required:
+      - tenant
+      - client_id
+      - client_user_id
+      - ttl_minutes
+      properties:
+        tenant:
+          type: string
+        client_id:
+          type: string
+        client_user_id:
+          type: string
+        ttl_minutes:
+          type: integer
+          format: int32
+    ReqCreateHost:
+      type: object
+      required:
+      - tenant
+      - host
+      - addr
+      properties:
+        tenant:
+          type: string
+        host:
+          type: string
+        addr:
+          type: string
+    ReqCreateReservation:
+      type: object
+      required:
+      - client_user_id
+      - host
+      - public_key_fingerprint
+      - ttl_minutes
+      properties:
+        client_user_id:
+          type: string
+        host:
+          type: string
+        public_key_fingerprint:
+          type: string
+        ttl_minutes:
+          type: integer
+          format: int32
+    ReqCreateUserHosts:
+      type: object
+      required:
+      - tenant
+      - tms_user_id
+      - host
+      - host_account
+      - ttl_minutes
+      properties:
+        tenant:
+          type: string
+        tms_user_id:
+          type: string
+        host:
+          type: string
+        host_account:
+          type: string
+        ttl_minutes:
+          type: integer
+          format: int32
+    ReqCreateUserMfa:
+      type: object
+      required:
+      - tenant
+      - tms_user_id
+      - ttl_minutes
+      properties:
+        tenant:
+          type: string
+        tms_user_id:
+          type: string
+        ttl_minutes:
+          type: integer
+          format: int32
+    ReqDeleteDelegations:
+      type: object
+      required:
+      - client_id
+      - client_user_id
+      - tenant
+      properties:
+        client_id:
+          type: string
+        client_user_id:
+          type: string
+        tenant:
+          type: string
+    ReqDeleteHosts:
+      type: object
+      required:
+      - tenant
+      - host
+      - addr
+      properties:
+        tenant:
+          type: string
+        host:
+          type: string
+        addr:
+          type: string
+    ReqDeletePubkey:
+      type: object
+      required:
+      - client_id
+      - tenant
+      - host
+      - public_key_fingerprint
+      properties:
+        client_id:
+          type: string
+        tenant:
+          type: string
+        host:
+          type: string
+        public_key_fingerprint:
+          type: string
+    ReqDeleteUserHosts:
+      type: object
+      required:
+      - tms_user_id
+      - tenant
+      - host
+      - host_account
+      properties:
+        tms_user_id:
+          type: string
+        tenant:
+          type: string
+        host:
+          type: string
+        host_account:
+          type: string
+    ReqExtendReservation:
+      type: object
+      required:
+      - client_user_id
+      - host
+      - public_key_fingerprint
+      - parent_resid
+      properties:
+        client_user_id:
+          type: string
+        host:
+          type: string
+        public_key_fingerprint:
+          type: string
+        parent_resid:
+          type: string
+    ReqNewSshKeys:
+      type: object
+      required:
+      - client_user_id
+      - host
+      - host_account
+      - num_uses
+      - ttl_minutes
+      properties:
+        client_user_id:
+          type: string
+        host:
+          type: string
+        host_account:
+          type: string
+        num_uses:
+          type: integer
+          format: int32
+        ttl_minutes:
+          type: integer
+          format: int32
+        key_type:
+          type: string
+    ReqPublicKey:
+      type: object
+      required:
+      - user
+      - host
+      - public_key_fingerprint
+      properties:
+        user:
+          type: string
+        user_uid:
+          type: string
+        host:
+          type: string
+        public_key_fingerprint:
+          type: string
+        key_type:
+          type: string
+    ReqUpdateDelegations:
+      type: object
+      required:
+      - client_id
+      - client_user_id
+      - tenant
+      - ttl_minutes
+      properties:
+        client_id:
+          type: string
+        client_user_id:
+          type: string
+        tenant:
+          type: string
+        ttl_minutes:
+          type: integer
+          format: int32
+    ReqUpdatePubkey:
+      type: object
+      required:
+      - client_id
+      - tenant
+      - host
+      - public_key_fingerprint
+      properties:
+        client_id:
+          type: string
+        tenant:
+          type: string
+        host:
+          type: string
+        public_key_fingerprint:
+          type: string
+        max_uses:
+          type: integer
+          format: uint32
+        ttl_minutes:
+          type: integer
+          format: uint32
+    ReqUpdateTenants:
+      type: object
+      required:
+      - tenant
+      - enabled
+      properties:
+        tenant:
+          type: string
+        enabled:
+          type: boolean
+    ReqUpdateUserHosts:
+      type: object
+      required:
+      - tms_user_id
+      - tenant
+      - host
+      - host_account
+      - ttl_minutes
+      properties:
+        tms_user_id:
+          type: string
+        tenant:
+          type: string
+        host:
+          type: string
+        host_account:
+          type: string
+        ttl_minutes:
+          type: integer
+          format: int32
+    ReqUpdateUserMfa:
+      type: object
+      required:
+      - tms_user_id
+      - tenant
+      - enabled
+      properties:
+        tms_user_id:
+          type: string
+        tenant:
+          type: string
+        enabled:
+          type: boolean
+    RespCreateClient:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - client_id
+      - client_secret
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
+    RespCreateDelegations:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - client_id
+      - client_user_id
+      - expires_at
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        client_id:
+          type: string
+        client_user_id:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    RespCreateHost:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - tenant
+      - host
+      - addr
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        tenant:
+          type: string
+        host:
+          type: string
+        addr:
+          type: string
+    RespCreateReservation:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - resid
+      - parent_resid
+      - expires_at
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        resid:
+          type: string
+        parent_resid:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    RespCreateTenants:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - enabled
+      - tenant
+      - admin_id
+      - admin_secret
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        enabled:
+          type: boolean
+        tenant:
+          type: string
+        admin_id:
+          type: string
+        admin_secret:
+          type: string
+    RespCreateUserHosts:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - tms_user_id
+      - host
+      - host_account
+      - expires_at
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        tms_user_id:
+          type: string
+        host:
+          type: string
+        host_account:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    RespCreateUserMfa:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - tms_user_id
+      - expires_at
+      - enabled
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        tms_user_id:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        enabled:
+          type: boolean
+    RespDeleteClient:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_deleted
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_deleted:
+          type: integer
+          format: uint32
+    RespDeleteDelegations:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_deleted
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_deleted:
+          type: integer
+          format: uint32
+    RespDeleteHosts:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_deleted
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_deleted:
+          type: integer
+          format: uint32
+    RespDeletePubkey:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_deleted
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_deleted:
+          type: integer
+          format: uint32
+    RespDeleteRelatedReservations:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_deleted
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_deleted:
+          type: integer
+          format: uint32
+    RespDeleteReservation:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_deleted
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_deleted:
+          type: integer
+          format: uint32
+    RespDeleteTenants:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_deleted
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_deleted:
+          type: integer
+          format: uint32
+    RespDeleteUserHosts:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_deleted
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_deleted:
+          type: integer
+          format: uint32
+    RespDeleteUserMfa:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_deleted
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_deleted:
+          type: integer
+          format: uint32
+    RespExtendReservation:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - resid
+      - parent_resid
+      - expires_at
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        resid:
+          type: string
+        parent_resid:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    RespGetClient:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - id
+      - tenant
+      - app_name
+      - app_version
+      - client_id
+      - enabled
+      - created
+      - updated
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        app_name:
+          type: string
+        app_version:
+          type: string
+        client_id:
+          type: string
+        enabled:
+          type: boolean
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    RespGetDelegations:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - id
+      - tenant
+      - client_id
+      - client_user_id
+      - expires_at
+      - created
+      - updated
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        client_id:
+          type: string
+        client_user_id:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    RespGetHosts:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - id
+      - tenant
+      - host
+      - addr
+      - created
+      - updated
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        host:
+          type: string
+        addr:
+          type: string
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    RespGetPubkeys:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - id
+      - tenant
+      - client_id
+      - client_user_id
+      - host
+      - host_account
+      - public_key_fingerprint
+      - public_key
+      - key_type
+      - key_bits
+      - max_uses
+      - remaining_uses
+      - initial_ttl_minutes
+      - expires_at
+      - created
+      - updated
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        client_id:
+          type: string
+        client_user_id:
+          type: string
+        host:
+          type: string
+        host_account:
+          type: string
+        public_key_fingerprint:
+          type: string
+        public_key:
+          type: string
+        key_type:
+          type: string
+        key_bits:
+          type: integer
+          format: int32
+        max_uses:
+          type: integer
+          format: int32
+        remaining_uses:
+          type: integer
+          format: int32
+        initial_ttl_minutes:
+          type: integer
+          format: int32
+        expires_at:
+          type: string
+          format: date-time
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    RespGetReservation:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - id
+      - resid
+      - parent_resid
+      - tenant
+      - client_id
+      - client_user_id
+      - host
+      - public_key_fingerprint
+      - expires_at
+      - created
+      - updated
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        id:
+          type: integer
+          format: int32
+        resid:
+          type: string
+        parent_resid:
+          type: string
+        tenant:
+          type: string
+        client_id:
+          type: string
+        client_user_id:
+          type: string
+        host:
+          type: string
+        public_key_fingerprint:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    RespGetTenants:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - id
+      - tenant
+      - enabled
+      - created
+      - updated
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        enabled:
+          type: boolean
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    RespGetUserHosts:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - id
+      - tenant
+      - tms_user_id
+      - host
+      - host_account
+      - expires_at
+      - created
+      - updated
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        tms_user_id:
+          type: string
+        host:
+          type: string
+        host_account:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    RespGetUserMfa:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - id
+      - tenant
+      - tms_user_id
+      - expires_at
+      - enabled
+      - created
+      - updated
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        tms_user_id:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        enabled:
+          type: boolean
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    RespListClient:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_clients
+      - clients
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_clients:
+          type: integer
+          format: int32
+        clients:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientListElement'
+    RespListDelegations:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_users
+      - users
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_users:
+          type: integer
+          format: int32
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/DelegationsListElement'
+    RespListHosts:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_mappings
+      - users
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_mappings:
+          type: integer
+          format: int32
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/HostsListElement'
+    RespListPubkeys:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_pubkeys
+      - pubkeys
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_pubkeys:
+          type: integer
+          format: int32
+        pubkeys:
+          type: array
+          items:
+            $ref: '#/components/schemas/PubkeysListElement'
+    RespListTenants:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_tenants
+      - tenants
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_tenants:
+          type: integer
+          format: int32
+        tenants:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantsListElement'
+    RespListUserHosts:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_users
+      - users
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_users:
+          type: integer
+          format: int32
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserHostsListElement'
+    RespListUserMfa:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_users
+      - users
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_users:
+          type: integer
+          format: int32
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserMfaListElement'
+    RespNewSshKeys:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - private_key
+      - public_key
+      - public_key_fingerprint
+      - key_type
+      - key_bits
+      - max_uses
+      - remaining_uses
+      - expires_at
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        private_key:
+          type: string
+        public_key:
+          type: string
+        public_key_fingerprint:
+          type: string
+        key_type:
+          type: string
+        key_bits:
+          type: string
+        max_uses:
+          type: string
+        remaining_uses:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    RespPublicKey:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - public_key
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        public_key:
+          type: string
+    RespUpdateClient:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - fields_updated
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        fields_updated:
+          type: integer
+          format: int32
+    RespUpdateClientSecret:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - client_id
+      - tenant
+      - client_secret
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        client_id:
+          type: string
+        tenant:
+          type: string
+        client_secret:
+          type: string
+    RespUpdateDelegations:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - fields_updated
+      - expires_msg
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        fields_updated:
+          type: integer
+          format: int32
+        expires_msg:
+          type: string
+    RespUpdatePubkey:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - fields_updated
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        fields_updated:
+          type: integer
+          format: int32
+    RespUpdateTenants:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - fields_updated
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        fields_updated:
+          type: integer
+          format: int32
+    RespUpdateUserHosts:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - fields_updated
+      - expires_msg
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        fields_updated:
+          type: integer
+          format: int32
+        expires_msg:
+          type: string
+    RespUpdateUserMfa:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - fields_updated
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        fields_updated:
+          type: integer
+          format: int32
+    RespVersion:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - tms_version
+      - git_branch
+      - git_commit
+      - git_dirty
+      - source_ts
+      - rustc_version
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        tms_version:
+          type: string
+        git_branch:
+          type: string
+        git_commit:
+          type: string
+        git_dirty:
+          type: string
+        source_ts:
+          type: string
+        rustc_version:
+          type: string
+    RespWipeTenants:
+      type: object
+      required:
+      - result_code
+      - result_msg
+      - num_deleted
+      properties:
+        result_code:
+          type: string
+        result_msg:
+          type: string
+        num_deleted:
+          type: integer
+          format: uint32
+    TenantsListElement:
+      type: object
+      required:
+      - id
+      - tenant
+      - enabled
+      - created
+      - updated
+      properties:
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        enabled:
+          type: integer
+          format: int32
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    UserHostsListElement:
+      type: object
+      required:
+      - id
+      - tenant
+      - tms_user_id
+      - host
+      - host_account
+      - expires_at
+      - created
+      - updated
+      properties:
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        tms_user_id:
+          type: string
+        host:
+          type: string
+        host_account:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    UserMfaListElement:
+      type: object
+      required:
+      - id
+      - tenant
+      - tms_user_id
+      - expires_at
+      - enabled
+      - created
+      - updated
+      properties:
+        id:
+          type: integer
+          format: int32
+        tenant:
+          type: string
+        tms_user_id:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        enabled:
+          type: integer
+          format: int32
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
