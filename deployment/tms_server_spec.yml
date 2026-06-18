@@ -1049,6 +1049,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/HttpResult'
   /tms/tenants/{tenant}:
+    get:
+      parameters:
+      - name: tenant
+        schema:
+          type: string
+        in: path
+        required: true
+        deprecated: false
+        explode: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/RespGetTenants'
+        '404':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: ''
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
     post:
       parameters:
       - name: tenant
@@ -1078,35 +1106,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HttpResult'
         '403':
-          description: ''
-          content:
-            application/json; charset=utf-8:
-              schema:
-                $ref: '#/components/schemas/HttpResult'
-        '500':
-          description: ''
-          content:
-            application/json; charset=utf-8:
-              schema:
-                $ref: '#/components/schemas/HttpResult'
-  /tms/tenants/{tenant}:
-    get:
-      parameters:
-      - name: tenant
-        schema:
-          type: string
-        in: path
-        required: true
-        deprecated: false
-        explode: true
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json; charset=utf-8:
-              schema:
-                $ref: '#/components/schemas/RespGetTenants'
-        '404':
           description: ''
           content:
             application/json; charset=utf-8:
@@ -3112,3 +3111,4 @@ components:
         updated:
           type: string
           format: date-time
+
