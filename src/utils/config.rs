@@ -37,7 +37,7 @@ const DEFAULT_ROOT_DIR     : &str = "~/.tms";
 const MIGRATIONS_DIR       : &str = "/migrations";
 const CONFIG_DIR           : &str = "/config";
 const LOGS_DIR             : &str = "/logs";
-const CERTS_DIR            : &str = "/certs";
+const CERTS_DIR            : &str = "/certs_self";
 const RESOURCES_DIR        : &str = "./resources"; // relative to currnent dir
 
 const LOG4RS_CONFIG_FILE   : &str = "/log4rs.yml"; // relative to config dir
@@ -73,6 +73,7 @@ const ENV_TMS_DB_PORT       : &str = "TMS_DB_PORT";
 const ENV_TMS_DB_DB_NAME    : &str = "TMS_DB_DB_NAME";
 const ENV_TMS_DB_USER       : &str = "TMS_DB_USER";
 const ENV_TMS_DB_USER_PASSWORD : &str = "TMS_DB_USER_PASSWORD";
+const ENV_TMS_RESOURCES_DIR : &str = "TMS_RESOURCES_DIR";
 
 // Database config defaults.
 // DB URL example: "postgres://tms:password@localhost:5432/tmsdb";
@@ -471,7 +472,7 @@ fn check_tms_dir(dir: &String, msgname: &str, mistrust: &Mistrust) -> bool {
  */
 fn copy_resource_files(target_dir: &String, dir_suffix: &str, root_dir: &String) {
     // Create the source directory pathname.
-    let source_dir = RESOURCES_DIR.to_string() + dir_suffix;
+    let source_dir = env::var(ENV_TMS_RESOURCES_DIR).unwrap_or_else(|_| RESOURCES_DIR.to_string()) + dir_suffix;
     let source_dir = get_absolute_path(&source_dir);
     println!("copy_resource_files source_dir: {}", source_dir);
     println!("copy_resource_files target_dir: {}", target_dir);

@@ -29,7 +29,23 @@
               GIT_DIRTY = config.git_dirty;
               SOURCE_TIMESTAMP = config.source_timestamp;
               RUSTC_VERSION = config.rustc_version;
+              meta = {
+                description = "TMS Server";
+                mainProgram = "tms_server";
+              };
             });
+        wrapped-tms-server = pkgs.stdenv.mkDerivation {
+          name = "tms-server";
+          src = ./../resources;
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+          buildInputs = [ pkgs.rsync ];
+          installPhase = ''
+            mkdir -p $out/{bin,src/resources}
+            rsync -a . $out/src/resources/
+            makeWrapper ${lib.getExe tms-server} $out/bin/tms-server \
+              --set TMS_RESOURCES_DIR $out/src/resources
+          '';
+        };
       in
       {
         options = {
@@ -56,8 +72,8 @@
         };
         config = {
           packages = {
-            default = tms-server;
-            inherit tms-server;
+            default = wrapped-tms-server;
+            inherit wrapped-tms-server tms-server;
           };
         };
       };
