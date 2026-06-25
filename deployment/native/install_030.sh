@@ -52,7 +52,7 @@ SRC_DIR=$PRG_PATH/../..
 
 # Define USAGE message
 function usage() {
-  echo "$PrgName [--upgrade] [--test] [--user install_user]"
+  echo "$PrgName [--upgrade] [--test] [--user install_user] [--group install_group]"
   echo "OPTIONS:"
   echo "     --upgrade"
   echo "        This is an upgrade. Default is install."
@@ -60,6 +60,8 @@ function usage() {
   echo "        Run in test mode as non-root user. Default is to require running as root user."
   echo "     --user"
   echo "        The TMS install user. Default is tms. In test mode this will always be the current user."
+  echo "     --group"
+  echo "        The TMS install group. Default to the install user."
   exit 1
 }
 
@@ -76,6 +78,11 @@ while [[ $# -gt 0 ]]; do
       if [ -z "$USR" ] || [ "$USR" == "--upgrade" ] || [ "$USR" == "--test" ]; then
         usage
       fi
+      ;;
+    --group)
+      GRP="$2"
+      shift
+      shift
       ;;
     --upgrade)
       UPGRADE=true
@@ -131,6 +138,13 @@ elif [ -n "$USR" ]; then
   INSTALL_USR="$USR"
 else
   INSTALL_USR=tms
+fi
+
+# Determine group
+if [ -z "$GRP" ]; then
+  INSTALL_GRP=$INSTALL_USR
+else
+  INSTALL_GRP=$GRP
 fi
 
 # Determine home directory of install user.
@@ -259,6 +273,7 @@ echo "******* TMS Version: $VERS_NEW ********************************"
 echo "   TEST_MODE=$TEST_MODE"
 echo "   UPGRADE=$UPGRADE"
 echo "   INSTALL_USR=$INSTALL_USR"
+echo "   INSTALL_GRP=$INSTALL_GRP"
 echo "   ROOT_DIR=$ROOT_DIR"
 echo "   LOCAL_DIR=$LOCAL_DIR"
 echo "   INSTALL_DIR=$INSTALL_DIR"
@@ -323,9 +338,9 @@ mkdir -p $SVC_CFG_DIR
 mkdir -p $BAK_DIR/scripts
 
 # Restrict some files since they will contain secrets from the initialization run.
-chown $INSTALL_USR:$INSTALL_USR $ROOT_DIR
+chown $INSTALL_USR:$INSTALL_GRP $ROOT_DIR
 chmod 700 $ROOT_DIR
-chown $INSTALL_USR:$INSTALL_USR $LOCAL_DIR
+chown $INSTALL_USR:$INSTALL_GRP $LOCAL_DIR
 chmod 700 $LOCAL_DIR
 
 # Construct script to be used by install user to build new executable
@@ -395,7 +410,7 @@ fi
 
 # Copy new tms_server executable into place
 cp $EXEC_FILE_SRC $EXEC_FILE_DST
-chown $INSTALL_USR:$INSTALL_USR $EXEC_FILE_DST
+chown $INSTALL_USR:$INSTALL_GRP $EXEC_FILE_DST
 chmod 770 $EXEC_FILE_DST
 
 # Configure service
@@ -426,7 +441,7 @@ TMS_DB_HOST="$TMS_DB_HOST"
 TMS_DB_PORT="$TMS_DB_PORT"
 TMS_DB_USER_PASSWORD="$TMS_DB_USER_PASSWORD"
 EOB
-chown $INSTALL_USR:$INSTALL_USR "$SVC_ENV_PATH"
+chown $INSTALL_USR:$INSTALL_GRP "$SVC_ENV_PATH"
 chmod 400 "$SVC_ENV_PATH"
 
 # Copy latest backup script into place.
@@ -444,11 +459,11 @@ if [ -f "$BAK_FILE_PATH" ]; then
   fi
 fi
 cp -p "${SRC_DIR}/backup/$BAK_FILE" "$BAK_FILE_PATH"
-chown $INSTALL_USR:$INSTALL_USR "$BAK_FILE_PATH"
+chown $INSTALL_USR:$INSTALL_GRP "$BAK_FILE_PATH"
 chmod +x "$BAK_FILE_PATH"
 
 # Make sure everything under BAK_DIR is owned by the install user.
-chown -R $INSTALL_USR:$INSTALL_USR $BAK_DIR
+chown -R $INSTALL_USR:$INSTALL_GRP $BAK_DIR
 
 # Create environment file for backup script
 DB_ENV_FILE="$LOCAL_DIR/tms-db-env"
@@ -464,7 +479,7 @@ PG_HOST="$TMS_DB_HOST"
 PG_PORT="$TMS_DB_PORT"
 PG_PASSWORD="$TMS_DB_USER_PASSWORD"
 EOB
-chown $INSTALL_USR:$INSTALL_USR "$DB_ENV_FILE"
+chown $INSTALL_USR:$INSTALL_GRP "$DB_ENV_FILE"
 chmod 400 "$DB_ENV_FILE"
 
 # =====================================================================================
@@ -499,7 +514,7 @@ if [ "$UPGRADE" == "true" ]; then
   mv "$ROOT_DIR/migrations" "${ROOT_DIR}/migrations.bak_${BAK_TIMESTAMP}"
   cp -pr "${SRC_DIR}/resources/migrations" "${ROOT_DIR}/migrations"
   chmod 0700 "${ROOT_DIR}/migrations"
-  chown $INSTALL_USR:$INSTALL_USR "${ROOT_DIR}/migrations"
+  chown $INSTALL_USR:$INSTALL_GRP "${ROOT_DIR}/migrations"
 
   # Before updating version and starting up new tms_server, perform the migration from sqlite to postgres
   echo
@@ -533,7 +548,7 @@ else
   chmod 700 $ROOT_DIR/certs
   cp -p $TMS_SSL_CERT_PATH $ROOT_DIR/certs/cert.pem
   cp -p $TMS_SSL_KEY_PATH $ROOT_DIR/certs/key.pem
-  chown -R $INSTALL_USR:$INSTALL_USR $ROOT_DIR/certs
+  chown -R $INSTALL_USR:$INSTALL_GRP $ROOT_DIR/certs
   chmod 600 $ROOT_DIR/certs/*.pem
   echo
   echo "===== Initialize server. Running tms_server --install as user: $INSTALL_USR"
@@ -556,7 +571,7 @@ else
     exit $RET_CODE
   fi
   chmod 400 $LOCAL_DIR/tms-install.out
-  chown $INSTALL_USR:$INSTALL_USR $LOCAL_DIR/tms-install.out
+  chown $INSTALL_USR:$INSTALL_GRP $LOCAL_DIR/tms-install.out
 
   # If there are custom tms or log4s config then copy into place
   if [ -f $LOCAL_DIR/tms.toml ]; then
@@ -579,16 +594,16 @@ else
     fi
     chmod 600 $ROOT_DIR/config/log4rs.toml
   fi
-  chown -R $INSTALL_USR:$INSTALL_USR $ROOT_DIR/config
+  chown -R $INSTALL_USR:$INSTALL_GRP $ROOT_DIR/config
 
   # If no example cert related files exist then copy example cert and key path files into local directory.
   if [ ! -f $LOCAL_DIR/cert.path ]; then
     cp -p $SRC_DIR/deployment/native/cert.path $LOCAL_DIR/cert.path
-    chown $INSTALL_USR:$INSTALL_USR $LOCAL_DIR/cert.path
+    chown $INSTALL_USR:$INSTALL_GRP $LOCAL_DIR/cert.path
   fi
   if [ ! -f $LOCAL_DIR/key.path ]; then
     cp -p $SRC_DIR/deployment/native/key.path $LOCAL_DIR/key.path
-    chown $INSTALL_USR:$INSTALL_USR $LOCAL_DIR/key.path
+    chown $INSTALL_USR:$INSTALL_GRP $LOCAL_DIR/key.path
   fi
 fi
 # =====================================================================================
@@ -597,7 +612,7 @@ fi
 
 # Update version in install dir
 echo "$VERS_NEW" > $VERS_FILE
-chown $INSTALL_USR:$INSTALL_USR $VERS_FILE
+chown $INSTALL_USR:$INSTALL_GRP $VERS_FILE
 
 # Start up the service
 if [ "$TEST_MODE" != "true" ]; then
