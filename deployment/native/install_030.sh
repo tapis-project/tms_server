@@ -405,7 +405,9 @@ if [ "$TEST_MODE" != "true" ]; then
   echo
   echo "===== Stopping TMS service"
   echo "========================================================================================="
-  systemctl stop tms_server
+  systemctl stop tms_server \
+    && echo "TMS service stopped" \
+    || echo "No TMS service running. Ignoring error."
 fi
 
 # Copy new tms_server executable into place
