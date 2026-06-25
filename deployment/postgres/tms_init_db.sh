@@ -20,12 +20,12 @@ DB_SCHEMA=tms
 TMS_DB_USER=tms
 
 if [ -z "${POSTGRES_PASSWORD}" ]; then
-  echo "Please set env var POSTGRES_PASSWORD before running this script"
+  echo "Please set env variables POSTGRES_PASSWORD, TMS_DB_USER_PASSWORD before running this script"
   exit 1
 fi
 
 if [ -z "${TMS_DB_USER_PASSWORD}" ]; then
-  echo "Please set env var TMS_DB_USER_PASSWORD before running this script"
+  echo "Please set env var POSTGRES_PASSWORD, TMS_DB_USER_PASSWORD before running this script"
   exit 1
 fi
 

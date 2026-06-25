@@ -338,12 +338,11 @@ echo "#!/bin/bash" > $TMP_FILE
 # Place various env variables into script
 echo "SRC_DIR=$SRC_DIR" >> $TMP_FILE
 echo "INSTALL_DIR=$INSTALL_DIR" >> $TMP_FILE
-echo "VERS_OLD=$VERS_OLD" >> $TMP_FILE
 echo "VERS_NEW=$VERS_NEW" >> $TMP_FILE
 
 # Construct second part of script
 cat >> $TMP_FILE << EOB
-echo "Upgrading TMS Server from version $VERS_OLD to version $VERS_NEW"
+echo "Building TMS Server version $VERS_NEW"
 echo "Install directory: $INSTALL_DIR"
 
 # Build executable
@@ -577,7 +576,7 @@ else
       echo "Exiting ..."
       exit $RET_CODE
     fi
-    chmod 600 $ROOT_DIR/config/log4rs.toml
+    chmod 600 $ROOT_DIR/config/log4rs.yml
   fi
   chown -R $INSTALL_USR:$INSTALL_USR $ROOT_DIR/config
 
