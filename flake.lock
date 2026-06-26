@@ -201,17 +201,14 @@
         "flake-parts": "flake-parts_2"
       },
       "locked": {
-        "lastModified": 1781665613,
-        "narHash": "sha256-a+rGCvSL/UuCoA2DhVXmdPs3JKFFa8M3lf4mF3arrHg=",
-        "owner": "waltermoreira",
-        "repo": "simple-flake",
-        "rev": "7218b4b6d3d375ccfba954a0bffb6ffbb41e741d",
-        "type": "github"
+        "lastModified": 1782439141,
+        "narHash": "sha256-x75nwMs/azVwxOWiDt2apPNaXgI0iNooNgKXPkU8eL0=",
+        "path": "/Users/wmoreira/repos/simple-flake",
+        "type": "path"
       },
       "original": {
-        "owner": "waltermoreira",
-        "repo": "simple-flake",
-        "type": "github"
+        "path": "/Users/wmoreira/repos/simple-flake",
+        "type": "path"
       }
     }
   },
