@@ -47,7 +47,7 @@ pub async fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64
     let expires_at = tms_utils::get_max_tms_utc();
     let mut insert_count: u64 = 0;
 
-     // Use the same current UTC timestamp in all related time caculations..
+     // Use the same current UTC timestamp in all related time calculations.
      let now = timestamp_utc();
      let current_ts = timestamp_utc_to_str(now);
 

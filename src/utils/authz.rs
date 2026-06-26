@@ -73,7 +73,7 @@ impl AuthzResult {
     }
 
     /** Check that the authorized ID passed via header matches the ID passed in the path or 
-     * body of a request.  For example, this consistency check can be used to guarentee that 
+     * body of a request.  For example, this consistency check can be used to guarantee that
      * client ID  provided in the http request header is the same as that provided in the 
      * request's path parameters or payload parameter.  Processing is authz type specific. 
      *  
