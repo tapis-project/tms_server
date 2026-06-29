@@ -212,14 +212,12 @@ impl RespNewSshKeys {
         //  user_hosts - use tenant, client_user_id, host and host_account to target unique record
         //
         // Each of the above tables are queried using values that define a unique index on the
-        // target table.  This guarantees that either 0 or 1 record will be returned.  In the 
-        // former case, the pubkey key cannot be created because one of its foriegn keys doesn't
-        // exist.  In the latter case, we have to check that the retrieved record has not 
-        // expired.
+        // target table. This guarantees that either 0 or 1 record will be returned. In the
+        // former case, the pubkey key cannot be created because one of its foreign keys doesn't
+        // exist. In the latter case, we have to check that the retrieved record has not expired.
         //
-        // This method returns an detailed error message that indicates which table did not
-        // contain the required values and whether the error resulted from a missing or 
-        // expired record.  
+        // This method returns a detailed error message that indicates which table did not contain
+        // the required values and whether the error resulted from a missing or expired record.
         match check_pubkey_dependencies(&req_ext.tenant, &req_ext.client_id,
                                         &req.client_user_id, &req.host, &req.host_account).await
         {

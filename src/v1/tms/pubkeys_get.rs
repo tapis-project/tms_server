@@ -21,7 +21,7 @@ use crate::RUNTIME_CTX;
 pub struct GetPubkeysApi;
 
 // ***************************************************************************
-//                          Request/Response Definiitions
+//                          Request/Response Definitions
 // ***************************************************************************
 #[derive(Object)]
 struct ReqGetPubkeys

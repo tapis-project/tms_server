@@ -13,7 +13,7 @@ use log::error;
 use crate::RUNTIME_CTX;
 
 // ***************************************************************************
-//                          Request/Response Definiions
+//                          Request/Response Definitions
 // ***************************************************************************
 pub struct PublicKeyApi;
 

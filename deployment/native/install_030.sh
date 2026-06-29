@@ -372,6 +372,7 @@ echo "==========================================================================
 if [ $RET_CODE -ne 0 ]; then
   echo
   echo "*************** Error running build script"
+  echo "*************** Please check file cargo_build.log"
   echo "Exiting ..."
   exit $RET_CODE
 fi
