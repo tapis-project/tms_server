@@ -50,13 +50,14 @@
             POSTGRES_USER="${config.POSTGRES_USER}" \
             POSTGRES_PASSWORD="${config.POSTGRES_PASSWORD}" \
             POSTGRES_DB="${config.POSTGRES_DB}" \
+            TMS_DB_PORT="${toString config.TMS_DB_PORT}" \
             ${pkgs.podman-compose}/bin/podman-compose \
               -f ${./../../deployment/postgres/tms-postgres.yml} up \
-                --force-recreate -d
+              --force-recreate -d
           sleep 1
-          echo "----- Waiting max 10 seconds for Postgres to start"
-          ${pkgs.postgresql}/bin/pg_isready -h localhost -p 5432 -U ${config.POSTGRES_USER} -t 10
-          echo "----- After waiting"
+          echo "Waiting max 10 seconds for Postgres to start..."
+          ${pkgs.postgresql}/bin/pg_isready -h ${config.TMS_DB_HOST} -p ${toString config.TMS_DB_PORT} \
+            -U ${config.POSTGRES_USER} -t 10
           echo "Initializing database"
           env \
             PATH="$PATH" \
@@ -70,11 +71,19 @@
             ${initDb}
         '';
       };
+      psql = pkgs.writeShellApplication {
+        name = "psql";
+        text = ''
+          ${pkgs.postgresql}/bin/psql -h ${config.TMS_DB_HOST} -p ${toString config.TMS_DB_PORT} \
+            -U ${config.POSTGRES_USER} "$@"
+        '';
+      };
       postgres = pkgs.symlinkJoin {
         name = "postgres";
         paths = [
           postgresUp
           postgresDown
+          psql
         ];
       };
     in
