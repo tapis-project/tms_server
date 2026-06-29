@@ -18,18 +18,18 @@
     simple-flake.lib.mkFlake { inherit inputs; }
       {
         imports = [
-          inputs.simple-flake.flake.flakeModules.perSystem
-          ./nix/modules/tms-server.nix
-          ./nix/modules/shell.nix
+          # inputs.simple-flake.flake.flakeModules.perSystem
         ];
         config = {
           debug = true;
           systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
           perSystem = { ... }: {
             imports = [
+              ./nix/modules/tms-server.nix
+              ./nix/modules/shell.nix
+              ./nix/modules/postgres.nix
               ./nix/config.nix
             ];
-            # TODO: move these into config.nix
             config.git_branch = "main";
             config.git_commit_short = self.shortRev or self.dirtyShortRev or "unknown";
             config.git_dirty = if self ? dirtyShortRev then "true" else "false";
