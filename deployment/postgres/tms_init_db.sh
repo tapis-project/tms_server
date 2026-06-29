@@ -4,20 +4,18 @@
 # Postgres password must be set in env var POSTGRES_PASSWORD
 # Password for TMS DB user must be set in env var TMS_DB_USER_PASSWORD
 
-if [ -z "$TMS_DB_HOST" ]; then
-  TMS_DB_HOST=localhost
-fi
+set -o errexit
+set -o nounset
+set -o pipefail
 
-if [ -z "$TMS_DB_PORT" ]; then
-  TMS_DB_PORT=5432
-fi
+TMS_DB_HOST="${TMS_DB_HOST:-localhost}"
+TMS_DB_PORT="${TMS_DB_PORT:-5432}"
+DB_USER="${POSTGRESS_USER:-postgres}"
+TMS_DB_USER="${TMS_DB_USER:-tms}"
+DB_NAME="${TMS_DB_DB_NAME:-tmsdb}"
+DB_SCHEMA=tms
 
 PSQL_CMD="psql --host=${TMS_DB_HOST} --port=${TMS_DB_PORT}"
-
-DB_USER=postgres
-DB_NAME=tmsdb
-DB_SCHEMA=tms
-TMS_DB_USER=tms
 
 if [ -z "${POSTGRES_PASSWORD}" ]; then
   echo "Please set env variables POSTGRES_PASSWORD, TMS_DB_USER_PASSWORD before running this script"
