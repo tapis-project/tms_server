@@ -100,6 +100,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RespNewSshKeypair'
+        '500':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
 
   # --- retrievePubKey --------------------------------------------------------------
   '/tms/pubkeys/creds/retrieve':
@@ -127,6 +133,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RespGetPublicKey'
+        '404':
+          description: Public key not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
+        '500':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HttpResult'
 
 # ------------------------------------------------------------------------------
 # --- Components ---------------------------------------------------------------
@@ -211,9 +229,6 @@ components:
           type: string
     HttpResult:
       type: object
-      required:
-        - result_code
-        - result_msg
       properties:
         result_code:
           type: string
