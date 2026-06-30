@@ -35,7 +35,7 @@ paths:
     get:
       tags:
         - General
-      description: Lightweight non-authenticated echo of a query parameter.
+      description: Echo a query parameter.
       operationId: sayHello
       parameters:
         - name: name
@@ -53,7 +53,7 @@ paths:
     get:
       tags:
         - General
-      description: Return the server version.
+      description: Return server version information.
       operationId: getVersion
       responses:
         '200':
@@ -75,24 +75,27 @@ paths:
       tags:
         - Credentials
       description: |
-        Create an ssh keypair using specified values for client user, host, host account, number of user, TTL minutes
+        Create an ssh keypair using provided values for client user, host, host account, number of uses, TTL minutes
         and key type. All values are required except for key type, which defaults to ED25519. Supported values for
-        key type: ED25519, ECDSA, RSA.
+        key type (case insensitive): ED25519, ECDSA, RSA.
         
-        Setting number of uses or TTL minutes to a negative value results in maximum limits. If both are negative
-        this effectively creates a keypair with no limits. If both are specified as 0 then the resulting key is
-        not usable.
+        *WARNING* Note that in the current MVP implementation the number of uses and TTL minutes are ignored.
+        In a future release of TMS Server, these attributes will be honored.
+        
+        *In a future release*, setting the number of uses or TTL minutes to a negative value results in maximum limits.
+        If both are negative this effectively creates a keypair with no limits.
+        If both are specified as 0 then the resulting key is not usable.
       operationId: createSShKeypair
       requestBody:
         required: true
-        description: A JSON object specifying information about the SSH keypair ot be generated.
+        description: A JSON object providing information about the SSH keypair ot be generated.
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ReqNewSshKeypair'
       responses:
         '201':
-          description: System created.
+          description: Keypair created.
           content:
             application/json:
               schema:
@@ -104,71 +107,32 @@ paths:
       tags:
         - Credentials
       description: |
-        Retrieve public key Create a system using a request body. System name must be unique within a tenant and can be composed of
-        alphanumeric characters and the following special characters [-._~].
-        Name must begin with an alphanumeric character and can be no more than 80 characters in length.
-        Description is optional with a maximum length of 2048 characters.
+        Retrieve public key using provided values for user, host and public key fingerprint. Values may also be
+        provided for user UID and key type, but these are only used for writing to the server side log.
+        
+        The user and host must match the host account and host provided when the keypair was generated. If a match is
+        found the public key is returned as part of the result.
       operationId: retrievePubKey
-      parameters:
-        - name: skipCredentialCheck
-          in: query
-          description: Bypass initial credential validation (for LINUX and S3). Default is false.
-          schema:
-            type: boolean
-            default: false
       requestBody:
         required: true
-        description: A JSON object specifying information about the SSH keypair ot be generated.
+        description: A JSON object providing information about the SSH public key to be retrieved.
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ReqGetPublicKey'
+      responses:
+        '200':
+          description: Public key found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespGetPublicKey'
 
 # ------------------------------------------------------------------------------
 # --- Components ---------------------------------------------------------------
 # ------------------------------------------------------------------------------
 components:
-#  securitySchemes:
-#    TapisJWT:
-#      type: apiKey
-#      description: Tapis signed JWT token authentication
-#      name: X-Tapis-Token
-#      in: header
   schemas:
-    # ------------------------------------------------------------------------------
-    # --- Model objects ------------------------------------------------------------
-    # ------------------------------------------------------------------------------
-    # --- TapisSystem ------------------------------------------------------------------
-#    TapisSystem:
-#      type: object
-#      properties:
-#        tenant:
-#          type: string
-
-    # --- String types with constraints ------------------------------------
-    SysHost:
-      type: string
-      minLength: 1
-      maxLength: 256
-      description: FQDN, IP address, Globus endpoint ID or Globus collection ID.
-    HostString:
-      type: string
-      minLength: 1
-      maxLength: 256
-    SysId:
-      type: string
-      minLength: 1
-      maxLength: 80
-      description: Short descriptive name for the system that is unique within the tenant.
-    UserNameString:
-      type: string
-      minLength: 1
-      maxLength: 60
-    DescriptionString:
-      type: string
-      maxLength: 2048
-      description: Optional more verbose description.
-
     # -------------------------------------------------------------------------
     # --- Request objects -----------------------------------------------------
     # -------------------------------------------------------------------------
@@ -193,11 +157,13 @@ components:
         num_uses:
           type: integer
           format: int32
+          description: Number of allowed uses. *WARNING* Not yet supported.
         ttl_minutes:
           type: integer
           format: int32
+          description: TTL in minutes. *WARNING* Not yet supported.
         key_type:
-          type: string
+          $ref: '#/components/schemas/SshKeyTypeEnum'
     ReqGetPublicKey:
       type: object
       required:
@@ -226,15 +192,6 @@ components:
     # -------------------------------------------------------------------------
     RespVersion:
       type: object
-      required:
-        - result_code
-        - result_msg
-        - tms_version
-        - git_branch
-        - git_commit
-        - git_dirty
-        - source_ts
-        - rustc_version
       properties:
         result_code:
           type: string
@@ -264,17 +221,6 @@ components:
           type: string
     RespNewSshKeypair:
       type: object
-      required:
-        - result_code
-        - result_msg
-        - private_key
-        - public_key
-        - public_key_fingerprint
-        - key_type
-        - key_bits
-        - max_uses
-        - remaining_uses
-        - expires_at
       properties:
         result_code:
           type: string
@@ -297,12 +243,8 @@ components:
         expires_at:
           type: string
           format: date-time
-    RespPublicKey:
+    RespGetPublicKey:
       type: object
-      required:
-        - result_code
-        - result_msg
-        - public_key
       properties:
         result_code:
           type: string
