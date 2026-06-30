@@ -27,14 +27,16 @@
               patchShebangs $out
             '';
           };
-          postgresDown = pkgs.writeShellApplication {
+          postgresDown = pkgs.writeShellApplication rec {
             name = "postgres-down";
+            runtimeInputs = [ pkgs.coreutils ];
             text = ''
+              [[ "$(id -u)" -ne "0" ]] && echo "Please, run \`${name}\` as root" && exit 1
               ${pkgs.podman-compose}/bin/podman-compose \
                   -f ${./../../deployment/postgres/tms-postgres.yml} down -v
             '';
           };
-          postgresUp = pkgs.writeShellApplication {
+          postgresUp = pkgs.writeShellApplication rec {
             name = "postgres-up";
             runtimeInputs = with pkgs; [
               podman-compose
@@ -43,6 +45,7 @@
               coreutils
             ];
             text = ''
+              [[ "$(id -u)" -ne "0" ]] && echo "Please, run \'${name}\` as root" && exit 1
               echo "Starting postgres"
               ${pkgs.podman}/bin/podman image trust set --type accept default
               env \
