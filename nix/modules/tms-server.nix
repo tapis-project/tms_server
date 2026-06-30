@@ -5,6 +5,14 @@
       rustc_version = builtins.readFile (pkgs.runCommand "rustc-version" { } ''
         ${config.rust-bin}/bin/rustc --version > $out
       '');
+      initDb = pkgs.stdenv.mkDerivation {
+        name = "initDb";
+        src = ./../../deployment/postgres;
+        buildPhase = ''
+          cp tms_init_db.sh $out
+          patchShebangs $out
+        '';
+      };
       # Base TMS Server from the Rust code
       tms-server =
         let
@@ -58,8 +66,30 @@
       # directory, and start `tms-server`.
       tms-server-stack-up = pkgs.writeShellApplication {
         name = "tms-server-up";
+        runtimeInputs = with pkgs; [
+          mktemp
+        ];
         text = ''
-          ${config.packages.postgres}/bin/postgres-up
+          command -v sudo >/dev/null 2>&1 || (printf "Need \`sudo\` to run postgres"; exit 1)
+          tms-server-down () {
+            sudo ${config.packages.postgres}/bin/postgres-down
+          }
+          trap tms-server-down EXIT
+          sudo ${config.packages.postgres}/bin/postgres-up
+          echo "Initializing database"
+          env \
+            PATH="$PATH" \
+            TMS_DB_HOST="${config.TMS_DB_HOST}" \
+            TMS_DB_PORT="${toString config.TMS_DB_PORT}" \
+            POSTGRES_USER="${config.POSTGRES_USER}" \
+            POSTGRES_PASSWORD="${config.POSTGRES_PASSWORD}" \
+            TMS_DB_USER="${config.TMS_DB_USER}" \
+            TMS_DB_USER_PASSWORD="${config.TMS_DB_USER_PASSWORD}" \
+            TMS_DB_DB_NAME="${config.TMS_DB_DB_NAME}" \
+            ${initDb}
+          TEMP=$(mktemp -d)
+          ${wrapped-tms-server}/bin/tms-server --install --root-dir "$TEMP"
+          ${wrapped-tms-server}/bin/tms-server --root-dir "$TEMP"
         '';
       };
       tms-server-stack-down = pkgs.writeShellApplication {

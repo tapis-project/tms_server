@@ -19,19 +19,15 @@
       };
       config =
         let
-          initDb = pkgs.stdenv.mkDerivation {
-            name = "initDb";
-            src = ./../../deployment/postgres;
-            buildPhase = ''
-              cp tms_init_db.sh $out
-              patchShebangs $out
-            '';
-          };
           postgresDown = pkgs.writeShellApplication rec {
             name = "postgres-down";
-            runtimeInputs = [ pkgs.coreutils ];
+            runtimeInputs = with pkgs; [
+              coreutils
+              podman-compose
+              podman
+            ];
             text = ''
-              [[ "$(id -u)" -ne "0" ]] && echo "Please, run \`${name}\` as root" && exit 1
+              [[ "$(id -u)" -ne "0" ]] && printf "Please, run \`${name}\` as root\n" && exit 1
               ${pkgs.podman-compose}/bin/podman-compose \
                   -f ${./../../deployment/postgres/tms-postgres.yml} down -v
             '';
@@ -45,7 +41,7 @@
               coreutils
             ];
             text = ''
-              [[ "$(id -u)" -ne "0" ]] && echo "Please, run \'${name}\` as root" && exit 1
+              [[ "$(id -u)" -ne "0" ]] && printf "Please, run \'${name}\` as root\n" && exit 1
               echo "Starting postgres"
               ${pkgs.podman}/bin/podman image trust set --type accept default
               env \
@@ -61,17 +57,6 @@
               echo "Waiting max 10 seconds for Postgres to start..."
               ${pkgs.postgresql}/bin/pg_isready -h ${config.TMS_DB_HOST} -p ${toString config.TMS_DB_PORT} \
                 -U ${config.POSTGRES_USER} -t 10
-              echo "Initializing database"
-              env \
-                PATH="$PATH" \
-                TMS_DB_HOST="${config.TMS_DB_HOST}" \
-                TMS_DB_PORT="${toString config.TMS_DB_PORT}" \
-                POSTGRES_USER="${config.POSTGRES_USER}" \
-                POSTGRES_PASSWORD="${config.POSTGRES_PASSWORD}" \
-                TMS_DB_USER="${config.TMS_DB_USER}" \
-                TMS_DB_USER_PASSWORD="${config.TMS_DB_USER_PASSWORD}" \
-                TMS_DB_DB_NAME="${config.TMS_DB_DB_NAME}" \
-                ${initDb}
             '';
           };
           psql = pkgs.writeShellApplication {
