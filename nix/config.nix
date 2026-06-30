@@ -2,12 +2,6 @@
 
 { ... }:
 {
-  # Import the dependency modules that provide options
-  imports = [
-    ./modules/tms-server.nix
-    ./modules/postgres.nix
-  ];
-
   # TMS Server specific options
   # (All the options have types and defaults. See ./modules/tms-server.nix)
   #

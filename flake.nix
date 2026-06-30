@@ -4,8 +4,8 @@
   description = "A Nix Flake for the TMS Server";
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    simple-flake.url = "path:/Users/wmoreira/repos/simple-flake";
-    #simple-flake.url = "github:waltermoreira/simple-flake";
+    # simple-flake.url = "path:/Users/wmoreira/repos/simple-flake";
+    simple-flake.url = "github:waltermoreira/simple-flake";
     shell-utils.url = "github:waltermoreira/shell-utils";
     crane.url = "github:ipetkov/crane";
     rust-overlay = {
@@ -14,25 +14,19 @@
     };
   };
 
-  outputs = inputs@{ self, simple-flake, ... }:
+  outputs = inputs@{ simple-flake, ... }:
     simple-flake.lib.mkFlake { inherit inputs; }
       {
         imports = [
-          # inputs.simple-flake.flake.flakeModules.perSystem
+          ./nix/modules
         ];
         config = {
           debug = true;
           systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-          perSystem = { ... }: {
+          perSystem = {
             imports = [
-              ./nix/modules/tms-server.nix
-              ./nix/modules/shell.nix
-              ./nix/modules/postgres.nix
               ./nix/config.nix
             ];
-            config.git_branch = "main";
-            config.git_commit_short = self.shortRev or self.dirtyShortRev or "unknown";
-            config.git_dirty = if self ? dirtyShortRev then "true" else "false";
           };
         };
       };
