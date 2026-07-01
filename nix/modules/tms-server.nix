@@ -89,6 +89,10 @@
             ${initDb}
           TEMP=$(mktemp -d)
           ${wrapped-tms-server}/bin/tms-server --install --root-dir "$TEMP"
+          ${pkgs.gum}/bin/gum style \
+            --foreground 212 --border-foreground 212 --border double \
+            --align center --width 50 --margin "1 2" --padding "2 4" \
+            "TMS Server is running in root-dir = $TEMP"
           ${wrapped-tms-server}/bin/tms-server --root-dir "$TEMP"
         '';
       };
