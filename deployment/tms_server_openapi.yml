@@ -79,12 +79,12 @@ paths:
         and key type. All values are required except for key type, which defaults to ED25519. Supported values for
         key type (case insensitive): ED25519, ECDSA, RSA.
         
-        *WARNING* Note that in the current MVP implementation the number of uses and TTL minutes are ignored.
-        In a future release of TMS Server, these attributes will be honored.
-        
-        *In a future release*, setting the number of uses or TTL minutes to a negative value results in maximum limits.
+        Setting the number of uses or TTL minutes to a negative value results in maximum limits.
         If both are negative this effectively creates a keypair with no limits.
         If both are specified as 0 then the resulting key is not usable.
+
+        *WARNING* Note that in the current MVP implementation the number of uses and TTL minutes are ignored.
+        In a future release of TMS Server, these attributes will be honored.
       operationId: createSShKeypair
       requestBody:
         required: true
@@ -175,11 +175,11 @@ components:
         num_uses:
           type: integer
           format: int32
-          description: Number of allowed uses. *WARNING* Not yet supported.
+          description: Number of allowed uses. *WARNING* Not yet honored.
         ttl_minutes:
           type: integer
           format: int32
-          description: TTL in minutes. *WARNING* Not yet supported.
+          description: TTL in minutes. *WARNING* Not yet honored.
         key_type:
           $ref: '#/components/schemas/SshKeyTypeEnum'
     ReqGetPublicKey:
