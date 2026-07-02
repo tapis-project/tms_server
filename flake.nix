@@ -12,6 +12,7 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    flake-parts-website.url = "github:hercules-ci/flake.parts-website";
   };
 
   outputs = inputs@{ simple-flake, ... }:
@@ -19,6 +20,7 @@
       {
         imports = [
           ./nix/modules
+          ./nix/modules/documentation.nix
         ];
         config = {
           debug = true;

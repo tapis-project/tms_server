@@ -31,11 +31,11 @@
         config.craneLib.buildPackage (commonArgs //
           {
             inherit cargoArtifacts;
-            GIT_BRANCH = config.git_branch;
-            GIT_COMMIT_SHORT = config.git_commit_short;
-            GIT_DIRTY = config.git_dirty;
-            SOURCE_TIMESTAMP = config.source_timestamp;
-            RUSTC_VERSION = config.rustc_version;
+            GIT_BRANCH = config.tms.git_branch;
+            GIT_COMMIT_SHORT = config.tms.git_commit_short;
+            GIT_DIRTY = config.tms.git_dirty;
+            SOURCE_TIMESTAMP = config.tms.source_timestamp;
+            RUSTC_VERSION = config.tms.rustc_version;
             meta = {
               description = "TMS Server";
               mainProgram = "tms_server";
@@ -53,12 +53,12 @@
           rsync -a . $out/src/resources/
           makeWrapper ${lib.getExe tms-server} $out/bin/tms-server \
             --set TMS_RESOURCES_DIR $out/src/resources \
-            --set TMS_ROOT_DIR ${config.TMS_ROOT_DIR} \
-            --set TMS_DB_HOST ${config.TMS_DB_HOST} \
-            --set TMS_DB_PORT ${toString config.TMS_DB_PORT} \
-            --set TMS_DB_USER ${config.TMS_DB_USER} \
-            --set TMS_DB_USER_PASSWORD ${config.TMS_DB_USER_PASSWORD} \
-            --set TMS_DB_DB_NAME ${config.TMS_DB_DB_NAME}
+            --set TMS_ROOT_DIR ${config.tms.TMS_ROOT_DIR} \
+            --set TMS_DB_HOST ${config.tms.TMS_DB_HOST} \
+            --set TMS_DB_PORT ${toString config.tms.TMS_DB_PORT} \
+            --set TMS_DB_USER ${config.tms.TMS_DB_USER} \
+            --set TMS_DB_USER_PASSWORD ${config.tms.TMS_DB_USER_PASSWORD} \
+            --set TMS_DB_DB_NAME ${config.tms.TMS_DB_DB_NAME}
         '';
       };
       # TMS + Postgres for local development.
@@ -79,13 +79,13 @@
           echo "Initializing database"
           env \
             PATH="$PATH" \
-            TMS_DB_HOST="${config.TMS_DB_HOST}" \
-            TMS_DB_PORT="${toString config.TMS_DB_PORT}" \
-            POSTGRES_USER="${config.POSTGRES_USER}" \
-            POSTGRES_PASSWORD="${config.POSTGRES_PASSWORD}" \
-            TMS_DB_USER="${config.TMS_DB_USER}" \
-            TMS_DB_USER_PASSWORD="${config.TMS_DB_USER_PASSWORD}" \
-            TMS_DB_DB_NAME="${config.TMS_DB_DB_NAME}" \
+            TMS_DB_HOST="${config.tms.TMS_DB_HOST}" \
+            TMS_DB_PORT="${toString config.tms.TMS_DB_PORT}" \
+            POSTGRES_USER="${config.postgres.POSTGRES_USER}" \
+            POSTGRES_PASSWORD="${config.postgres.POSTGRES_PASSWORD}" \
+            TMS_DB_USER="${config.tms.TMS_DB_USER}" \
+            TMS_DB_USER_PASSWORD="${config.tms.TMS_DB_USER_PASSWORD}" \
+            TMS_DB_DB_NAME="${config.tms.TMS_DB_DB_NAME}" \
             ${initDb}
           TEMP=$(mktemp -d)
           ${wrapped-tms-server}/bin/tms-server --install --root-dir "$TEMP"
@@ -112,65 +112,67 @@
     in
     {
       options = {
-        git_branch = lib.mkOption {
-          type = lib.types.str;
-          default = "unknown";
-        };
-        git_commit_short = lib.mkOption {
-          type = lib.types.str;
-          default = "unknown";
-        };
-        git_dirty = lib.mkOption {
-          type = lib.types.str;
-          default = "unknown";
-        };
-        source_timestamp = lib.mkOption {
-          type = lib.types.str;
-          default = "unknown";
-        };
-        rustc_version = lib.mkOption {
-          type = lib.types.str;
-          default = "${rustc_version}";
-        };
-        TMS_ROOT_DIR = lib.mkOption {
-          type = lib.types.str;
-          default = "~/.tms";
-        };
-        TMS_DB_HOST = lib.mkOption {
-          type = lib.types.str;
-          default = "localhost";
-        };
-        TMS_DB_PORT = lib.mkOption {
-          type = lib.types.port;
-          default = 5432;
-        };
-        TMS_DB_DB_NAME = lib.mkOption {
-          type = lib.types.str;
-          default = "tmsdb";
-        };
-        TMS_DB_USER = lib.mkOption {
-          type = lib.types.str;
-          default = "tms";
-        };
-        TMS_DB_USER_PASSWORD = lib.mkOption {
-          type = lib.types.str;
-          default = "password";
-        };
-        TMS_SSL_CERT_PATH = lib.mkOption {
-          type = lib.types.str;
-        };
-        TMS_SSL_KEY_PATH = lib.mkOption {
-          type = lib.types.str;
+        tms = {
+          git_branch = lib.mkOption {
+            type = lib.types.str;
+            default = "unknown";
+          };
+          git_commit_short = lib.mkOption {
+            type = lib.types.str;
+            default = "unknown";
+          };
+          git_dirty = lib.mkOption {
+            type = lib.types.str;
+            default = "unknown";
+          };
+          source_timestamp = lib.mkOption {
+            type = lib.types.str;
+            default = "unknown";
+          };
+          rustc_version = lib.mkOption {
+            type = lib.types.str;
+            default = "${rustc_version}";
+          };
+          TMS_ROOT_DIR = lib.mkOption {
+            type = lib.types.str;
+            default = "~/.tms";
+          };
+          TMS_DB_HOST = lib.mkOption {
+            type = lib.types.str;
+            default = "localhost";
+          };
+          TMS_DB_PORT = lib.mkOption {
+            type = lib.types.port;
+            default = 5432;
+          };
+          TMS_DB_DB_NAME = lib.mkOption {
+            type = lib.types.str;
+            default = "tmsdb";
+          };
+          TMS_DB_USER = lib.mkOption {
+            type = lib.types.str;
+            default = "tms";
+          };
+          TMS_DB_USER_PASSWORD = lib.mkOption {
+            type = lib.types.str;
+            default = "password";
+          };
+          TMS_SSL_CERT_PATH = lib.mkOption {
+            type = lib.types.str;
+          };
+          TMS_SSL_KEY_PATH = lib.mkOption {
+            type = lib.types.str;
+          };
         };
       };
       config = {
         packages = {
-          default = wrapped-tms-server;
+          #default = wrapped-tms-server;
           inherit wrapped-tms-server tms-server tms-server-stack;
         };
-        git_branch = "main";
-        git_commit_short = self.shortRev or self.dirtyShortRev or "unknown";
-        git_dirty = if self ? dirtyShortRev then "true" else "false";
+        tms.git_branch = "main";
+        tms.git_commit_short = self.shortRev or self.dirtyShortRev or "unknown";
+        tms.git_dirty = if self ? dirtyShortRev then "true" else "false";
       };
     };
 }

@@ -5,7 +5,9 @@
   # TMS Server specific options
   # (All the options have types and defaults. See ./modules/tms-server.nix)
   #
-  TMS_ROOT_DIR = "/tmp/tms4";
+  tms = {
+    TMS_ROOT_DIR = "/tmp/tms4";
+  };
   # TMS_DB_HOST = "localhost";
   # TMS_DB_PORT = 4323;
   # TMS_DB_DB_NAME = "tmsdb";
@@ -17,7 +19,9 @@
   # Postgres speficic options (for local development)
   # (See types and defaults in ./modules/postgres.nix)
   #
-  POSTGRES_USER = "postgres";
-  POSTGRES_PASSWORD = "foo";
-  POSTGRES_DB = "postgres";
+  postgres = {
+    POSTGRES_USER = "postgres";
+    POSTGRES_PASSWORD = "foo";
+    POSTGRES_DB = "postgres";
+  };
 }
