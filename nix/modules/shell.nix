@@ -3,7 +3,7 @@
   perSystem =
     { inputs', config, ... }:
     {
-      devShells.default = (config.craneLib.devShell.override {
+      devShells.default = (config.rust.craneLib.devShell.override {
         mkShell = inputs'.shell-utils.lib.shell;
       }) { 
         name = "TMS-Server-Dev";

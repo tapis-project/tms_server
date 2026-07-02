@@ -1,10 +1,95 @@
-{ self, ... }:
+{ self, flake-parts-lib, ... }:
 {
-  perSystem = { lib, config, pkgs, ... }:
+  options.perSystem = flake-parts-lib.mkPerSystemOption
+    ({ lib, config, pkgs, ... }:
+      let
+        rustc_version = builtins.readFile (pkgs.runCommand "rustc-version" { } ''
+          ${config.rust.binary}/bin/rustc --version > $out
+        '');
+      in
+      {
+        options = {
+          tms = {
+            git_branch = lib.mkOption {
+              type = lib.types.str;
+              default = "main";
+              description = "Git branch that produces the build";
+            };
+            git_commit_short = lib.mkOption {
+              type = lib.types.str;
+              default = self.shortRev or self.dirtyShortRev or "unknown";
+              defaultText = "Short hash or 'unknown'";
+              readOnly = true;
+              description = "Short hash of the commit that produces the build";
+            };
+            git_dirty = lib.mkOption {
+              type = lib.types.str;
+              default = if self ? dirtyShortRev then "true" else "false";
+              defaultText = "true or false";
+              readOnly = true;
+              description = "Whether the git working directory is dirty or not";
+            };
+            source_timestamp = lib.mkOption {
+              type = lib.types.str;
+              default = "unknown";
+              description = "Source timestamp";
+            };
+            rustc_version = lib.mkOption {
+              type = lib.types.str;
+              default = "${rustc_version}";
+              defaultText = "version of Rust in the current toolchain";
+              readOnly = true;
+              description = ''
+                Version of Rust in toolchain. 
+              
+                For changing the toolchain, please, use configure `rust` module.
+              '';
+            };
+            TMS_ROOT_DIR = lib.mkOption {
+              type = lib.types.str;
+              default = "~/.tms";
+              description = "Root directory for TMS Server to install its resources";
+            };
+            TMS_DB_HOST = lib.mkOption {
+              type = lib.types.str;
+              default = "localhost";
+              description = "Host where Postgres is available for the TMS Server";
+            };
+            TMS_DB_PORT = lib.mkOption {
+              type = lib.types.port;
+              default = 5432;
+              description = "Port where Postgres is available for the TMS Server";
+            };
+            TMS_DB_DB_NAME = lib.mkOption {
+              type = lib.types.str;
+              default = "tmsdb";
+              description = "Database to use by TMS Server";
+            };
+            TMS_DB_USER = lib.mkOption {
+              type = lib.types.str;
+              default = "tms";
+              description = "User in Postgres for the TMS Server";
+            };
+            TMS_DB_USER_PASSWORD = lib.mkOption {
+              type = lib.types.str;
+              default = "password";
+              description = "Password the `TMS_DB_USER` in Postgres";
+            };
+            TMS_SSL_CERT_PATH = lib.mkOption {
+              type = lib.types.str;
+              defaultText = "sefl-signed certificates included in the source";
+              description = "Public certificate for the HTTP server";
+            };
+            TMS_SSL_KEY_PATH = lib.mkOption {
+              type = lib.types.str;
+              defaultText = "sefl-signed key included in the source";
+              description = "Private key for the HTTP server";
+            };
+          };
+        };
+      });
+  config.perSystem = { lib, config, pkgs, ... }:
     let
-      rustc_version = builtins.readFile (pkgs.runCommand "rustc-version" { } ''
-        ${config.rust-bin}/bin/rustc --version > $out
-      '');
       initDb = pkgs.stdenv.mkDerivation {
         name = "initDb";
         src = ./../../deployment/postgres;
@@ -16,7 +101,7 @@
       # Base TMS Server from the Rust code
       tms-server =
         let
-          src = config.craneLib.cleanCargoSource (config.craneLib.path ./../..);
+          src = config.rust.craneLib.cleanCargoSource (config.rust.craneLib.path ./../..);
           commonArgs = {
             inherit src;
             buildInputs = with pkgs; [
@@ -26,9 +111,9 @@
               git
             ] ++ lib.optionals pkgs.stdenv.isDarwin [ pkgs.libiconv ];
           };
-          cargoArtifacts = config.craneLib.buildDepsOnly commonArgs;
+          cargoArtifacts = config.rust.craneLib.buildDepsOnly commonArgs;
         in
-        config.craneLib.buildPackage (commonArgs //
+        config.rust.craneLib.buildPackage (commonArgs //
           {
             inherit cargoArtifacts;
             GIT_BRANCH = config.tms.git_branch;
@@ -111,68 +196,11 @@
       };
     in
     {
-      options = {
-        tms = {
-          git_branch = lib.mkOption {
-            type = lib.types.str;
-            default = "unknown";
-          };
-          git_commit_short = lib.mkOption {
-            type = lib.types.str;
-            default = "unknown";
-          };
-          git_dirty = lib.mkOption {
-            type = lib.types.str;
-            default = "unknown";
-          };
-          source_timestamp = lib.mkOption {
-            type = lib.types.str;
-            default = "unknown";
-          };
-          rustc_version = lib.mkOption {
-            type = lib.types.str;
-            default = "${rustc_version}";
-          };
-          TMS_ROOT_DIR = lib.mkOption {
-            type = lib.types.str;
-            default = "~/.tms";
-          };
-          TMS_DB_HOST = lib.mkOption {
-            type = lib.types.str;
-            default = "localhost";
-          };
-          TMS_DB_PORT = lib.mkOption {
-            type = lib.types.port;
-            default = 5432;
-          };
-          TMS_DB_DB_NAME = lib.mkOption {
-            type = lib.types.str;
-            default = "tmsdb";
-          };
-          TMS_DB_USER = lib.mkOption {
-            type = lib.types.str;
-            default = "tms";
-          };
-          TMS_DB_USER_PASSWORD = lib.mkOption {
-            type = lib.types.str;
-            default = "password";
-          };
-          TMS_SSL_CERT_PATH = lib.mkOption {
-            type = lib.types.str;
-          };
-          TMS_SSL_KEY_PATH = lib.mkOption {
-            type = lib.types.str;
-          };
-        };
-      };
       config = {
         packages = {
           #default = wrapped-tms-server;
           inherit wrapped-tms-server tms-server tms-server-stack;
         };
-        tms.git_branch = "main";
-        tms.git_commit_short = self.shortRev or self.dirtyShortRev or "unknown";
-        tms.git_dirty = if self ? dirtyShortRev then "true" else "false";
       };
     };
 }

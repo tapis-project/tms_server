@@ -12,12 +12,12 @@
           POSTGRES_PASSWORD = lib.mkOption {
             type = str;
             default = "password";
-            description = "Password for the admin user";
+            description = "Password for the admin user of Postgres";
           };
           POSTGRES_DB = lib.mkOption {
             type = str;
             default = "postgres";
-            description = "Default database";
+            description = "Default database for Postgres";
           };
         };
       };
