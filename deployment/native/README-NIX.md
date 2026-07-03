@@ -60,7 +60,9 @@ Enter the environment with:
 nix develop
 ```
 This environment provides the Rust toolchain, the database, and the environment
-variables specified in the config file.
+variables specified in the config file. For example, the command `psql`, with no
+paramaters, connects automatically to the right database server, with the right
+user, and the right password.
 
 ### Rendering the documentation
 

@@ -79,7 +79,9 @@
           };
           psql = pkgs.writeShellApplication {
             name = "psql";
+            runtimeInputs = [ pkgs.coreutils ];
             text = ''
+              env PGPASSWORD="${config.postgres.POSTGRES_PASSWORD}" \
               ${pkgs.postgresql}/bin/psql -h ${config.tms.TMS_DB_HOST} -p ${toString config.tms.TMS_DB_PORT} \
                 -U ${config.postgres.POSTGRES_USER} "$@"
             '';
