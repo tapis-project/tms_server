@@ -88,6 +88,7 @@
         installation = ''
           My Installation instructions.
         '';
+        title = "TMS Server";
       };
     };
   };
