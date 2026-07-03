@@ -13,6 +13,7 @@
         packages = with config.packages; [
           tms-server-stack
           postgres
+          docs-serve
         ];
       };
     };
