@@ -198,7 +198,7 @@
     {
       config = {
         packages = {
-          #default = wrapped-tms-server;
+          default = lib.mkForce wrapped-tms-server;
           inherit wrapped-tms-server tms-server tms-server-stack;
         };
       };
