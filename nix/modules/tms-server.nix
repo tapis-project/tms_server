@@ -197,8 +197,14 @@
     in
     {
       config = {
+        apps = {
+          default = lib.mkForce {
+            type = "app";
+            program = "${tms-server-stack-up}/bin/tms-server-up";
+          };
+        };
         packages = {
-          default = lib.mkForce wrapped-tms-server;
+          default = lib.mkForce tms-server-stack;
           inherit wrapped-tms-server tms-server tms-server-stack;
         };
       };

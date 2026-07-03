@@ -7,14 +7,15 @@
   #
   tms = {
     TMS_ROOT_DIR = "/tmp/tms4";
+    git_branch = "wm/docker-nix";
+    # TMS_DB_HOST = "localhost";
+    # TMS_DB_PORT = 4323;
+    # TMS_DB_DB_NAME = "tmsdb";
+    # TMS_DB_USER = "tms";
+    # TMS_DB_USER_PASSWORD = "password";
+    # TMS_SSL_CERT_PATH = "";
+    # TMS_SSL_KEY_PATH = "";
   };
-  # TMS_DB_HOST = "localhost";
-  # TMS_DB_PORT = 4323;
-  # TMS_DB_DB_NAME = "tmsdb";
-  # TMS_DB_USER = "tms";
-  # TMS_DB_USER_PASSWORD = "password";
-  # TMS_SSL_CERT_PATH = "";
-  # TMS_SSL_KEY_PATH = "";
 
   # Postgres speficic options (for local development)
   # (See types and defaults in ./modules/postgres.nix)
