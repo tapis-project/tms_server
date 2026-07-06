@@ -48,6 +48,7 @@
               postgresql
               coreutils
               netcat
+              config.shell-utils.waitForPort
             ];
             text = ''
               [[ "$(id -u)" -ne "0" ]] && printf "Please, run \'${name}\` as root\n" && exit 1
@@ -62,16 +63,7 @@
                 podman-compose \
                   -f ${./../../deployment/postgres/tms-postgres.yml} up \
                   --force-recreate -d
-              retries=0
-              while ! nc -z "${config.tms.TMS_DB_HOST}" "${toString config.tms.TMS_DB_PORT}"; do 
-                if [ $retries -gt 5 ]; then
-                  echo "postgres did not start"
-                  exit 1
-                fi
-                echo "no connection, trying again..."
-                sleep 1 
-                retries=$((retries+1))
-              done
+              wait-for-port "${config.tms.TMS_DB_HOST}" "${toString config.tms.TMS_DB_PORT}" 
               echo "Checking postgres connection..."
               pg_isready -h ${config.tms.TMS_DB_HOST} -p ${toString config.tms.TMS_DB_PORT} \
                 -U ${config.postgres.POSTGRES_USER} -t 10
