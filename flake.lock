@@ -3554,11 +3554,11 @@
         "simple-flake": "simple-flake"
       },
       "locked": {
-        "lastModified": 1778473465,
-        "narHash": "sha256-eouTAL2nGZSLhphsTk/+XskMIB2X3VVUDjQTy/vRdOs=",
+        "lastModified": 1783362676,
+        "narHash": "sha256-taM5gtZwmEFlwwKH6K/asB060uPLiUWm3GLl4KBVbSQ=",
         "owner": "waltermoreira",
         "repo": "shell-utils",
-        "rev": "e36b89487a9a02b3efc7f52a6067b9688af074c7",
+        "rev": "caf3b86bee85ec5b20c8c96510d7ccdc6fb1dbac",
         "type": "github"
       },
       "original": {
