@@ -37,7 +37,7 @@ const DEFAULT_ROOT_DIR     : &str = "~/.tms";
 const MIGRATIONS_DIR       : &str = "/migrations";
 const CONFIG_DIR           : &str = "/config";
 const LOGS_DIR             : &str = "/logs";
-const CERTS_DIR            : &str = "/certs_self";
+const CERTS_DIR            : &str = "/certs";
 const RESOURCES_DIR        : &str = "./resources"; // relative to currnent dir
 
 const LOG4RS_CONFIG_FILE   : &str = "/log4rs.yml"; // relative to config dir
