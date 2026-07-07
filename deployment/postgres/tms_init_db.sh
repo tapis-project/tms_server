@@ -4,8 +4,13 @@
 # Postgres password must be set in env var POSTGRES_PASSWORD
 # Password for TMS DB user must be set in env var TMS_DB_USER_PASSWORD
 
+# The following options make the shell execution more robust:
+# 
+# Exit if a command returns status different from 0
 set -o errexit
+# An unset variable is an error (avoids silently continuing after a typo in a name)
 set -o nounset
+# If any of the components of a pipe fails, then the pipe fails
 set -o pipefail
 
 TMS_DB_HOST="${TMS_DB_HOST:-localhost}"
