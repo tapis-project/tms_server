@@ -85,6 +85,16 @@
               defaultText = "sefl-signed key included in the source";
               description = "Private key for the HTTP server";
             };
+            TMS_SERVER_HOST = lib.mkOption {
+              type = lib.types.str;
+              default = "https://localhost";
+              description = "Host where the TMS Server will listen";
+            };
+            TMS_SERVER_PORT = lib.mkOption {
+              type = lib.types.port;
+              default = 3000;
+              description = "Port where the TMS Server will listen";
+            };
           };
         };
       });
@@ -132,10 +142,14 @@
         name = "tms-server";
         src = ./../../resources;
         nativeBuildInputs = [ pkgs.makeWrapper ];
-        buildInputs = [ pkgs.rsync ];
+        buildInputs = [ pkgs.rsync config.shell-utils.tomlMap ];
         installPhase = ''
           mkdir -p $out/{bin,src/resources}
           rsync -a . $out/src/resources/
+          cat config/tms.toml | toml-map '
+          doc["http_addr"] = "${config.tms.TMS_SERVER_HOST}"
+          doc["http_port"] = ${toString config.tms.TMS_SERVER_PORT}
+          ' > $out/src/resources/config/tms.toml
           makeWrapper ${lib.getExe tms-server} $out/bin/tms-server \
             --set TMS_RESOURCES_DIR $out/src/resources \
             --set TMS_ROOT_DIR ${config.tms.TMS_ROOT_DIR} \

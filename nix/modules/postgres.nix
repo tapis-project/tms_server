@@ -27,6 +27,21 @@
     {
       config =
         let
+          podmanPolicy = pkgs.writeTextDir ".config/containers/policy.json"
+            ''
+              {
+                "default": [
+                  {
+                    "type": "insecureAcceptAnything"
+                  }
+                ],
+                "transports": {
+                  "docker-daemon": {
+                    "": [{ "type": "insecureAcceptAnything" }]
+                  }
+                }
+              }
+            '';
           postgresDown = pkgs.writeShellApplication rec {
             name = "postgres-down";
             runtimeInputs = with pkgs; [
@@ -36,7 +51,7 @@
             ];
             text = ''
               [[ "$(id -u)" -ne "0" ]] && printf "Please, run \`${name}\` as root\n" && exit 1
-              ${pkgs.podman-compose}/bin/podman-compose \
+              HOME=${podmanPolicy} ${pkgs.podman-compose}/bin/podman-compose \
                   -f ${./../../deployment/postgres/tms-postgres.yml} down -v
             '';
           };
@@ -53,13 +68,14 @@
             text = ''
               [[ "$(id -u)" -ne "0" ]] && printf "Please, run \'${name}\` as root\n" && exit 1
               echo "Starting postgres"
-              podman image trust set --type accept default
+              HOME=${podmanPolicy} podman image trust set --type accept default
               env \
                 PATH="$PATH" \
                 POSTGRES_USER="${config.postgres.POSTGRES_USER}" \
                 POSTGRES_PASSWORD="${config.postgres.POSTGRES_PASSWORD}" \
                 POSTGRES_DB="${config.postgres.POSTGRES_DB}" \
                 TMS_DB_PORT="${toString config.tms.TMS_DB_PORT}" \
+                HOME=${podmanPolicy} \
                 podman-compose \
                   -f ${./../../deployment/postgres/tms-postgres.yml} up \
                   --force-recreate -d
