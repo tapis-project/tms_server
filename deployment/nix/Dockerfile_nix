@@ -14,7 +14,8 @@ RUN nix --extra-experimental-features "nix-command flakes" build
 
 # Copy the nix store closure
 RUN mkdir /tmp/nix-store-closure
-RUN cp -R $(nix-store -qR result/) /tmp/nix-store-closure
+RUN nix --extra-experimental-features "nix-command flakes" copy \
+    --no-check-sigs --to /tmp/nix-store-closure $(realpath result)
 
 # Switch to minimal debian image for final staging
 FROM debian:bookworm-slim
@@ -27,12 +28,7 @@ USER tapistms
 WORKDIR /home/tapistms
 
 # Copy build to final image
-COPY --from=builder /tmp/nix-store-closure /nix/store
+COPY --from=builder /tmp/nix-store-closure /
 COPY --from=builder /tmp/build/result /app
-COPY --from=builder /tmp/build/resources /app/resources
 
-# Initial TMS setup
-RUN /app/bin/tms_server --create-dirs-only
-RUN cd /app/resources; ./install-resources.sh ~/.tms
-
-CMD ["/app/bin/tms_server"]
+CMD ["/app/bin/tms-server-up"]

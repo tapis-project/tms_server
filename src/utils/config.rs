@@ -73,6 +73,7 @@ const ENV_TMS_DB_PORT       : &str = "TMS_DB_PORT";
 const ENV_TMS_DB_DB_NAME    : &str = "TMS_DB_DB_NAME";
 const ENV_TMS_DB_USER       : &str = "TMS_DB_USER";
 const ENV_TMS_DB_USER_PASSWORD : &str = "TMS_DB_USER_PASSWORD";
+const ENV_TMS_RESOURCES_DIR : &str = "TMS_RESOURCES_DIR";
 
 // Database config defaults.
 // DB URL example: "postgres://tms:password@localhost:5432/tmsdb";
@@ -163,9 +164,9 @@ pub struct TmsCmdArgs {
     ///
     /// Directories will be under specified root directory. Precedence:
     ///
-    ///   1. If set, the value of the environment variable TMS_ROOT_DIR,
+    ///   1. Command line argument `--root_dir`,
     ///
-    ///   2. Otherwise, if set, the value of the --root_dir command line argument,
+    ///   2. Otherwise, if set, the value of the environment variable TMS_ROOT_DIR,
     ///
     ///   3. Otherwise, ~/.tms
     #[arg(short, long)]
@@ -471,7 +472,7 @@ fn check_tms_dir(dir: &String, msgname: &str, mistrust: &Mistrust) -> bool {
  */
 fn copy_resource_files(target_dir: &String, dir_suffix: &str, root_dir: &String) {
     // Create the source directory pathname.
-    let source_dir = RESOURCES_DIR.to_string() + dir_suffix;
+    let source_dir = env::var(ENV_TMS_RESOURCES_DIR).unwrap_or_else(|_| RESOURCES_DIR.to_string()) + dir_suffix;
     let source_dir = get_absolute_path(&source_dir);
     println!("copy_resource_files source_dir: {}", source_dir);
     println!("copy_resource_files target_dir: {}", target_dir);
@@ -643,14 +644,13 @@ fn get_mistrust() -> Mistrust {
 // ---------------------------------------------------------------------------
 fn get_root_dir() -> String {
     // Order of precedence:
-    //  1. Environment variable
-    //  2. Command line --root-dir argument
+    //  1. Command line --root-dir argument
+    //  2. Environment variable
     //  3. Default location
     //
-    let tmp_root_dir = env::var(ENV_TMS_ROOT_DIR).unwrap_or_else(
-        |_| {
-            TMS_CMD_ARGS.root_dir.clone().unwrap_or_else(|| DEFAULT_ROOT_DIR.to_string())
-        });
+    let tmp_root_dir = TMS_CMD_ARGS.root_dir.clone().unwrap_or_else(
+        || env::var(ENV_TMS_ROOT_DIR).unwrap_or_else(
+        |_| DEFAULT_ROOT_DIR.to_string()));
 
     // Canonicalize the path.
     get_absolute_path(&tmp_root_dir)
