@@ -9,6 +9,7 @@
     TMS_ROOT_DIR = "/tmp/tms4";
     git_branch = "wm/nix";
     TMS_SERVER_PORT = 1234;
+    TMS_SERVER_URLS = ["https://192.168.64.21:1234/v1"];
     # TMS_DB_HOST = "localhost";
     # TMS_DB_PORT = 4323;
     # TMS_DB_DB_NAME = "tmsdb";
