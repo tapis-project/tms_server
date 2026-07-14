@@ -95,6 +95,11 @@
               default = 3000;
               description = "Port where the TMS Server will listen";
             };
+            TMS_SERVER_URLS = lib.mkOption {
+              type = lib.types.listOf lib.types.str;
+              default = [ "https://localhost:3000/v1" ];
+              description = "Base URLS to be displayed in the OpenAPI livedocs";
+            };
           };
         };
       });
@@ -136,6 +141,8 @@
               mainProgram = "tms_server";
             };
           });
+      serverUrls = with builtins;
+        concatStringsSep "," (map (x: ''"${x}"'') config.tms.TMS_SERVER_URLS);
       # TMS Server that bundles the `resources` directory, so it can install
       # the config files without needing the source files.
       wrapped-tms-server = pkgs.stdenv.mkDerivation {
@@ -149,6 +156,7 @@
           cat config/tms.toml | toml-map '
           doc["http_addr"] = "${config.tms.TMS_SERVER_HOST}"
           doc["http_port"] = ${toString config.tms.TMS_SERVER_PORT}
+          doc["server_urls"] = [${serverUrls}]
           ' > $out/src/resources/config/tms.toml
           makeWrapper ${lib.getExe tms-server} $out/bin/tms-server \
             --set TMS_RESOURCES_DIR $out/src/resources \
