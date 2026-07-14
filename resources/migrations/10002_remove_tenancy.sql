@@ -22,7 +22,6 @@ ALTER TABLE clients DROP CONSTRAINT clients_tenant_fkey;
 -- NOTE: Some of these are needed for the multi-column FK updates.
 ------------------------------------------------------------------------
 ALTER TABLE hosts ADD CONSTRAINT hosts_host_addr_key UNIQUE (host, addr);
-ALTER TABLE admin ADD CONSTRAINT admin_admin_user_key UNIQUE (admin_user);
 ALTER TABLE delegations ADD CONSTRAINT delegations_client_id_client_user_id_key UNIQUE (client_id,client_user_id);
 ALTER TABLE user_hosts ADD CONSTRAINT user_hosts_tms_user_id_host_host_account_key UNIQUE (tms_user_id, host, host_account);
 ALTER TABLE user_mfa ADD CONSTRAINT user_mfa_tms_user_id_key UNIQUE (tms_user_id);
@@ -67,10 +66,16 @@ ALTER TABLE clients DROP CONSTRAINT clients_tenant_app_name_app_version_key;
 ------------------------------------------
 -- Update indexes
 ------------------------------------------
-DROP INDEX CONCURRENTLY IF EXISTS delg_user_client_idx;
+DROP INDEX IF EXISTS delg_user_client_idx;
 CREATE UNIQUE INDEX IF NOT EXISTS delg_user_client_idx ON delegations (client_id, client_user_id);
-DROP INDEX CONCURRENTLY IF EXISTS clients_tenant_client_idx;
+DROP INDEX IF EXISTS clients_tenant_client_idx;
 CREATE UNIQUE INDEX IF NOT EXISTS clients_tenant_client_idx ON clients (client_id);
+
+------------------------------------------
+-- Only one admin user for the "default" tenant.
+-- No longer have tenancy, so remove any other admins
+------------------------------------------
+DELETE FROM admin where tenant <> 'default';
 
 ------------------------------------------
 -- Remove tenant column from tables
@@ -83,6 +88,7 @@ ALTER TABLE delegations DROP COLUMN tenant;
 ALTER TABLE user_hosts DROP COLUMN tenant;
 ALTER TABLE user_mfa DROP COLUMN tenant;
 ALTER TABLE clients DROP COLUMN tenant;
+
 
 ------------------------------------------
 -- Last action is to drop the tenants table
