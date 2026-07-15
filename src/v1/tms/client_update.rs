@@ -6,8 +6,8 @@ use anyhow::Result;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{UPDATE_CLIENT_APP_VERSION, UPDATE_CLIENT_ENABLED};
-use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, validate_semver, check_tenant_enabled};
-use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
+use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, validate_semver};
+use crate::utils::authz::{authorize, AuthzTypes};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -24,7 +24,6 @@ pub struct UpdateClientApi;
 pub struct ReqUpdateClient
 {
     client_id: String,
-    tenant: String,
     app_version: Option<String>,
     enabled: Option<bool>,
 }
@@ -49,8 +48,6 @@ impl RequestDebug for ReqUpdateClient {
         s.push_str("  Request body:");
         s.push_str("\n    client_id: ");
         s.push_str(&self.client_id);
-        s.push_str("\n    tenant: ");
-        s.push_str(&self.tenant);
         s.push_str("\n    app_version: ");
         s.push_str(app_version.as_str());
         s.push_str("\n    enabled: ");
@@ -99,19 +96,7 @@ impl UpdateClientApi {
     async fn update_client(&self, http_req: &Request, client_id: Path<String>, 
                            app_version: Query<Option<String>>, enabled: Query<Option<bool>>) 
             -> TmsResponse {
-        // -------------------- Get Tenant Header --------------------
-        // Get the required tenant header value.
-        let hdr_tenant = match get_tenant_header(http_req) {
-            Ok(t) => t,
-            Err(e) => return make_http_400(e.to_string()),
-        };
-
-        // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant).await {
-            return make_http_400("Tenant not enabled.".to_string());
-        }
-
-        // Package the request parameters. The difference in query parameter processing 
+        // Package the request parameters. The difference in query parameter processing
         // is because Option<String> does not implement the copy trait, but Option<bool> does.
         let req = 
             ReqUpdateClient {client_id: client_id.to_string(), tenant: hdr_tenant, 
@@ -119,18 +104,18 @@ impl UpdateClientApi {
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
-        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
+        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin]; // TODO
         let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to update client {} in tenant {}.", req.client_id, req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to update client {}.", req.client_id);
             error!("{}", msg);
             return make_http_401(msg);
         }
 
         // Make sure the request parms conform to the header values used for authorization.
         if !authz_result.check_hdr_id(&req.client_id) {
-            let msg = format!("ERROR: FORBIDDEN - Payload parameters ({}@{}) differ from those in the request header.", 
-                                      req.client_id, req.tenant);
+            let msg = format!("ERROR: FORBIDDEN - Payload parameters ({}) differ from those in the request header.",
+                                      req.client_id);
             error!("{}", msg);
             return make_http_403(msg);
         }
@@ -205,7 +190,6 @@ async fn update_client(req: &ReqUpdateClient) -> Result<u64> {
             .bind(app_version)
             .bind(&current_ts)
             .bind(&req.client_id)
-            .bind(&req.tenant)
             .execute(&mut *tx)
             .await?;
         updates += result.rows_affected();
@@ -218,7 +202,6 @@ async fn update_client(req: &ReqUpdateClient) -> Result<u64> {
             .bind(enabled)
             .bind(&current_ts)
             .bind(&req.client_id)
-            .bind(&req.tenant)
             .execute(&mut *tx)
             .await?;
         updates += result.rows_affected();

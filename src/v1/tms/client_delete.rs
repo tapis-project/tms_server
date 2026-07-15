@@ -6,8 +6,8 @@ use anyhow::Result;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::DELETE_CLIENT;
-use crate::utils::tms_utils::{self, RequestDebug, check_tenant_enabled};
-use crate::utils::authz::{authorize, get_tenant_header, AuthzTypes};
+use crate::utils::tms_utils::{self, RequestDebug};
+use crate::utils::authz::{authorize, AuthzTypes};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -23,8 +23,7 @@ pub struct DeleteClientApi;
 #[derive(Object)]
 pub struct ReqDeleteClient
 {
-    client_id: String,
-    tenant: String,
+    client_id: String
 }
 
 #[derive(Object, Debug)]
@@ -43,8 +42,6 @@ impl RequestDebug for ReqDeleteClient {
         s.push_str("  Request body:");
         s.push_str("\n    client_id: ");
         s.push_str(&self.client_id);
-        s.push_str("\n    tenant: ");
-        s.push_str(&self.tenant);
         s
     }
 }
@@ -87,35 +84,23 @@ fn make_http_500(msg: String) -> TmsResponse {
 impl DeleteClientApi {
     #[oai(path = "/tms/client/del/:client_id", method = "delete")]
     async fn delete_client(&self, http_req: &Request, client_id: Path<String>) -> TmsResponse {
-        // -------------------- Get Tenant Header --------------------
-        // Get the required tenant header value.
-        let hdr_tenant = match get_tenant_header(http_req) {
-            Ok(t) => t,
-            Err(e) => return make_http_400(e.to_string()),
-        };
-        
-        // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant).await {
-            return make_http_400("Tenant not enabled.".to_string());
-        }
-
         // Package the request parameters.
         let req = ReqDeleteClient {client_id: client_id.to_string(), tenant: hdr_tenant};
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
-        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
+        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin]; // TODO
         let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to delete client {} in tenant {}.", req.client_id, req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to delete client {}.", req.client_id);
             error!("{}", msg);
             return make_http_401(msg);
         }
 
         // Make sure the request parms conform to the header values used for authorization.
         if !authz_result.check_hdr_id(&req.client_id) {
-            let msg = format!("ERROR: FORBIDDEN - Payload parameters ({}@{}) differ from those in the request header.", 
-                                      req.client_id, req.tenant);
+            let msg = format!("ERROR: FORBIDDEN - Payload parameters ({}) differ from those in the request header.",
+                                      req.client_id);
             error!("{}", msg);
             return make_http_403(msg);
         }
@@ -176,7 +161,6 @@ async fn delete_client(req: &ReqDeleteClient) -> Result<u64> {
     // Issue the db delete call.
     let result = sqlx::query(DELETE_CLIENT)
         .bind(&req.client_id)
-        .bind(&req.tenant)
         .execute(&mut *tx)
         .await?;
     deletes += result.rows_affected();

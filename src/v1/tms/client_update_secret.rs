@@ -7,8 +7,8 @@ use anyhow::Result;
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::UPDATE_CLIENT_SECRET;
 use crate::utils::tms_utils::{self, RequestDebug, create_hex_secret, hash_hex_secret, 
-                              timestamp_utc, timestamp_utc_to_str, check_tenant_enabled};
-use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
+                              timestamp_utc, timestamp_utc_to_str};
+use crate::utils::authz::{authorize, AuthzTypes};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -24,8 +24,7 @@ pub struct UpdateClientSecretApi;
 #[derive(Object)]
 pub struct ReqUpdateClientSecret
 {
-    client_id: String,
-    tenant: String,
+    client_id: String
 }
 
 #[derive(Object, Debug)]
@@ -34,7 +33,6 @@ pub struct RespUpdateClientSecret
     result_code: String,
     result_msg: String,
     client_id: String,
-    tenant: String,
     client_secret: String,
 }
 
@@ -46,8 +44,6 @@ impl RequestDebug for ReqUpdateClientSecret {
         s.push_str("  Request body:");
         s.push_str("\n    client_id: ");
         s.push_str(&self.client_id);
-        s.push_str("\n    tenant: ");
-        s.push_str(&self.tenant);
        s
     }
 }
@@ -90,35 +86,23 @@ fn make_http_500(msg: String) -> TmsResponse {
 impl UpdateClientSecretApi {
     #[oai(path = "/tms/client/secret/:client_id", method = "patch")]
     async fn update_client(&self, http_req: &Request, client_id: Path<String>) -> TmsResponse {
-        // -------------------- Get Tenant Header --------------------
-        // Get the required tenant header value.
-        let hdr_tenant = match get_tenant_header(http_req) {
-            Ok(t) => t,
-            Err(e) => return make_http_400(e.to_string()),
-        };
-
-        // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant).await {
-            return make_http_400("Tenant not enabled.".to_string());
-        }
-
         // Package the request parameters.
         let req = ReqUpdateClientSecret {client_id: client_id.to_string(), tenant: hdr_tenant};
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
-        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
+        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin]; // TODO
         let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to update client {} in tenant {}.", req.client_id, req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to update client {}.", req.client_id);
             error!("{}", msg);
             return make_http_401(msg);
         }
 
         // Make sure the request parms conform to the header values used for authorization.
         if !authz_result.check_hdr_id(&req.client_id) {
-            let msg = format!("ERROR: FORBIDDEN - Payload parameters ({}@{}) differ from those in the request header.", 
-                                      req.client_id, req.tenant);
+            let msg = format!("ERROR: FORBIDDEN - Payload parameters ({}) differ from those in the request header.",
+                                      req.client_id);
             error!("{}", msg);
             return make_http_403(msg);
         }
@@ -141,8 +125,8 @@ impl UpdateClientSecretApi {
 // ***************************************************************************
 impl RespUpdateClientSecret {
     /// Create a new response.
-    fn new(result_code: &str, result_msg: String, client_id: String, tenant: String, client_secret: String,) -> Self {
-        Self {result_code: result_code.to_string(), result_msg, client_id, tenant, client_secret,}
+    fn new(result_code: &str, result_msg: String, client_id: String, client_secret: String,) -> Self {
+        Self {result_code: result_code.to_string(), result_msg, client_id, client_secret,}
     }
 
     /// Process the request.
@@ -160,8 +144,8 @@ impl RespUpdateClientSecret {
         // Log result and return response.
         let msg = format!("Secret updated for client {}", req.client_id);
         info!("{}", msg);
-        Ok(make_http_200(RespUpdateClientSecret::new("0", msg, req.client_id.clone(), 
-                                       req.tenant.clone(), client_secret_str)))
+        Ok(make_http_200(RespUpdateClientSecret::new("0", msg, req.client_id.clone(),
+                                                     client_secret_str)))
     }
 }
 
@@ -189,7 +173,6 @@ async fn update_client_secret(req: &ReqUpdateClientSecret, client_secret_hash: S
         .bind(client_secret_hash)
         .bind(current_ts)
         .bind(&req.client_id)
-        .bind(&req.tenant)
         .execute(&mut *tx)
         .await?;
     updates += result.rows_affected();

@@ -5,13 +5,13 @@ use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 
-use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, get_client_id_header};
+use crate::utils::authz::{authorize, AuthzTypes, get_client_id_header};
 use crate::utils::errors::HttpResult;
 use crate::utils::keygen::{self, KeyType};
 use crate::utils::db_types::PubkeyInput;
 use crate::utils::db_statements::INSERT_PUBKEYS;
 use crate::utils::db::check_pubkey_dependencies;
-use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug, check_tenant_enabled};
+use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug};
 use crate::utils::mvp::{MVPDependencyParms, create_pubkey_dependencies};
 use log::{error, info};
 
@@ -79,13 +79,12 @@ impl RequestDebug for ReqNewSshKeys {
 #[derive(Debug)]
 struct NewSshKeysExtension
 {
-    client_id: String,
-    tenant: String,
+    client_id: String
 }
 
 impl NewSshKeysExtension {
-    fn new(client_id: String, tenant: String,) -> Self 
-    { Self {client_id, tenant} }  
+    fn new(client_id: String) -> Self
+    { Self {client_id} }
 }
 
 // ------------------- HTTP Status Codes -------------------
@@ -166,18 +165,13 @@ impl RespNewSshKeys {
             }
         };
 
-        // Check tenant.
-        if !check_tenant_enabled(&req_ext.tenant).await {
-            return Ok(make_http_400("Tenant not enabled.".to_string()));
-        }
-        
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
-        let allowed = [AuthzTypes::ClientOwn];
+        let allowed = [AuthzTypes::ClientOwn]; // TODO
         let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED Credential mismatch for client {} in tenant {}.", 
-                                      req_ext.client_id, req_ext.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED Credential mismatch for client {}.",
+                                      req_ext.client_id);
             error!("{}", msg);
             return Ok(make_http_401(msg));
         }
@@ -187,7 +181,7 @@ impl RespNewSshKeys {
         if RUNTIME_CTX.parms.config.enable_mvp {
             // Collect values required for dependency record insertions.
             let mvp_inputs = MVPDependencyParms {
-                tenant: req_ext.tenant.clone(), client_id: req_ext.client_id.clone(),
+                client_id: req_ext.client_id.clone(),
                 client_user_id: req.client_user_id.clone(), host: req.host.clone(), 
                 host_account: req.host_account.clone(), 
             };
@@ -207,9 +201,9 @@ impl RespNewSshKeys {
         // --------------------- Check Expirations -----------------------
         // The 3 tables whose expiration times need to be checked before we create this key are:
         //
-        //  user_mfa - use tenant and client_user_id to target unique record
-        //  delegations - use tenant, client_id and client_user_id to target unique record
-        //  user_hosts - use tenant, client_user_id, host and host_account to target unique record
+        //  user_mfa - use client_user_id to target unique record
+        //  delegations - use client_id and client_user_id to target unique record
+        //  user_hosts - use client_user_id, host and host_account to target unique record
         //
         // Each of the above tables are queried using values that define a unique index on the
         // target table. This guarantees that either 0 or 1 record will be returned. In the
@@ -218,8 +212,8 @@ impl RespNewSshKeys {
         //
         // This method returns a detailed error message that indicates which table did not contain
         // the required values and whether the error resulted from a missing or expired record.
-        match check_pubkey_dependencies(&req_ext.tenant, &req_ext.client_id,
-                                        &req.client_user_id, &req.host, &req.host_account).await
+        match check_pubkey_dependencies(&req_ext.client_id, &req.client_user_id, &req.host,
+                                        &req.host_account).await
         {
             Ok(_) => (),
             Err(e) => {
@@ -271,7 +265,6 @@ impl RespNewSshKeys {
 
         // Create the input record.
         let input_record = PubkeyInput::new(
-            req_ext.tenant.clone(),
             req_ext.client_id.clone(),
             req.client_user_id.clone(), 
             req.host.clone(), 
@@ -291,7 +284,7 @@ impl RespNewSshKeys {
         // Insert the new key record.
         insert_new_key(input_record).await?;
         info!("A key of type '{}' created for '{}@{}' for host '{}' expires at {} and has {} remaining uses.", 
-            keyinfo.key_type.clone(), req.client_user_id, req_ext.tenant, req.host, expires_at, remaining_uses);
+            keyinfo.key_type.clone(), req.client_user_id, req.host, expires_at, remaining_uses);
 
         // Success! Zero key bits means a fixed key length.
         Ok(make_http_201(Self::new("0", "success", 
@@ -320,7 +313,6 @@ async fn insert_new_key(rec: PubkeyInput) -> Result<u64> {
     
     // Create the insert statement.
     let result = sqlx::query(INSERT_PUBKEYS)
-        .bind(rec.tenant)
         .bind(rec.client_id)
         .bind(rec.client_user_id)
         .bind(rec.host)
@@ -350,7 +342,5 @@ async fn insert_new_key(rec: PubkeyInput) -> Result<u64> {
 fn get_header_values(http_req: &Request) -> Result<NewSshKeysExtension> {
     // Get the required header values.
     let hdr_client_id = get_client_id_header(http_req)?;
-    let hdr_tenant = get_tenant_header(http_req)?;
-
-    Ok(NewSshKeysExtension::new(hdr_client_id, hdr_tenant))
+    Ok(NewSshKeysExtension::new(hdr_client_id))
 }

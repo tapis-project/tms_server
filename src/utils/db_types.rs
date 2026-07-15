@@ -11,7 +11,6 @@ use serde::Deserialize;
 #[allow(dead_code)]
 pub struct Pubkey {
     pub id: i32,
-    pub tenant: String,
     pub client_id: String,
     pub client_user_id: String,
     pub host: String,
@@ -30,7 +29,6 @@ pub struct Pubkey {
 
 #[derive(Debug, Deserialize)]
 pub struct PubkeyInput {
-    pub tenant: String,
     pub client_id: String,
     pub client_user_id: String,
     pub host: String,
@@ -59,7 +57,6 @@ impl Pubkey {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
         id: i32,
-        tenant: String,
         client_id: String,
         client_user_id: String,
         host: String,
@@ -77,7 +74,7 @@ impl Pubkey {
     ) 
     -> Pubkey {
         Pubkey {
-            id, tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, 
+            id, client_id, client_user_id, host, host_account, public_key_fingerprint,
             public_key, key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, 
             expires_at, created, updated
         }
@@ -87,7 +84,6 @@ impl Pubkey {
 impl PubkeyInput {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        tenant: String,
         client_id: String,
         client_user_id: String,
         host: String,
@@ -105,7 +101,7 @@ impl PubkeyInput {
     ) 
     -> PubkeyInput {
         PubkeyInput {
-            tenant, client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, 
+            client_id, client_user_id, host, host_account, public_key_fingerprint, public_key,
             key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated
         }
     }
@@ -131,7 +127,6 @@ impl PubkeyRetrieval {
 #[allow(dead_code)]
 pub struct Client {
     pub id: i32,
-    pub tenant: String,
     pub app_name: String,
     pub app_version: String,
     pub client_id: String,
@@ -143,7 +138,6 @@ pub struct Client {
 
 #[derive(Debug, Deserialize)]
 pub struct ClientInput {
-    pub tenant: String,
     pub app_name: String,
     pub app_version: String,
     pub client_id: String,
@@ -157,7 +151,6 @@ impl Client {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
         id: i32,
-        tenant: String,
         app_name: String,
         app_version: String,
         client_id: String,
@@ -168,7 +161,7 @@ impl Client {
     ) 
     -> Client {
         Client {
-            id, tenant, app_name, app_version, client_id, client_secret, enabled, created, updated
+            id, app_name, app_version, client_id, client_secret, enabled, created, updated
         }
     }
 }
@@ -176,7 +169,6 @@ impl Client {
 impl ClientInput {
         #[allow(dead_code, clippy::too_many_arguments)]
         pub fn new(
-            tenant: String,
             app_name: String,
             app_version: String,
             client_id: String,
@@ -187,7 +179,7 @@ impl ClientInput {
         ) 
         -> ClientInput {
             ClientInput {
-                tenant, app_name, app_version, client_id, client_secret, enabled, created, updated
+                app_name, app_version, client_id, client_secret, enabled, created, updated
             }
         }
 }
@@ -199,7 +191,6 @@ impl ClientInput {
 #[allow(dead_code)]
 pub struct UserMfa {
     pub id: i32,
-    pub tenant: String,
     pub tms_user_id: String,
     pub expires_at: DateTime<Utc>,
     pub enabled: bool,
@@ -209,7 +200,6 @@ pub struct UserMfa {
 
 #[derive(Debug, Deserialize)]
 pub struct UserMfaInput {
-    pub tenant: String,
     pub tms_user_id: String,
     pub expires_at: DateTime<Utc>,
     pub enabled: bool,
@@ -221,7 +211,6 @@ impl UserMfa {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
         id: i32,
-        tenant: String,
         tms_user_id: String,
         expires_at: DateTime<Utc>,
         enabled: bool,
@@ -230,7 +219,7 @@ impl UserMfa {
     ) 
     -> UserMfa {
         UserMfa {
-            id, tenant, tms_user_id, expires_at, enabled, created, updated
+            id, tms_user_id, expires_at, enabled, created, updated
         }
     }
 }
@@ -238,7 +227,6 @@ impl UserMfa {
 impl UserMfaInput {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
-        tenant: String,
         tms_user_id: String,
         expires_at: DateTime<Utc>,
         enabled: bool,
@@ -247,7 +235,7 @@ impl UserMfaInput {
     ) 
     -> UserMfaInput {
         UserMfaInput {
-            tenant, tms_user_id, expires_at, enabled, created, updated
+            tms_user_id, expires_at, enabled, created, updated
         }
     }
 }
@@ -259,7 +247,6 @@ impl UserMfaInput {
 #[allow(dead_code)]
 pub struct UserHost {
     pub id: i32,
-    pub tenant: String,
     pub tms_user_id: String,
     pub host: String,
     pub host_account: String,
@@ -270,7 +257,6 @@ pub struct UserHost {
 
 #[derive(Debug, Deserialize)]
 pub struct UserHostInput {
-    pub tenant: String,
     pub tms_user_id: String,
     pub host: String,
     pub host_account: String,
@@ -283,7 +269,6 @@ impl UserHost {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
         id: i32,
-        tenant: String,
         tms_user_id: String,
         host: String,
         host_account: String,
@@ -293,7 +278,7 @@ impl UserHost {
     ) 
     -> UserHost {
         UserHost {
-            id, tenant, tms_user_id, host, host_account, expires_at, created, updated
+            id, tms_user_id, host, host_account, expires_at, created, updated
         }
     }
 }
@@ -301,7 +286,6 @@ impl UserHost {
 impl UserHostInput {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
-        tenant: String,
         tms_user_id: String,
         host: String,
         host_account: String,
@@ -311,7 +295,7 @@ impl UserHostInput {
     ) 
     -> UserHostInput {
         UserHostInput {
-            tenant, tms_user_id, host, host_account, expires_at, created, updated
+            tms_user_id, host, host_account, expires_at, created, updated
         }
     }
 }
@@ -323,7 +307,6 @@ impl UserHostInput {
 #[allow(dead_code)]
 pub struct Delegation {
     pub id: i32,
-    pub tenant: String,
     pub client_id: String,
     pub client_user_id: String,
     pub expires_at: DateTime<Utc>,
@@ -333,7 +316,6 @@ pub struct Delegation {
 
 #[derive(Debug, Deserialize)]
 pub struct DelegationInput {
-    pub tenant: String,
     pub client_id: String,
     pub client_user_id: String,
     pub expires_at: DateTime<Utc>,
@@ -345,7 +327,6 @@ impl Delegation {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
         id: i32,
-        tenant: String,
         client_id: String,
         client_user_id: String,
         expires_at: DateTime<Utc>,
@@ -354,7 +335,7 @@ impl Delegation {
     ) 
     -> Delegation {
         Delegation {
-            id, tenant, client_id, client_user_id, expires_at, created, updated
+            id, client_id, client_user_id, expires_at, created, updated
         }
     }
 }
@@ -362,7 +343,6 @@ impl Delegation {
 impl DelegationInput {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
-        tenant: String,
         client_id: String,
         client_user_id: String,
         expires_at: DateTime<Utc>,
@@ -371,61 +351,7 @@ impl DelegationInput {
     ) 
     -> DelegationInput {
         DelegationInput {
-            tenant, client_id, client_user_id, expires_at, created, updated
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// tenants:
-// ---------------------------------------------------------------------------
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-pub struct Tenant {
-    pub id: i32,
-    pub tenant: String,
-    pub enabled: bool,
-    pub created: DateTime<Utc>,
-    pub updated: DateTime<Utc>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TenantInput {
-    pub tenant: String,
-    pub enabled: bool,
-    pub key_hash: String,
-    pub created: DateTime<Utc>,
-    pub updated: DateTime<Utc>,
-}
-
-impl Tenant {
-    #[allow(dead_code, clippy::too_many_arguments)]
-    pub fn new(
-        id: i32,
-        tenant: String,
-        enabled: bool,
-        created: DateTime<Utc>,
-        updated: DateTime<Utc>,
-    ) 
-    -> Tenant {
-        Tenant {
-            id, tenant, enabled, created, updated
-        }
-    }
-}
-
-impl TenantInput {
-    #[allow(dead_code, clippy::too_many_arguments)]
-    pub fn new(
-        tenant: String,
-        enabled: bool,
-        key_hash: String,
-        created: DateTime<Utc>,
-        updated: DateTime<Utc>,
-    ) 
-    -> TenantInput {
-        TenantInput {
-            tenant, enabled, key_hash, created, updated
+            client_id, client_user_id, expires_at, created, updated
         }
     }
 }
@@ -437,7 +363,6 @@ impl TenantInput {
 #[allow(dead_code)]
 pub struct Host {
     pub id: i32,
-    pub tenant: String,
     pub host: String,
     pub addr: String,
     pub created: DateTime<Utc>,
@@ -446,7 +371,6 @@ pub struct Host {
 
 #[derive(Debug, Deserialize)]
 pub struct HostInput {
-    pub tenant: String,
     pub host: String,
     pub addr: String,
     pub created: DateTime<Utc>,
@@ -457,7 +381,6 @@ impl Host {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
         id: i32,
-        tenant: String,
         host: String,
         addr: String,
         created: DateTime<Utc>,
@@ -465,7 +388,7 @@ impl Host {
     ) 
     -> Host {
         Host {
-            id, tenant, host, addr, created, updated
+            id, host, addr, created, updated
         }
     }
 }
@@ -473,7 +396,6 @@ impl Host {
 impl HostInput {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub fn new(
-        tenant: String,
         host: String,
         addr: String,
         created: DateTime<Utc>,
@@ -481,7 +403,7 @@ impl HostInput {
     ) 
     -> HostInput {
         HostInput {
-            tenant, host, addr, created, updated
+            host, addr, created, updated
         }
     }
 }
@@ -495,7 +417,6 @@ pub struct Reservation {
     pub id: i32,
     pub resid: String,
     pub parent_resid: String,
-    pub tenant: String,
     pub client_id: String,
     pub client_user_id: String,
     pub host: String,
@@ -509,7 +430,6 @@ pub struct Reservation {
 pub struct ReservationInput {
     pub resid: String,
     pub parent_resid: String,
-    pub tenant: String,
     pub client_id: String,
     pub client_user_id: String,
     pub host: String,
@@ -525,7 +445,6 @@ impl Reservation {
         id: i32,
         resid: String,
         parent_resid: String,
-        tenant: String,
         client_id: String,
         client_user_id: String,
         host: String,
@@ -536,7 +455,7 @@ impl Reservation {
     ) 
     -> Reservation {
         Reservation {
-            id, resid, parent_resid, tenant, client_id, client_user_id, host, 
+            id, resid, parent_resid, client_id, client_user_id, host,
             public_key_fingerprint, expires_at, created, updated
         }
     }
@@ -547,7 +466,6 @@ impl ReservationInput {
     pub fn new(
         resid: String,
         parent_resid: String,
-        tenant: String,
         client_id: String,
         client_user_id: String,
         host: String,
@@ -558,7 +476,7 @@ impl ReservationInput {
     ) 
     -> ReservationInput {
         ReservationInput {
-            resid, parent_resid, tenant, client_id, client_user_id, host,  
+            resid, parent_resid, client_id, client_user_id, host,
             public_key_fingerprint, expires_at, created, updated
         }
     }

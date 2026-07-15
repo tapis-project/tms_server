@@ -9,24 +9,23 @@ use crate::utils::db_statements::INSERT_CLIENTS;
 use crate::utils::db_types::ClientInput; 
 use crate::utils::config::{DB_TRUE, NEW_CLIENTS_DISALLOW};
 use crate::utils::tms_utils::{self, create_hex_secret, hash_hex_secret, timestamp_utc, timestamp_utc_to_str, 
-                              RequestDebug, validate_semver, check_tenant_enabled};
+                              RequestDebug, validate_semver};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
 
 // ***************************************************************************
-//                          Request/Response Definiions
+//                          Request/Response Definitions
 // ***************************************************************************
 pub struct CreateClientApi;
 
 // ***************************************************************************
-//                          Request/Response Definiions
+//                          Request/Response Definitions
 // ***************************************************************************
 #[derive(Object)]
 pub struct ReqCreateClient
 {
     client_id: String,
-    tenant: String,
     app_name: String,
     app_version: String,
 }
@@ -48,8 +47,6 @@ impl RequestDebug for ReqCreateClient {
         s.push_str("  Request body:");
         s.push_str("\n    client_id: ");
         s.push_str(&self.client_id);
-        s.push_str("\n    tenant: ");
-        s.push_str(&self.tenant);
         s.push_str("\n    app_name: ");
         s.push_str(&self.app_name);
         s.push_str("\n    app_version: ");
@@ -116,11 +113,6 @@ impl RespCreateClient {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
-        // -------------------- Validate Tenant ------------------------
-        if !check_tenant_enabled(&req.tenant).await {
-            return Ok(make_http_400("Tenant not enabled.".to_string()));
-        }
-
         // -------------------- Client Creation Check ------------------
         // Client creation is disabled if we are running in MVP mode because of the
         // security implications of automating user/host mappings, client delegations 
@@ -153,7 +145,6 @@ impl RespCreateClient {
 
         // Create the input record. Note we save the hash of the hex secret, but never the secret.
         let input_record = ClientInput::new(
-            req.tenant.clone(),
             req.app_name.clone(),
             req.app_version.clone(),
             req.client_id.clone(),
@@ -165,8 +156,8 @@ impl RespCreateClient {
 
         // Insert the new key record.
         insert_new_client(input_record).await?;
-        info!("Client '{}' created for application '{}:{}' in tenant '{}'.", 
-              req.client_id, req.app_name, req.app_version, req.tenant);
+        info!("Client '{}' created for application '{}:{}'.",
+              req.client_id, req.app_name, req.app_version);
         
         // Return the secret represented in hex.
         Ok(make_http_201(Self::new("0", "success", req.client_id.clone(), client_secret_str)))
@@ -187,7 +178,6 @@ async fn insert_new_client(rec: ClientInput) -> Result<u64> {
     
     // Create the insert statement.
     let result = sqlx::query(INSERT_CLIENTS)
-        .bind(rec.tenant)
         .bind(rec.app_name)
         .bind(rec.app_version)
         .bind(rec.client_id)
