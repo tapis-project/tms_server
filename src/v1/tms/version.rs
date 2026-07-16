@@ -10,7 +10,7 @@ use log::error;
 const TMS_VERSION: Option<&str> = option_env!("CARGO_PKG_VERSION");
 
 // ***************************************************************************
-//                          Request/Response Definiions
+//                          Request/Response Definitions
 // ***************************************************************************
 pub struct VersionApi;
 

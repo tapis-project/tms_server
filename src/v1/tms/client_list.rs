@@ -15,12 +15,12 @@ use log::error;
 use crate::RUNTIME_CTX;
 
 // ***************************************************************************
-//                          Request/Response Definiions
+//                          Request/Response Definitions
 // ***************************************************************************
 pub struct ListClientApi;
 
 // ***************************************************************************
-//                          Request/Response Definiions
+//                          Request/Response Definitions
 // ***************************************************************************
 #[derive(Object)]
 struct ReqListClient

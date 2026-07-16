@@ -22,7 +22,6 @@ use log::{error, debug, LevelFilter};
 
 use crate::utils::db_statements::PLACEHOLDER;
 use crate::utils::authz::{AuthzResult, AuthzTypes};
-use crate::utils::db::is_tenant_enabled;
 
 // ----------- Constants
 // The chrono library's MAX_UTC causes overflow during string conversions because year is more
@@ -356,20 +355,6 @@ pub fn sql_substitute_client_constraint(sql_query: &str, authz_result: &AuthzRes
 
     // Return the template after substitution.
     sql_query.replace(PLACEHOLDER, replacement.as_str())    
-}
-
-// ---------------------------------------------------------------------------
-// check_tenant_enabled:
-// ---------------------------------------------------------------------------
-/** Wrapper for the actual database call that handles errors and logging. */
-pub async fn check_tenant_enabled(tenant: &String) -> bool {
-    match is_tenant_enabled(tenant).await {
-        Ok(enabled) => enabled,
-        Err(e) => {
-            error!("Unable to determine if tenant '{}' is enabled: {}", tenant, e);
-            false
-        }
-    }
 }
 
 // ***************************************************************************

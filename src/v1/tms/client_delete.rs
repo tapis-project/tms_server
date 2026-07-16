@@ -13,12 +13,12 @@ use log::{error, info};
 use crate::RUNTIME_CTX;
 
 // ***************************************************************************
-//                          Request/Response Definiions
+//                          Request/Response Definitions
 // ***************************************************************************
 pub struct DeleteClientApi;
 
 // ***************************************************************************
-//                          Request/Response Definiions
+//                          Request/Response Definitions
 // ***************************************************************************
 #[derive(Object)]
 pub struct ReqDeleteClient
