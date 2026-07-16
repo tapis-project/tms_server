@@ -87,7 +87,7 @@ impl UpdateClientSecretApi {
     #[oai(path = "/tms/client/secret/:client_id", method = "patch")]
     async fn update_client(&self, http_req: &Request, client_id: Path<String>) -> TmsResponse {
         // Package the request parameters.
-        let req = ReqUpdateClientSecret {client_id: client_id.to_string(), tenant: hdr_tenant};
+        let req = ReqUpdateClientSecret {client_id: client_id.to_string()};
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.

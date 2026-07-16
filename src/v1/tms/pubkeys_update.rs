@@ -9,8 +9,8 @@ use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{SELECT_PUBKEY_FOR_UPDATE, UPDATE_MAX_USES, UPDATE_EXPIRES_AT};
-use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, calc_expires_at, check_tenant_enabled};
-use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
+use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, calc_expires_at};
+use crate::utils::authz::{authorize, AuthzTypes};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -27,7 +27,6 @@ pub struct UpdatePubkeyApi;
 pub struct ReqUpdatePubkey
 {
     client_id: String,
-    tenant: String,
     host: String,
     public_key_fingerprint: String,
     max_uses: Option<u32>,     // 0 disables usage
@@ -54,8 +53,6 @@ impl RequestDebug for ReqUpdatePubkey {
         s.push_str("  Request body:");
         s.push_str("\n    client_id: ");
         s.push_str(&self.client_id);
-        s.push_str("\n    tenant: ");
-        s.push_str(&self.tenant);
         s.push_str("\n    host: ");
         s.push_str(&self.host);
         s.push_str("\n    public_key_fingerprint: ");
@@ -122,33 +119,23 @@ impl UpdatePubkeyApi {
     #[oai(path = "/tms/pubkeys", method = "patch")]
     async fn update_client(&self, http_req: &Request, req: Json<ReqUpdatePubkey>) 
         -> TmsResponse {
-        // Check the required tenant header value.
-        match get_tenant_header(http_req) {
-            Ok(t) => t,
-            Err(e) => return make_http_400(e.to_string()),
-        };
-        
+
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
-        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
+        let allowed = [AuthzTypes::ClientOwn]; // TODO
         let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR NOT AUTHORIZED to update client {} in tenant {}.", req.client_id, req.tenant);
+            let msg = format!("ERROR NOT AUTHORIZED to update client {}.", req.client_id);
             error!("{}", msg);
             return make_http_401(msg);
         }
 
         // Make sure the request parms conform to the header values used for authorization.
-        if !authz_result.check_hdr_id(&req.client_id) || !authz_result.check_hdr_tenant(&req.tenant) {
-            let msg = format!("ERROR: FORBIDDEN - Payload parameters ({}@{}) differ from those in the request header.", 
-                                      req.client_id, req.tenant);
+        if !authz_result.check_hdr_id(&req.client_id) {
+            let msg = format!("ERROR: FORBIDDEN - Payload parameters ({}) differ from those in the request header.",
+                                      req.client_id);
             error!("{}", msg);
             return make_http_403(msg);
-        }
-
-        // Check tenant.
-        if !check_tenant_enabled(&req.tenant).await {
-            return make_http_400("Tenant not enabled.".to_string());
         }
 
         // -------------------- Process Request ----------------------
@@ -247,7 +234,6 @@ async fn update_pubkey(req: &ReqUpdatePubkey) -> Result<u64> {
     // Create the select statement.
     let result = sqlx::query(SELECT_PUBKEY_FOR_UPDATE)
         .bind(&req.client_id)
-        .bind(&req.tenant)
         .bind(&req.host)
         .bind(&req.public_key_fingerprint)
         .fetch_optional(&mut *tx)
@@ -279,7 +265,6 @@ async fn update_pubkey(req: &ReqUpdatePubkey) -> Result<u64> {
             .bind(remaining_uses)
             .bind(&current_ts)
             .bind(&req.client_id)
-            .bind(&req.tenant)
             .bind(&req.host)
             .bind(&req.public_key_fingerprint)
             .execute(&mut *tx)
@@ -298,7 +283,6 @@ async fn update_pubkey(req: &ReqUpdatePubkey) -> Result<u64> {
             .bind(expires_at)
             .bind(&current_ts)
             .bind(&req.client_id)
-            .bind(&req.tenant)
             .bind(&req.host)
             .bind(&req.public_key_fingerprint)
             .execute(&mut *tx)

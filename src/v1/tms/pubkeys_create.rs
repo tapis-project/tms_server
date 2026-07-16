@@ -167,7 +167,7 @@ impl RespNewSshKeys {
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
-        let allowed = [AuthzTypes::ClientOwn]; // TODO
+        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin]; // TODO
         let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED Credential mismatch for client {}.",
@@ -283,7 +283,7 @@ impl RespNewSshKeys {
 
         // Insert the new key record.
         insert_new_key(input_record).await?;
-        info!("A key of type '{}' created for '{}@{}' for host '{}' expires at {} and has {} remaining uses.", 
+        info!("A key of type '{}' created for '{}' for host '{}' expires at {} and has {} remaining uses.", 
             keyinfo.key_type.clone(), req.client_user_id, req.host, expires_at, remaining_uses);
 
         // Success! Zero key bits means a fixed key length.

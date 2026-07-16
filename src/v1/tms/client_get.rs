@@ -7,7 +7,9 @@ use chrono::{ DateTime, Utc};
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
+use crate::utils::authz::{authorize, AuthzTypes};
 use crate::utils::db_statements::GET_CLIENT;
+use crate::utils::tms_utils::{self, RequestDebug};
 use crate::utils::db_types::Client;
 use log::error;
 
@@ -111,7 +113,7 @@ impl GetClientApi {
 
         // Make sure the path parms conform to the header values used for authorization.
         if !authz_result.check_hdr_id(&req.client_id) {
-            let msg = format!("ERROR: FORBIDDEN - Path parameters ({}@{}) differ from those in the request header.", 
+            let msg = format!("ERROR: FORBIDDEN - Path parameters ({}) differ from those in the request header.",
                                       req.client_id);
             error!("{}", msg);
             return make_http_403(msg);        }
@@ -135,7 +137,7 @@ impl GetClientApi {
 impl RespGetClient {
     /// Create a new response.
     #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: String, id: i32,, app_name: String,
+    fn new(result_code: &str, result_msg: String, id: i32, app_name: String,
             app_version: String, client_id: String, enabled: bool, created: DateTime<Utc>, updated: DateTime<Utc>)
     -> Self {
             Self {result_code: result_code.to_string(), result_msg, 
@@ -189,7 +191,7 @@ async fn get_client(req: &ReqGetClient) -> Result<Client> {
     match result {
         Some(row) => {
             Ok(Client::new(row.get(0), row.get(1), row.get(2), row.get(3), row.get(4),
-                           row.get(5), row.get(6), row.get(7), row.get(8)))
+                           row.get(5), row.get(6), row.get(7)))
         },
         None => {
             Err(anyhow!("NOT_FOUND"))

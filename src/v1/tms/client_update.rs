@@ -99,8 +99,7 @@ impl UpdateClientApi {
         // Package the request parameters. The difference in query parameter processing
         // is because Option<String> does not implement the copy trait, but Option<bool> does.
         let req = 
-            ReqUpdateClient {client_id: client_id.to_string(), tenant: hdr_tenant, 
-                             app_version: app_version.clone(), enabled: *enabled};
+            ReqUpdateClient {client_id: client_id.to_string(), app_version: app_version.clone(), enabled: *enabled};
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.

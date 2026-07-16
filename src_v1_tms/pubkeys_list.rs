@@ -14,6 +14,14 @@ use log::error;
 
 use crate::RUNTIME_CTX;
 
+
+/*
+  TODO/TBD Even though we do want the pubkey related endpoints to stay in the server rather than move to
+   the portal, for now moving this one from src/v1/tms to src_v1_tms.
+   Looks like it may never have been tested. For one thing, it looks like it is fetching all pubkeys
+   for a tenant rather than all pubkeys for a specific client in a tenant.
+   Also, listing all pubkeys may never be needed or advisable.
+ */
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************

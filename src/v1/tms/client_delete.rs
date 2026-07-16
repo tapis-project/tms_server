@@ -85,7 +85,7 @@ impl DeleteClientApi {
     #[oai(path = "/tms/client/del/:client_id", method = "delete")]
     async fn delete_client(&self, http_req: &Request, client_id: Path<String>) -> TmsResponse {
         // Package the request parameters.
-        let req = ReqDeleteClient {client_id: client_id.to_string(), tenant: hdr_tenant};
+        let req = ReqDeleteClient {client_id: client_id.to_string()};
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.

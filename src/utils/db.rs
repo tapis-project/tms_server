@@ -9,16 +9,16 @@ use sqlx::Row;
 use futures::executor::block_on;
 use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime,
                               create_hex_secret, hash_hex_secret, MAX_TMS_UTC_STR};
-use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_STD_TENANTS, INSERT_USER_HOSTS, INSERT_USER_MFA};
-use crate::utils::config::{DEFAULT_TENANT, TEST_TENANT, DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_CMD_ARGS, DB_TRUE};
+use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_USER_HOSTS, INSERT_USER_MFA};
+use crate::utils::config::{DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_CMD_ARGS, DB_TRUE};
 use log::error;
 
 use crate::RUNTIME_CTX;
 
 use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RESERVATION_FOR_EXTEND,
                            GET_USER_HOST_ACTIVE, GET_USER_HOST_EXISTS, GET_USER_MFA_ACTIVE,
-                           GET_USER_MFA_EXISTS, INSERT_ADMIN, INSERT_CLIENTS, IS_TENANT_ENABLED,
-                           SELECT_PUBKEY_HOST_ACCOUNT, UPDATE_TENANTS_ENABLED_INTERNAL};
+                           GET_USER_MFA_EXISTS, INSERT_ADMIN, INSERT_CLIENTS,
+                           SELECT_PUBKEY_HOST_ACCOUNT};
 
 /** Multiple Query Transactions
  * 
@@ -33,73 +33,6 @@ use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RES
  * tables in a different order, which could lead to conflicts and deadlocks.
 */
 
-
- // ---------------------------------------------------------------------------
-// create_std_tenants:
-// ---------------------------------------------------------------------------
-/** This method should only be called when the --install option is specified.  
- * It's a no-op if called during regular execution.
- */
-pub async fn create_std_tenants() -> Result<u64> {
-    // Guard against repeated initialization of standard tenants and admins.
-    if !TMS_CMD_ARGS.install {
-        return Ok(0);
-    }
-
-    // Get the timestamp string.
-    let now = timestamp_utc();
-
-    // Get a connection to the db and start a transaction.
-    let mut tx = RUNTIME_CTX.db.begin().await?;
-
-    // -------- Insert the two standard tenants.
-    let dft_result = sqlx::query(INSERT_STD_TENANTS)
-        .bind(DEFAULT_TENANT)
-        .bind(&DB_TRUE)
-        .execute(&mut *tx)
-        .await?;
-    let tst_result = sqlx::query(INSERT_STD_TENANTS)
-        .bind(TEST_TENANT)
-        .bind(&DB_TRUE)
-        .execute(&mut *tx)
-        .await?;
-
-    // Create admin user ids.
-    let dft_key_str = create_hex_secret();
-    let dft_key_hash = hash_hex_secret(&dft_key_str);
-    let _dft_admin_result = sqlx::query(INSERT_ADMIN)
-        .bind(DEFAULT_TENANT)
-        .bind(DEFAULT_ADMIN_ID)
-        .bind(&dft_key_hash)
-        .bind(PERM_ADMIN)
-        .bind(now)
-        .bind(now)
-        .execute(&mut *tx)
-        .await?;
-
-    let tst_key_str = create_hex_secret();
-    let tst_key_hash = hash_hex_secret(&tst_key_str);
-    let _tst_admin_result = sqlx::query(INSERT_ADMIN)
-        .bind(TEST_TENANT)
-        .bind(DEFAULT_ADMIN_ID)
-        .bind(&tst_key_hash)
-        .bind(PERM_ADMIN)
-        .bind(now)
-        .bind(now)
-        .execute(&mut *tx)
-        .await?;
-
-    // Commit the transaction.
-    tx.commit().await?;
-
-    // --- MOST IMPORTANT ---
-    // One time printout of the admin secrets for the two tenants.
-    print_admin_secret_message(&dft_key_str, &tst_key_str)?;
-
-    // Return the number of tenant insertions that took place.
-    Ok(dft_result.rows_affected() + tst_result.rows_affected())
-}
-
 // ---------------------------------------------------------------------------
 // print_admin_secret_message:
 // ---------------------------------------------------------------------------
@@ -113,26 +46,22 @@ fn print_admin_secret_message(dft_key_str: &String, tst_key_str: &String) -> Res
     let prefix = concat!(
         "\n***************************************************************************",
         "\n***************************************************************************",
-        "\n**** Below are the administrator user IDs and passwords for the        ****",
-        "\n**** standard tenants created at installation time.  The passwords are ****",
-        "\n**** NOT saved by TMS, only hashes of them are saved.  Please store    ****",
-        "\n**** the passwords permanently in a safe place accessible to TMS       ****",
-        "\n**** administrators.                                                   ****",
+        "\n**** Below please find the administrator user ID and password created  ****",
+        "\n**** at installation time.                                             ****",
         "\n****                                                                   ****",
-        "\n****        THIS IS THE ONLY TIME THESE PASSWORDS ARE SHOWN.           ****",
+        "\n**** WARNING: The passwords are NOT saved by TMS, only hashes of them  ****",
+        "\n**** are saved. Please store the passwords permanently in a safe place ****",
+        "\n**** accessible to TMS administrators.                                 ****",
         "\n****                                                                   ****",
-        "\n****      THE PASSWORDS ARE NOT RECOVERABLE IF THEY ARE LOST!          ****",
+        "\n****        THIS IS THE ONLY TIME THE PASSWORD IS SHOWN.               ****",
+        "\n****                                                                   ****",
+        "\n****      ADMIN PASSWORDS ARE NOT RECOVERABLE IF THEY ARE LOST!        ****",
         "\n****                                                                   ****");
 
     // Add the runtime suffix.
-    let msg = prefix.to_string() +     
-        "\n**** Tenant: " + DEFAULT_TENANT + "                                                   ****" +
+    let msg = prefix.to_string() +
         "\n**** Administrator ID: " + DEFAULT_ADMIN_ID + "                                         ****" +
         "\n**** Password: " + dft_key_str + "        ****" +
-        "\n****                                                                   ****" +
-        "\n**** Tenant: " + TEST_TENANT + "                                                      ****" +
-        "\n**** Administrator ID: " + DEFAULT_ADMIN_ID + "                                         ****" +
-        "\n**** Password: " + tst_key_str + "        ****" +
         "\n****                                                                   ****" +
         "\n***************************************************************************" +
         "\n***************************************************************************\n\n";
@@ -146,15 +75,12 @@ fn print_admin_secret_message(dft_key_str: &String, tst_key_str: &String) -> Res
 // check_test_data:
 // ---------------------------------------------------------------------------
 pub fn check_test_data() {
-    // Assume we are initializing for the first time and need
-    // to populate the test tenant with some dummy data.
+    // Assume we are initializing for the first time and need to create dummy test data.
     match block_on(create_test_data()) {
         Ok(b) => {
-            if b {info!("Test records inserted into test tenant.");} 
+            if b {info!("Test records inserted");}
         }
-        Err(e) => {
-            warn!("****** Ignoring error while inserting test records into test tenant: {}", e);
-        }
+        Err(e) => {warn!("****** Ignoring error while inserting test records. Error: {}", e);}
     };
 }
 
@@ -183,7 +109,6 @@ async fn create_test_data() -> Result<bool> {
 
     // -------- Populate clients
     sqlx::query(INSERT_CLIENTS)
-        .bind(TEST_TENANT)
         .bind(TEST_APP)
         .bind(TEST_APP_VERS)
         .bind(TEST_CLIENT)
@@ -196,7 +121,6 @@ async fn create_test_data() -> Result<bool> {
 
     // -------- Populate user_mfa
     sqlx::query(INSERT_USER_MFA)
-        .bind(TEST_TENANT)
         .bind(TEST_USER)
         .bind(max_tms_utc)
         .bind(DB_TRUE)
@@ -207,7 +131,6 @@ async fn create_test_data() -> Result<bool> {
 
         // -------- Populate user_hosts
     sqlx::query(INSERT_USER_HOSTS)
-        .bind(TEST_TENANT)
         .bind(TEST_USER)
         .bind(TEST_HOST)
         .bind(TEST_HOST_ACCOUNT)
@@ -219,7 +142,6 @@ async fn create_test_data() -> Result<bool> {
 
     // -------- Populate delegations
     sqlx::query(INSERT_DELEGATIONS)
-        .bind(TEST_TENANT)
         .bind(TEST_CLIENT)
         .bind(TEST_USER)
         .bind(max_tms_utc)
@@ -250,9 +172,8 @@ async fn create_test_data() -> Result<bool> {
  * Note that message that contains "INTERNAL ERROR:" should trigger a 500 http 
  * return code.
  */
-pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String, 
-                                        client_user_id: &String, host: &String, 
-                                        host_account: &String)
+pub async fn check_pubkey_dependencies(client_id: &String, client_user_id: &String,
+                                       host: &String, host_account: &String)
     -> Result<()>
 {
     // Get a connection to the db and start a transaction.
@@ -261,7 +182,6 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
     // -------- Check user_mfa dependency
     let mfa_row = sqlx::query(GET_USER_MFA_ACTIVE)
         .bind(client_user_id)
-        .bind(tenant)
         .fetch_optional(&mut *tx)
         .await?;
 
@@ -273,23 +193,22 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
 
             // Check whether the user's mfa is enabled.
             if enabled != DB_TRUE {
-                let msg = format!("Required user MFA record for user ID {} in tenant {} is disabled.",
-                                          client_user_id, tenant);
+                let msg = format!("Required user MFA record for user ID {} is disabled.",
+                                          client_user_id);
                 error!("{}", msg);
                 return Result::Err(anyhow!(msg));
             }
 
             // Check whether the mfa has expired.
             if expires_at < timestamp_utc() {
-                let msg = format!("Required user MFA record for user ID '{}' in tenant {} expired at {}.",
-                                          client_user_id, tenant, expires_at);
+                let msg = format!("Required user MFA record for user ID '{}' expired at {}.",
+                                          client_user_id, expires_at);
                 error!("{}", msg);
                 return Result::Err(anyhow!(msg));
             }
         },
         None => {
-            let msg = format!("Required user MFA record not found for user ID {} in tenant {}.",
-                                      client_user_id, tenant);
+            let msg = format!("Required user MFA record not found for user ID {}.", client_user_id);
             error!("{}", msg);
             return Result::Err(anyhow!(msg));
         }
@@ -298,7 +217,6 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
     // -------- Check user_hosts dependency
     let host_row = sqlx::query(GET_USER_HOST_ACTIVE)
         .bind(client_user_id)
-        .bind(tenant)
         .bind(host)
         .bind(host_account)
         .fetch_optional(&mut *tx)
@@ -311,15 +229,15 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
     
                 // Check whether the user host mapping has expired.
                 if expires_at < timestamp_utc() {
-                    let msg = format!("Required user host record for user {}@{} with account {} on host {} expired at {}.",
-                                              client_user_id, tenant, host_account, host, expires_at);
+                    let msg = format!("Required user host record for user {} with account {} on host {} expired at {}.",
+                                              client_user_id, host_account, host, expires_at);
                     error!("{}", msg);
                     return Result::Err(anyhow!(msg));
                 }
             },
             None => {
-                let msg = format!("Required user host record not found for user {}@{} with account {} on host {}.",
-                                          client_user_id, tenant, host_account, host);
+                let msg = format!("Required user host record not found for user {} with account {} on host {}.",
+                                          client_user_id, host_account, host);
                 error!("{}", msg);
                 return Result::Err(anyhow!(msg));
             }
@@ -327,7 +245,6 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
     
     // -------- Check delegations dependency
     let delg_row = sqlx::query(GET_DELEGATION_ACTIVE)
-        .bind(tenant)
         .bind(client_id)
         .bind(client_user_id)
         .fetch_optional(&mut *tx)
@@ -341,15 +258,14 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
                 // Check whether the delegation has expired.
                 if expires_at < timestamp_utc() {
                     let msg = format!("Required delegation record for client {} and client_user_id {} \
-                                              in tenant {} expired at {}.",
-                                              client_id, client_user_id, tenant, expires_at);
+                                              in expired at {}.", client_id, client_user_id, expires_at);
                     error!("{}", msg);
                     return Result::Err(anyhow!(msg));
                 }
             },
             None => {
-                let msg = format!("Required delegation record not found for client {} and client_user_id {} in tenant {}.",
-                                          client_id, client_user_id, tenant);
+                let msg = format!("Required delegation record not found for client {} and client_user_id {}.",
+                                          client_id, client_user_id);
                 error!("{}", msg);
                 return Result::Err(anyhow!(msg));
             }
@@ -395,17 +311,15 @@ pub async fn check_pubkey_dependencies(tenant: &String, client_id: &String,
  * 
  * Parameters
  * ----------
- * The resid parameter designates the candidate parent reservation for a new extended
- * reservation.  The tenant and client_id are used to guarantee that clients can only
- * extend their own reservations.  The client_user_id specifies a user known in the 
- * tenant.  The host specifies the where the public key represented by the 
- * public_key_fingerprint can be applied. 
+ * The resid parameter designates the candidate parent reservation for a new extended reservation.
+ * The client_id are used to guarantee that clients can only extend their own reservations.
+ * The host specifies the where the public key represented by the public_key_fingerprint can be applied.
  *   
  * Note that message that contains "INTERNAL ERROR:" should trigger a 500 http 
  * return code.
  */
-pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id: &String,
-                                      client_user_id: &String, host: &String, public_key_fingerprint: &String) 
+pub async fn check_parent_reservation(resid: &String, client_id: &String, client_user_id: &String,
+                                      host: &String, public_key_fingerprint: &String)
 -> Result<DateTime<Utc>>
 {
     // Get a connection to the db and start a transaction.
@@ -414,7 +328,6 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
     // -------- Check reservations dependency
     let res_row = sqlx::query(GET_RESERVATION_FOR_EXTEND)
         .bind(resid)
-        .bind(tenant)
         .bind(client_id)
         .fetch_optional(&mut *tx)
         .await?;
@@ -441,15 +354,15 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
 
             // Check whether the reservation has expired.
             if expires_at < timestamp_utc() {
-                let msg = format!("Parent reservation {} for client {} in tenant {} expired at {}.",
-                                            resid, client_id, tenant, expires_at);
+                let msg = format!("Parent reservation {} for client {} expired at {}.",
+                                            resid, client_id, expires_at);
                 error!("{}", msg);
                 return Result::Err(anyhow!(msg));
             }
         },
         None => {
-            let msg = format!("NOT_FOUND: Reservation {} not found for client {} in tenant {}.",
-                                        resid, client_id, tenant);
+            let msg = format!("NOT_FOUND: Reservation {} not found for client {}.",
+                                        resid, client_id);
             error!("{}", msg);
             return Result::Err(anyhow!(msg));
         }
@@ -458,14 +371,12 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
     // -------- Check user_mfa dependency
     let mfa_row = sqlx::query(GET_USER_MFA_EXISTS)
         .bind(client_user_id)
-        .bind(tenant)
         .fetch_optional(&mut *tx)
         .await?;
     match mfa_row {
         Some(_) => (),
         None => {
-            let msg = format!("No MFA entry found for user {} in tenant {} .",
-                                        client_user_id, tenant);
+            let msg = format!("No MFA entry found for user {}.", client_user_id);
             error!("{}", msg);
             return Result::Err(anyhow!(msg));
         }
@@ -475,7 +386,6 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
     // First get host account.
     let pkey_row = sqlx::query(SELECT_PUBKEY_HOST_ACCOUNT)
         .bind(client_id)
-        .bind(tenant)
         .bind(host)
         .bind(public_key_fingerprint)
         .fetch_optional(&mut *tx)
@@ -483,8 +393,8 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
     let host_account: String = match pkey_row {
         Some(h) => h.get(0),
         None => {
-            let msg = format!("Unable to retrieve host account from pubkey record for client {}@{} on host {} with fingerprint {}.",
-                                        client_id, tenant, host, public_key_fingerprint);
+            let msg = format!("Unable to retrieve host account from pubkey record for client {} on host {} with fingerprint {}.",
+                                        client_id, host, public_key_fingerprint);
             error!("{}", msg);
             return Result::Err(anyhow!(msg));
         }    
@@ -492,7 +402,6 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
 
     let host_row = sqlx::query(GET_USER_HOST_EXISTS)
         .bind(client_user_id)
-        .bind(tenant)
         .bind(host)
         .bind(&host_account)
         .fetch_optional(&mut *tx)
@@ -500,8 +409,8 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
     match host_row {
         Some(_) => (),
         None => {
-            let msg = format!("No user/host mapping found for user {}@{} for account {} on host {}.",
-                                        client_user_id, tenant, host_account, host);
+            let msg = format!("No user/host mapping found for user {} for account {} on host {}.",
+                                        client_user_id, host_account, host);
             error!("{}", msg);
             return Result::Err(anyhow!(msg));
         }
@@ -509,7 +418,6 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
 
     // -------- Check delegation dependency
     let delg_row = sqlx::query(GET_DELEGATION_EXISTS)
-        .bind(tenant)
         .bind(client_id)
         .bind(client_user_id)
         .fetch_optional(&mut *tx)
@@ -517,8 +425,7 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
     match delg_row {
         Some(_) => (),
         None => {
-            let msg = format!("No delegation to client {} found for user {} in tenant {}.",
-                                        client_id, client_user_id, tenant);
+            let msg = format!("No delegation to client {} found for user {}.", client_id, client_user_id);
             error!("{}", msg);
             return Result::Err(anyhow!(msg));
         }
@@ -529,56 +436,4 @@ pub async fn check_parent_reservation(resid: &String, tenant: &String, client_id
 
     // All checks passed.
     Ok(expires_at)
-}
-
-// ---------------------------------------------------------------------------
-// set_tenant_enabled_internal:
-// ---------------------------------------------------------------------------
-pub async fn set_tenant_enabled_internal(tenant: &String, enabled: bool) -> Result<u64>
-{
-    // Get a connection to the db and start a transaction.
-    let mut tx = RUNTIME_CTX.db.begin().await?;
-
-    // Update count.
-    let mut updates: u64 = 0;
-
-    // Issue the db update call.
-    let result = sqlx::query(UPDATE_TENANTS_ENABLED_INTERNAL)
-        .bind(enabled)
-        .bind(tenant)
-        .execute(&mut *tx)
-        .await?;
-    updates += result.rows_affected();
-
-    // Commit the transaction.
-    tx.commit().await?;
-    Ok(updates)
-}
-
-// ---------------------------------------------------------------------------
-// is_tenant_enabled:
-// ---------------------------------------------------------------------------
-pub async fn is_tenant_enabled(tenant: &String) -> Result<bool>
-{
-    // Get a connection to the db and start a transaction.
-    let mut tx = RUNTIME_CTX.db.begin().await?;
-
-    // Select the tenant's enabled flag value.
-    let result = sqlx::query(IS_TENANT_ENABLED)
-        .bind(tenant)
-        .fetch_optional(&mut *tx)
-        .await?;
-
-    // Commit the transaction.
-    tx.commit().await?;
-
-    // We may have found the tenant.
-    match result {
-        Some(row) => {
-            Ok(row.get(0))
-        },
-        None => {
-            Err(anyhow!("NOT_FOUND"))
-        },
-    }
 }

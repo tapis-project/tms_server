@@ -6,7 +6,7 @@ use anyhow::Result;
 
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::DELETE_PUBKEY;
-use crate::utils::tms_utils::{self, RequestDebug, check_tenant_enabled};
+use crate::utils::tms_utils::{self, RequestDebug};
 use crate::utils::authz::{authorize, AuthzTypes};
 use log::{error, info};
 
@@ -24,7 +24,6 @@ pub struct DeletePubkeysApi;
 pub struct ReqDeletePubkey
 {
     client_id: String,
-    tenant: String,
     host: String,
     public_key_fingerprint: String,
 }
@@ -45,8 +44,6 @@ impl RequestDebug for ReqDeletePubkey {
         s.push_str("  Request body:");
         s.push_str("\n    client_id: ");
         s.push_str(&self.client_id);
-        s.push_str("\n    tenant: ");
-        s.push_str(&self.tenant);
         s.push_str("\n    host: ");
         s.push_str(&self.host);
         s.push_str("\n    public_key_fingerprint: ");
@@ -95,25 +92,20 @@ impl DeletePubkeysApi {
     async fn delete_pubkey_api(&self, http_req: &Request, req: Json<ReqDeletePubkey>) -> TmsResponse {
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can access a pubkeys record.
-        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin];
+        let allowed = [AuthzTypes::ClientOwn]; // TODO
         let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to delete public key {} in tenant {}.", req.client_id, req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to delete public key {}.", req.client_id);
             error!("{}", msg);
             return make_http_401(msg);
         }
 
         // Make sure the request parms conform to the header values used for authorization.
-        if !authz_result.check_hdr_id(&req.client_id) || !authz_result.check_hdr_tenant(&req.tenant) {
-            let msg = format!("ERROR: NOT AUTHORIZED - Payload parameters ({}@{}) differ from those in the request header.", 
-                                      req.client_id, req.tenant);
+        if !authz_result.check_hdr_id(&req.client_id) {
+            let msg = format!("ERROR: NOT AUTHORIZED - Payload parameters ({}) differ from those in the request header.",
+                                      req.client_id);
             error!("{}", msg);
             return make_http_403(msg);
-        }
-
-        // Check tenant.
-        if !check_tenant_enabled(&req.tenant).await {
-            return make_http_400("Tenant not enabled.".to_string());
         }
 
         // -------------------- Process Request ----------------------
@@ -173,7 +165,6 @@ async fn delete_pubkey(req: &ReqDeletePubkey) -> Result<u64> {
     // Issue the db delete call.
     let result = sqlx::query(DELETE_PUBKEY)
         .bind(&req.client_id)
-        .bind(&req.tenant)
         .bind(&req.host)
         .bind(&req.public_key_fingerprint)
         .execute(&mut *tx)

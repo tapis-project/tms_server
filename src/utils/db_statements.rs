@@ -3,41 +3,6 @@
 
 pub const PLACEHOLDER: &str = "${PLACEHOLDER}";
 
-// ========================= tenants table =========================
-pub const INSERT_STD_TENANTS: &str = concat!(
-    "INSERT INTO tenants (tenant, enabled) ",
-    "VALUES ($1, $2) ON CONFLICT DO NOTHING",
-);
-
-pub const INSERT_TENANT: &str = concat!(
-    "INSERT INTO tenants (tenant, enabled, created, updated) ",
-    "VALUES ($1, $2, $3, $4)",
-);
-
-pub const GET_TENANT: &str = concat!(
-    "SELECT id, tenant, enabled, created, updated ",
-    "FROM tenants WHERE tenant = $1"
-);
-
-// Secret elided.
-pub const LIST_TENANTS: &str = concat!(
-    "SELECT id, tenant, enabled, created, updated ",
-    "FROM tenants ORDER BY id",
-);
-
-pub const UPDATE_TENANTS_ENABLED: &str = concat!(
-    "UPDATE tenants SET enabled = $1, updated = $2 WHERE tenant = $3"
-);
-
-// Used to enforce enable_test_tenant configuation value at start up.
-pub const UPDATE_TENANTS_ENABLED_INTERNAL: &str = concat!(
-    "UPDATE tenants SET enabled = $1 WHERE tenant = $2"
-);
-
-pub const IS_TENANT_ENABLED: &str = concat!(
-    "SELECT enabled FROM tenants WHERE tenant = $1"
-);
-
 // ---------------- Start of Delete and Wipe Calls
 // The following DELETE calls are issued for delete and wipe calls. 
 // 

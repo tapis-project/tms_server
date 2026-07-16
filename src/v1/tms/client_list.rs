@@ -25,7 +25,6 @@ pub struct ListClientApi;
 #[derive(Object)]
 struct ReqListClient
 {
-    tenant: String,
 }
 
 #[derive(Object, Debug)]
@@ -93,8 +92,8 @@ impl ListClientApi {
     #[oai(path = "/tms/client/list", method = "get")]
     async fn get_clients(&self, http_req: &Request) -> TmsResponse {
         // Package the request parameters.
-        let req = ReqListClient {tenant: hdr_tenant};
-        
+        let req = ReqListClient {};
+
         // -------------------- Authorize ----------------------------
         // Only the tenant admin can query all client records; 
         // a client can query their own records.
@@ -181,9 +180,8 @@ async fn list_clients(authz_result: &AuthzResult, req: &ReqListClient) -> Result
     let mut element_list: Vec<ClientListElement> = vec!();
     for row in rows {
         let elem = ClientListElement::new(
-                 row.get(0), row.get(1), row.get(2), 
-        row.get(3), row.get(4), row.get(5), 
-            row.get(6), row.get(7));
+                 row.get(0), row.get(1), row.get(2), row.get(3),
+                 row.get(4), row.get(5), row.get(6));
         element_list.push(elem);
     }
 
