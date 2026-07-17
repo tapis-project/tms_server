@@ -102,7 +102,7 @@ impl GetClientApi {
         
         // -------------------- Authorize ----------------------------
         // Only the client can query a client record.
-        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin]; // TODO replace TenantAdmin with Admin?
+        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TmsAdmin];
         let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to view client {}.", req.client_id);

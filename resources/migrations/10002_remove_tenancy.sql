@@ -26,7 +26,7 @@ ALTER TABLE delegations ADD CONSTRAINT delegations_client_id_client_user_id_key 
 ALTER TABLE user_hosts ADD CONSTRAINT user_hosts_tms_user_id_host_host_account_key UNIQUE (tms_user_id, host, host_account);
 ALTER TABLE user_mfa ADD CONSTRAINT user_mfa_tms_user_id_key UNIQUE (tms_user_id);
 ALTER TABLE clients ADD CONSTRAINT clients_client_id UNIQUE (client_id);
-ALTER TABLE clients ADD CONSTRAINT clients_app_name_app_version_key UNIQUE (app_name,app_version);
+ALTER TABLE clients ADD CONSTRAINT clients_app_name UNIQUE (app_name);
 
 ------------------------------------------
 -- Update multi-column FKs
@@ -89,6 +89,14 @@ ALTER TABLE user_hosts DROP COLUMN tenant;
 ALTER TABLE user_mfa DROP COLUMN tenant;
 ALTER TABLE clients DROP COLUMN tenant;
 
+------------------------------------------
+-- Remove app_version column from table clients
+------------------------------------------
+ALTER TABLE clients DROP COLUMN app_version;
+ALTER TABLE admin DROP COLUMN tenant;
+ALTER TABLE reservations DROP COLUMN tenant;
+ALTER TABLE pubkeys DROP COLUMN tenant;
+ALTER TABLE delegations DROP COLUMN tenant;
 
 ------------------------------------------
 -- Last action is to drop the tenants table

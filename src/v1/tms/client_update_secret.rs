@@ -90,8 +90,8 @@ impl UpdateClientSecretApi {
         let req = ReqUpdateClientSecret {client_id: client_id.to_string()};
 
         // -------------------- Authorize ----------------------------
-        // Only the client and tenant admin can query a client record.
-        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TenantAdmin]; // TODO
+        // Only the client and admin can query a client record.
+        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TmsAdmin];
         let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR: NOT AUTHORIZED to update client {}.", req.client_id);

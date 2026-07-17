@@ -121,8 +121,8 @@ impl UpdatePubkeyApi {
         -> TmsResponse {
 
         // -------------------- Authorize ----------------------------
-        // Only the client and tenant admin can query a client record.
-        let allowed = [AuthzTypes::ClientOwn]; // TODO
+        // Only the client or admin can query
+        let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TmsAdmin];
         let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
             let msg = format!("ERROR NOT AUTHORIZED to update client {}.", req.client_id);

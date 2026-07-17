@@ -322,11 +322,9 @@ pub fn validate_semver(semver: &str) -> Result<bool> {
 // ---------------------------------------------------------------------------
 // sql_substitute_client_constraint:
 // ---------------------------------------------------------------------------
-/** Complete the sql select statement by substituting an appropriate value
- * for the placeholder text in the query template.  The substitution 
- * restricts the query to a specific client when the request was authorized 
- * using X_TMS_CLIENT_ID.  When authorized using a tenant admin, the record
- * created by any client in the tenant can be returned.
+/** Complete the sql select statement by substituting an appropriate value for the placeholder text
+ * in the query template. The substitution restricts the query to a specific client when the
+ * request was authorized using X_TMS_CLIENT_ID.
  * 
  * The sql_query is the template text into which a value is substituted 
  * for the placeholder.  The authz_result is the result of a prior authorize()

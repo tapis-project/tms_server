@@ -50,10 +50,6 @@ const DEFAULT_HTTP_ADDR    : &str = "https://localhost";
 const DEFAULT_HTTP_PORT    : u16  = 3000;
 const DEFAULT_SVR_URL      : &str = "https://localhost:3000/v1";
 
-// Tenants used in all installations.
-pub const DEFAULT_TENANT   : &str = "default";
-pub const TEST_TENANT      : &str = "test";
-
 // Admin table constants.
 #[allow(dead_code)]
 pub const ADMIN_ID_PREFIX  : &str = "~~"; // literal value repeated in next line
@@ -235,7 +231,6 @@ pub struct Config {
     pub http_addr: String,
     pub http_port: u16,
     pub enable_mvp: bool,
-    pub enable_test_tenant: bool,
     pub new_clients: String,
     pub server_urls: Vec<String>
 }
@@ -273,7 +268,6 @@ impl Default for Config {
             http_addr: DEFAULT_HTTP_ADDR.to_string(),
             http_port: DEFAULT_HTTP_PORT,
             enable_mvp: false,
-            enable_test_tenant: false,
             new_clients: DEFAULT_NEW_CLIENTS.to_string(),
             server_urls: vec![DEFAULT_SVR_URL.to_string()]
         }
@@ -745,7 +739,7 @@ fn init_authz_args() -> AuthzArgs {
     // Create and fill in the hashmap of authz specs.
     let mut args = AuthzArgs {specs: HashMap::new()};
     args.specs.insert(AuthzTypes::ClientOwn, client_spec);
-    args.specs.insert(AuthzTypes::TenantAdmin, admin_spec);
+    args.specs.insert(AuthzTypes::TmsAdmin, admin_spec);
     args
 }
 

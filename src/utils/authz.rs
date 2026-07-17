@@ -13,7 +13,6 @@ use crate::RUNTIME_CTX;
 //                          Constants and Enums
 // ***************************************************************************
 // Authorization headers.
-pub const X_TMS_TENANT:        &str = "X-TMS-TENANT";
 pub const X_TMS_ADMIN_ID:      &str = "X-TMS-ADMIN-ID";
 pub const X_TMS_ADMIN_SECRET:  &str = "X-TMS-ADMIN-SECRET";
 pub const X_TMS_CLIENT_ID:     &str = "X-TMS-CLIENT-ID";
@@ -24,7 +23,7 @@ pub const X_TMS_CLIENT_SECRET: &str = "X-TMS-CLIENT-SECRET";
 // AuthzArgs component of RUNTIME_CTX (see config.rs for details).
 #[derive(Debug, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
-pub enum AuthzTypes {ClientOwn, TenantAdmin, TmsctlHost, UserOwn}
+pub enum AuthzTypes {ClientOwn, TmsAdmin, TmsctlHost, UserOwn}
 
 // ***************************************************************************
 //                            Result Struct
@@ -33,44 +32,29 @@ pub enum AuthzTypes {ClientOwn, TenantAdmin, TmsctlHost, UserOwn}
 pub struct AuthzResult {
     pub authorized: bool,
     pub authz_type: Option<AuthzTypes>,
-    pub hdr_id: Option<String>,
-    pub hdr_tenant: Option<String>,
+    pub hdr_id: Option<String>
 }
 
 impl AuthzResult {
     // Complete authorized result.
     fn new_authorized( 
            authz_type: AuthzTypes,
-           hdr_id: String,
-           hdr_tenant: String) -> Self
+           hdr_id: String) -> Self
     {
         Self {authorized: true, authz_type: Option::Some(authz_type), 
-              hdr_id: Option::Some(hdr_id), hdr_tenant: Option::Some(hdr_tenant)}
+              hdr_id: Option::Some(hdr_id)}
     }
 
     // Complete unauthorized result.
     fn new_unauthorized() -> Self {
          Self {authorized: false, authz_type: Option::None, 
-               hdr_id: Option::None, hdr_tenant: Option::None}
+               hdr_id: Option::None}
      }
      
     pub fn is_authorized(&self) -> bool {
         self.authorized
     }
 
-    /** Check that the tenant value in the request is the same as the 
-     * header tenant value.
-     */
-    pub fn check_hdr_tenant(&self, req_tenant: &String) -> bool {
-        // Guard for unauthorized calls, which should never happen.
-        if !self.authorized {return false;} 
-
-        // Test whether the header and request tenants are the same.
-        match &self.hdr_tenant {
-            Some(hdr_tenant) => hdr_tenant == req_tenant,
-            None => false
-        }
-    }
 
     /** Check that the authorized ID passed via header matches the ID passed in the path or 
      * body of a request.  For example, this consistency check can be used to guarantee that
@@ -120,12 +104,6 @@ impl AuthzResult {
 // ***************************************************************************
 //                          Public Functions
 // ***************************************************************************
-// ---------------------------------------------------------------------------
-// get_tenant_header:
-// ---------------------------------------------------------------------------
-pub fn get_tenant_header(http_req: &Request) -> Result<String> {
-    get_header(http_req, X_TMS_TENANT)
-}
 
 // ---------------------------------------------------------------------------
 // get_client_id_header:
@@ -160,19 +138,13 @@ pub fn get_client_id_header_string(http_req: &Request) -> String {
 // authorize:
 // ---------------------------------------------------------------------------
 pub async fn authorize(http_req: &Request, allowed: &[AuthzTypes]) -> AuthzResult {
-    // Get the required tenant header once.
-    let hdr_tenant = match get_tenant_header_str(http_req) {
-        Ok(t) => t,
-        Err(_) => return AuthzResult::new_unauthorized(),
-    };
-
     // For each authz type, validate the required headers.
     for authz_type in allowed {
         let result = match authz_type {
-            AuthzTypes::ClientOwn => authorize_by_type(http_req, hdr_tenant, AuthzTypes::ClientOwn).await,
-            AuthzTypes::TenantAdmin => authorize_by_type(http_req, hdr_tenant, AuthzTypes::TenantAdmin).await,
-            AuthzTypes::TmsctlHost => authorize_by_type(http_req, hdr_tenant, AuthzTypes::TmsctlHost).await,
-            AuthzTypes::UserOwn => authorize_by_type(http_req, hdr_tenant, AuthzTypes::UserOwn).await,
+            AuthzTypes::ClientOwn => authorize_by_type(http_req, AuthzTypes::ClientOwn).await,
+            AuthzTypes::TmsAdmin => authorize_by_type(http_req, AuthzTypes::TmsAdmin).await,
+            AuthzTypes::TmsctlHost => authorize_by_type(http_req, AuthzTypes::TmsctlHost).await,
+            AuthzTypes::UserOwn => authorize_by_type(http_req, AuthzTypes::UserOwn).await,
         };
 
         // The first successful authorization terminates checking.
@@ -215,7 +187,7 @@ fn get_header(http_req: &Request, header_key: &str) -> Result<String> {
 // ---------------------------------------------------------------------------
 // authorize_by_type:
 // ---------------------------------------------------------------------------
-async fn authorize_by_type(http_req: &Request, hdr_tenant: &str, authz_type: AuthzTypes) -> AuthzResult {
+async fn authorize_by_type(http_req: &Request, authz_type: AuthzTypes) -> AuthzResult {
     // Get the runtime parameters for this authz type.  If the spec isn't found in the 
     // RUNTIME environment, then a compile time initialization value is missing.
     let spec = match RUNTIME_CTX.authz.specs.get(&authz_type) {
@@ -256,14 +228,8 @@ async fn authorize_by_type(http_req: &Request, hdr_tenant: &str, authz_type: Aut
         None => "",
     };
 
-    // Do we have the complete set of tenant, id and secret?
-    if hdr_tenant.is_empty() || hdr_id.is_empty() || hdr_secret.is_empty() {
-        debug!("Missing header information for {} id {}", spec.display_name, hdr_id);
-        return AuthzResult::new_unauthorized();
-    }
-
     // Query the database for the client secret.
-    let db_secret_hash = match get_authz_secret(hdr_id, hdr_tenant, spec.sql_query).await {
+    let db_secret_hash = match get_authz_secret(hdr_id, spec.sql_query).await {
         Ok(s) => s,
         Err(e) => {
             error!("Unable to retrieve secret for {} ID '{}': {}", spec.display_name, hdr_id, e);
@@ -274,36 +240,10 @@ async fn authorize_by_type(http_req: &Request, hdr_tenant: &str, authz_type: Aut
     // Compare the header secret to the hashed secret from the database.
     let hdr_secret_hash = hash_hex_secret(&hdr_secret.to_string());
     if hdr_secret_hash == db_secret_hash {
-        AuthzResult::new_authorized(authz_type, hdr_id.to_string(), hdr_tenant.to_string())  // Authorized
+        AuthzResult::new_authorized(authz_type, hdr_id.to_string())  // Authorized
     } else {
-        error!("Invalid secret given for {} {} in tenant {}", spec.display_name, hdr_id, hdr_tenant);
+        error!("Invalid secret given for {} {}", spec.display_name, hdr_id);
         AuthzResult::new_unauthorized() // Not authorized
-    }
-}
-
-// ---------------------------------------------------------------------------
-// get_tenant_header_str:
-// ---------------------------------------------------------------------------
-/** Get the TMS tenant value from its http header.  This function logs its errors
- * so the caller does not have to.   
- */
-fn get_tenant_header_str(http_req: &Request) -> Result<&str> {
-    match http_req.headers().get(X_TMS_TENANT) {
-        Some(v) => {
-            match v.to_str() {
-                Ok(s) => Ok(s),
-                Err(e) => {
-                    let msg = format!("Invalid string assigned to header {}: {}", X_TMS_TENANT, e);
-                    error!("{}", msg);
-                    Err(anyhow!(msg))
-                }
-            }
-        },
-        None => {
-            let msg = format!("Required '{}' HTTP header not found", X_TMS_TENANT);
-            error!("{}", msg);
-            Err(anyhow!(msg))
-        }
     }
 }
 
@@ -313,18 +253,15 @@ fn get_tenant_header_str(http_req: &Request) -> Result<&str> {
 // ---------------------------------------------------------------------------
 // get_client_secret:
 // ---------------------------------------------------------------------------
-async fn get_authz_secret(id: &str, tenant: &str, sql_query: &str) -> Result<String> {
+async fn get_authz_secret(id: &str, sql_query: &str) -> Result<String> {
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
-    // Create the select statement using the query passed in for the authorization
-    // type we are running.  Note that only queries that take id as the 1st parameter
-    // and tenant as the 2nd parameter are supported.  If in the future different
-    // query signatures are required, we can bind different query parameters based
-    // on authz type. 
+    // Create the select statement using the query passed in for the authorization type we are
+    // running. Note that only queries that take id are supported. If in the future different
+    // query signatures are required, we can bind different query parameters based on authz type.
     let result = sqlx::query(sql_query)
         .bind(id)
-        .bind(tenant)
         .fetch_optional(&mut *tx)
         .await?;
 
