@@ -5,7 +5,7 @@ use poem_openapi::{ OpenApi, payload::Json, Object, param::Path, param::Query, A
 use anyhow::Result;
 
 use crate::utils::errors::HttpResult;
-use crate::utils::db_statements::{UPDATE_CLIENT_APP_VERSION, UPDATE_CLIENT_ENABLED};
+use crate::utils::db_statements::{UPDATE_CLIENT_ENABLED};
 use crate::utils::tms_utils::{self, RequestDebug, timestamp_utc, timestamp_utc_to_str, validate_semver};
 use crate::utils::authz::{authorize, AuthzTypes};
 use log::{error, info};
@@ -24,7 +24,6 @@ pub struct UpdateClientApi;
 pub struct ReqUpdateClient
 {
     client_id: String,
-    app_version: Option<String>,
     enabled: Option<bool>,
 }
 
@@ -41,15 +40,12 @@ impl RequestDebug for ReqUpdateClient {
     type Req = ReqUpdateClient;
     fn get_request_info(&self) -> String {
         // Get optional values in displayable form. 
-        let app_version = format!("{:#?}", &self.app_version);
         let enabled = format!("{:#?}", &self.enabled);
 
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
         s.push_str("\n    client_id: ");
         s.push_str(&self.client_id);
-        s.push_str("\n    app_version: ");
-        s.push_str(app_version.as_str());
         s.push_str("\n    enabled: ");
         s.push_str(enabled.as_str());
         s
@@ -93,13 +89,12 @@ fn make_http_500(msg: String) -> TmsResponse {
 #[OpenApi]
 impl UpdateClientApi {
     #[oai(path = "/tms/client/upd/:client_id", method = "patch")]
-    async fn update_client(&self, http_req: &Request, client_id: Path<String>, 
-                           app_version: Query<Option<String>>, enabled: Query<Option<bool>>) 
+    async fn update_client(&self, http_req: &Request, client_id: Path<String>, enabled: Query<Option<bool>>)
             -> TmsResponse {
         // Package the request parameters. The difference in query parameter processing
         // is because Option<String> does not implement the copy trait, but Option<bool> does.
         let req = 
-            ReqUpdateClient {client_id: client_id.to_string(), app_version: app_version.clone(), enabled: *enabled};
+            ReqUpdateClient {client_id: client_id.to_string(), enabled: *enabled};
 
         // -------------------- Authorize ----------------------------
         // Only the client and tenant admin can query a client record.
@@ -146,7 +141,7 @@ impl RespUpdateClient {
         tms_utils::debug_request(http_req, req);
 
         // Determine if any updates are required.
-        if req.app_version.is_none() && req.enabled.is_none() {
+        if req.enabled.is_none() {
             return Ok(make_http_200(RespUpdateClient::new("0", "No updates specified".to_string(), 0)));
         } 
 
@@ -178,21 +173,6 @@ async fn update_client(req: &ReqUpdateClient) -> Result<u64> {
 
     // Update count.
     let mut updates: u64 = 0;
-
-    // Conditionally update the app version.
-    if let Some(app_version) = &req.app_version {
-        // Validate that the app version conforms cargo's implemenation of semantic versioning.
-        validate_semver(app_version)?;
-
-        // Issue the db update call.
-        let result = sqlx::query(UPDATE_CLIENT_APP_VERSION)
-            .bind(app_version)
-            .bind(&current_ts)
-            .bind(&req.client_id)
-            .execute(&mut *tx)
-            .await?;
-        updates += result.rows_affected();
-    }
 
     // Conditionally update the app version.
     if let Some(enabled) = &req.enabled {

@@ -41,7 +41,6 @@ pub struct ClientListElement
 {
     id: i32,
     app_name: String,
-    app_version: String,
     client_id: String,
     enabled: i32,
     created: DateTime<Utc>,
@@ -124,9 +123,9 @@ impl ListClientApi {
 impl ClientListElement {
     /// Create response elements.
     #[allow(clippy::too_many_arguments)]
-    fn new(id: i32, app_name: String, app_version: String,
-           client_id: String, enabled: i32, created: DateTime<Utc>, updated: DateTime<Utc>) -> Self {
-        Self {id, app_name, app_version, client_id, enabled, created, updated}
+    fn new(id: i32, app_name: String, client_id: String, enabled: i32,
+           created: DateTime<Utc>, updated: DateTime<Utc>) -> Self {
+        Self {id, app_name, client_id, enabled, created, updated}
     }
 }
 
@@ -181,7 +180,7 @@ async fn list_clients(authz_result: &AuthzResult, req: &ReqListClient) -> Result
     for row in rows {
         let elem = ClientListElement::new(
                  row.get(0), row.get(1), row.get(2), row.get(3),
-                 row.get(4), row.get(5), row.get(6));
+                 row.get(4), row.get(5));
         element_list.push(elem);
     }
 

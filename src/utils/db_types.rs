@@ -128,7 +128,6 @@ impl PubkeyRetrieval {
 pub struct Client {
     pub id: i32,
     pub app_name: String,
-    pub app_version: String,
     pub client_id: String,
     pub client_secret: String,
     pub enabled: bool,
@@ -139,7 +138,6 @@ pub struct Client {
 #[derive(Debug, Deserialize)]
 pub struct ClientInput {
     pub app_name: String,
-    pub app_version: String,
     pub client_id: String,
     pub client_secret: String,
     pub enabled: bool,
@@ -152,7 +150,6 @@ impl Client {
     pub fn new(
         id: i32,
         app_name: String,
-        app_version: String,
         client_id: String,
         client_secret: String,
         enabled: bool,
@@ -161,7 +158,7 @@ impl Client {
     ) 
     -> Client {
         Client {
-            id, app_name, app_version, client_id, client_secret, enabled, created, updated
+            id, app_name, client_id, client_secret, enabled, created, updated
         }
     }
 }
@@ -170,7 +167,6 @@ impl ClientInput {
         #[allow(dead_code, clippy::too_many_arguments)]
         pub fn new(
             app_name: String,
-            app_version: String,
             client_id: String,
             client_secret: String,
             enabled: bool,
@@ -179,7 +175,7 @@ impl ClientInput {
         ) 
         -> ClientInput {
             ClientInput {
-                app_name, app_version, client_id, client_secret, enabled, created, updated
+                app_name, client_id, client_secret, enabled, created, updated
             }
         }
 }

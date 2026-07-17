@@ -60,18 +60,18 @@ pub const DELETE_TENANT: &str = concat!(
 
 // ========================= clients table =========================
 pub const INSERT_CLIENTS: &str = concat!(
-    "INSERT INTO clients (tenant, app_name, app_version, client_id, client_secret, enabled, created, updated) ",
+    "INSERT INTO clients (tenant, app_name, client_id, client_secret, enabled, created, updated) ",
     "VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 );
 
 pub const GET_CLIENT: &str = concat!(
-    "SELECT id, tenant, app_name, app_version, client_id, client_secret, enabled, created, updated ",
+    "SELECT id, tenant, app_name, client_id, client_secret, enabled, created, updated ",
     "FROM clients WHERE client_id = $1 AND tenant = $2",
 );
 
 // Secret elided.
 pub const LIST_CLIENTS_TEMPLATE: &str = concat!(
-    "SELECT id, tenant, app_name, app_version, client_id, enabled, created, updated ",
+    "SELECT id, tenant, app_name, client_id, enabled, created, updated ",
     "FROM clients WHERE tenant = $1 ${PLACEHOLDER} ORDER BY tenant, client_id",
 );
 
@@ -79,10 +79,6 @@ pub const LIST_CLIENTS_TEMPLATE: &str = concat!(
 // get_authz_secret() in authz.rs.
 pub const GET_CLIENT_SECRET: &str = concat!(
     "SELECT client_secret FROM clients WHERE client_id = $1 AND tenant = $2",
-);
-
-pub const UPDATE_CLIENT_APP_VERSION: &str = concat!(
-    "UPDATE clients SET app_version = $1, updated = $2 WHERE client_id = $3 AND tenant = $4"
 );
 
 pub const UPDATE_CLIENT_ENABLED: &str = concat!(

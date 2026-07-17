@@ -36,7 +36,6 @@ pub struct RespGetClient
     result_msg: String,
     id: i32,
     app_name: String,
-    app_version: String,
     client_id: String,
     enabled: bool,
     created: DateTime<Utc>,
@@ -138,10 +137,10 @@ impl RespGetClient {
     /// Create a new response.
     #[allow(clippy::too_many_arguments)]
     fn new(result_code: &str, result_msg: String, id: i32, app_name: String,
-            app_version: String, client_id: String, enabled: bool, created: DateTime<Utc>, updated: DateTime<Utc>)
+            client_id: String, enabled: bool, created: DateTime<Utc>, updated: DateTime<Utc>)
     -> Self {
             Self {result_code: result_code.to_string(), result_msg, 
-              id, app_name, app_version, client_id, enabled, created, updated}
+              id, app_name, client_id, enabled, created, updated}
         }
 
     /// Process the request.
@@ -153,9 +152,9 @@ impl RespGetClient {
         // The client_secret is never part of the response.
         let db_result = get_client(req).await;
         match db_result {
-            Ok(client) => Ok(make_http_200(Self::new("0", "success".to_string(), 
-                                    client.id, client.app_name, client.app_version,
-                                    client.client_id, client.enabled, client.created, client.updated))),
+            Ok(client) => Ok(make_http_200(Self::new("0", "success".to_string(),
+                                                     client.id, client.app_name, client.client_id,
+                                                     client.enabled, client.created, client.updated))),
             Err(e) => {
                 // Determine if this is a real db error or just record not found.
                 let msg = e.to_string();
@@ -191,7 +190,7 @@ async fn get_client(req: &ReqGetClient) -> Result<Client> {
     match result {
         Some(row) => {
             Ok(Client::new(row.get(0), row.get(1), row.get(2), row.get(3), row.get(4),
-                           row.get(5), row.get(6), row.get(7)))
+                           row.get(5), row.get(6)))
         },
         None => {
             Err(anyhow!("NOT_FOUND"))

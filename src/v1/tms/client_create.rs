@@ -26,8 +26,7 @@ pub struct CreateClientApi;
 pub struct ReqCreateClient
 {
     client_id: String,
-    app_name: String,
-    app_version: String,
+    app_name: String
 }
 
 #[derive(Object, Debug)]
@@ -49,8 +48,6 @@ impl RequestDebug for ReqCreateClient {
         s.push_str(&self.client_id);
         s.push_str("\n    app_name: ");
         s.push_str(&self.app_name);
-        s.push_str("\n    app_version: ");
-        s.push_str(&self.app_version);
         s
     }
 }
@@ -125,18 +122,7 @@ impl RespCreateClient {
             return Ok(make_http_400(msg.to_string()));
         }
 
-        // ------------------------ Validate Version -------------------
-        // Only valid semantic versions are accepted.
-        match validate_semver(req.app_version.as_str()) {
-            Ok(_) => (),
-            Err(e) => {
-                let msg = format!("ERROR: Invalid app_version value ({}): {}", req.app_version, e);
-                error!("{}", msg);
-                return Ok(make_http_400(e.to_string()));
-            }
-        };
-
-        // ------------------------ Generate Secret --------------------  
+        // ------------------------ Generate Secret --------------------
         let client_secret_str  = create_hex_secret();
         let client_secret_hash = hash_hex_secret(&client_secret_str);
 
@@ -146,7 +132,6 @@ impl RespCreateClient {
         // Create the input record. Note we save the hash of the hex secret, but never the secret.
         let input_record = ClientInput::new(
             req.app_name.clone(),
-            req.app_version.clone(),
             req.client_id.clone(),
             client_secret_hash, 
             DB_TRUE,
@@ -156,8 +141,8 @@ impl RespCreateClient {
 
         // Insert the new key record.
         insert_new_client(input_record).await?;
-        info!("Client '{}' created for application '{}:{}'.",
-              req.client_id, req.app_name, req.app_version);
+        info!("Client '{}' created for application '{}'.",
+              req.client_id, req.app_name);
         
         // Return the secret represented in hex.
         Ok(make_http_201(Self::new("0", "success", req.client_id.clone(), client_secret_str)))
@@ -179,7 +164,6 @@ async fn insert_new_client(rec: ClientInput) -> Result<u64> {
     // Create the insert statement.
     let result = sqlx::query(INSERT_CLIENTS)
         .bind(rec.app_name)
-        .bind(rec.app_version)
         .bind(rec.client_id)
         .bind(rec.client_secret)
         .bind(rec.enabled)
