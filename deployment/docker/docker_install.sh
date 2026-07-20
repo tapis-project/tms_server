@@ -19,9 +19,8 @@ TAG=$1
 # Create the customizations directory if it doesn't exist and make it private.
 # This directory is written to by tms_server when the server is started with 
 # the --install option.  The file written, tms-install.out, contains a record
-# of the installation process and the administrator user IDs and passwords for
-# the "default" and "test" tenants.  These administrator credentials are only
-# exposed in tms-install.out and should be kept secret.
+# of the installation process and the administrator user ID and password.
+# These administrator credentials are only exposed in tms-install.out and should be kept secret.
 mkdir -p ~/tms-docker/tms_customizations
 chmod 700 ~/tms-docker
 chmod 700 ~/tms-docker/tms_customizations

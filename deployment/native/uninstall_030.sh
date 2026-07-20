@@ -1,4 +1,5 @@
 #!/bin/bash
+# TODO This is a work in progress
 # Uninstall script for TMS Server
 #  - Reset the DB leaving only the tms user.
 #  - remove all installed files except the local directory

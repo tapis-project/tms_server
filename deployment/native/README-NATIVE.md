@@ -89,9 +89,9 @@ You will be prompted to review and accept the detected settings before continuin
 output of the initialization run may be found in file `$TMS_LOCAL_DIR/tms-install.out`. By default, this file
 is located at `~tms/.tms/tms-install.out`.
 
-This output file contains the administrator credentials for the *test* and more importantly the *default* tenant.
+This output file contains credentials for the default admin user `~~admin`. 
 **WARNING This is only place where these credentials are displayed. Losing this information prevents administrative
-actions in these two tenants and will likely make reinstallation necessary.**
+actions and will likely make reinstallation necessary.**
 
 The installation script will:
 - Create and update ownership of various directories and files, such as `$TMS_ROOT_DIR`, `$TMS_INSTALL_DIR`, etc.

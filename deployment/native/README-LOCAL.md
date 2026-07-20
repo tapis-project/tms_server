@@ -77,19 +77,15 @@ You will be prompted to review and accept the detected settings before continuin
 output of the initialization run may be found in file `$TMS_LOCAL_DIR/tms-install.out`. By default, this file
 is located at `$HOME/.tms/tms-install.out`.
 
-This output file contains the administrator credentials for the *test* and more importantly the *default* tenant.
+This output file contains the administrator credentials.
 **WARNING This is only place where these credentials are displayed. Losing this information prevents administrative
-actions in these two tenants and will likely make reinstallation necessary.**
+actions and will likely make reinstallation necessary.**
 
 The installation script will:
 - Build TMSS from source files.
 - Copy the SSL certificate files into place.
 - Initialize the configuration by running `tms_server --install --root-dir $TMS_ROOT_DIR`.
 - If needed copy custom `tms.toml` and `log4rs.yml` files from `$TMS_LOCAL_DIR`.
-
-## Setting up the test tenant
-To set up for testing using the tenant **test**, edit the configuration file `$HOME/.tms/config/tms.toml`.
-Set `enable_mvp=true` and `enable_test_tenant=true`.
 
 ## Running TMSS
 Note that the installation script will not start the service after installing. The server may be started up using

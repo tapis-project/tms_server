@@ -36,7 +36,7 @@ enable_mvp = false
 # This switch can be used to allow new clients with no restrictions, 
 # lock down the current set of clients by disallowing new client creation, 
 # or only allow new client creation when the caller has a short-lived, 
-# one-time password created by the tenant administrator.  Valid string 
+# one-time password created by the administrator. Valid string
 # values for this parameter are:
 #
 #   allow, disallow, on_approval
@@ -46,19 +46,6 @@ enable_mvp = false
 #
 # default = "allow"
 new_clients = "allow"
-
-# Enable or disable the use of any artifacts in the test tenant.  By
-# setting this parameter to true clients, delegations, user/host
-# mappings and user MFA information in the test tenant are available
-# via API. When set to false, no actions can take place in the test
-# tenant.
-#
-# We recommend setting this parameter to false in production 
-# environments to avoid misuse of access granted for testing
-# purposes.
-#
-# default = false
-enable_test_tenant = false
 
 # At least one server should be specified.  The base urls listed here
 # get displayed as targets in the openapi generated livedocs.
