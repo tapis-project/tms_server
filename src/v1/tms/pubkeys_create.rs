@@ -9,8 +9,8 @@ use crate::utils::authz::{authorize, AuthzTypes, get_client_id_header};
 use crate::utils::errors::HttpResult;
 use crate::utils::keygen::{self, KeyType};
 use crate::utils::db_types::PubkeyInput;
-use crate::utils::db_statements::INSERT_PUBKEYS;
 use crate::utils::db::check_pubkey_dependencies;
+use crate::utils::db::insert_new_pubkey;
 use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug};
 use crate::utils::mvp::{MVPDependencyParms, create_pubkey_dependencies};
 use log::{error, info};
@@ -259,8 +259,7 @@ impl RespNewSshKeys {
         // uniform maximum uniform datetime rather than one that changes with current time when
         // req.ttl_minutes = -1.
         let now  = timestamp_utc();
-        let current_ts  = timestamp_utc_to_str(now);
-        let expires_at  = calc_expires_at(now, req.ttl_minutes); 
+        let expires_at  = calc_expires_at(now, req.ttl_minutes);
         let remaining_uses = max_uses;
 
         // Create the input record.
@@ -282,9 +281,7 @@ impl RespNewSshKeys {
         );
 
         // Insert the new key record.
-        insert_new_key(input_record).await?;
-        info!("A key of type '{}' created for '{}' for host '{}' expires at {} and has {} remaining uses.", 
-            keyinfo.key_type.clone(), req.client_user_id, req.host, expires_at, remaining_uses);
+        insert_new_pubkey(input_record).await?;
 
         // Success! Zero key bits means a fixed key length.
         Ok(make_http_201(Self::new("0", "success", 
@@ -302,39 +299,6 @@ impl RespNewSshKeys {
 // ***************************************************************************
 //                          Private Functions
 // ***************************************************************************
-// ---------------------------------------------------------------------------
-// insert_new_key:
-// ---------------------------------------------------------------------------
-async fn insert_new_key(rec: PubkeyInput) -> Result<u64> {
-    // Get a connection to the db and start a transaction.  Uncommited transactions 
-    // are automatically rolled back when they go out of scope. 
-    // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
-    let mut tx = RUNTIME_CTX.db.begin().await?;
-    
-    // Create the insert statement.
-    let result = sqlx::query(INSERT_PUBKEYS)
-        .bind(rec.client_id)
-        .bind(rec.client_user_id)
-        .bind(rec.host)
-        .bind(rec.host_account)
-        .bind(rec.public_key_fingerprint)
-        .bind(rec.public_key)
-        .bind(rec.key_type)
-        .bind(rec.key_bits)
-        .bind(rec.max_uses)
-        .bind(rec.remaining_uses)
-        .bind(rec.initial_ttl_minutes)
-        .bind(rec.expires_at)
-        .bind(rec.created)
-        .bind(rec.updated)
-        .execute(&mut *tx)
-        .await?;
-
-    // Commit the transaction.
-    tx.commit().await?;
-
-    Ok(result.rows_affected())
-}
 
 // ---------------------------------------------------------------------------
 // get_header_values:

@@ -7,18 +7,20 @@ use chrono::{Utc, DateTime};
 use sqlx::Row;
 
 use futures::executor::block_on;
-use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime,
-                              create_hex_secret, hash_hex_secret, MAX_TMS_UTC_STR};
-use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_USER_HOSTS, INSERT_USER_MFA};
-use crate::utils::config::{DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_CMD_ARGS, DB_TRUE};
+use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime, create_hex_secret, hash_hex_secret, MAX_TMS_UTC_STR, timestamp_utc_to_str, calc_expires_at};
+use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_PUBKEYS, INSERT_USER_HOSTS, INSERT_USER_MFA};
+use crate::utils::config::{DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_CMD_ARGS, DB_TRUE, TEST_CLIENT, TEST_APP};
+
 use log::error;
 
 use crate::RUNTIME_CTX;
-
+use crate::utils::db_types::PubkeyInput;
+use crate::utils::keygen;
+use crate::utils::keygen::KeyType;
 use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RESERVATION_FOR_EXTEND,
                            GET_USER_HOST_ACTIVE, GET_USER_HOST_EXISTS, GET_USER_MFA_ACTIVE,
                            GET_USER_MFA_EXISTS, INSERT_ADMIN, INSERT_CLIENTS,
-                           SELECT_PUBKEY_HOST_ACCOUNT};
+                           SELECT_PUBKEY_HOST_ACCOUNT, UPDATE_CLIENT_ENABLED};
 
 /** Multiple Query Transactions
  * 
@@ -33,15 +35,89 @@ use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RES
  * tables in a different order, which could lead to conflicts and deadlocks.
 */
 
+
+/*
+ * Insert a new pubkey record
+ */
+pub async fn insert_new_pubkey(rec: PubkeyInput) -> Result<u64> {
+    // Get a connection to the db and start a transaction.  Uncommited transactions 
+    // are automatically rolled back when they go out of scope. 
+    // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+    // Create the insert statement.
+    let result = sqlx::query(INSERT_PUBKEYS)
+        .bind(rec.client_id)
+        .bind(rec.client_user_id.clone())
+        .bind(rec.host.clone())
+        .bind(rec.host_account)
+        .bind(rec.public_key_fingerprint)
+        .bind(rec.public_key)
+        .bind(rec.key_type.clone())
+        .bind(rec.key_bits)
+        .bind(rec.max_uses)
+        .bind(rec.remaining_uses)
+        .bind(rec.initial_ttl_minutes)
+        .bind(rec.expires_at)
+        .bind(rec.created)
+        .bind(rec.updated)
+        .execute(&mut *tx)
+        .await?;
+    // Commit the transaction.
+    tx.commit().await?;
+    info!("A key of type '{}' created for '{}' for host '{}' expires at {} and has {} remaining uses.", 
+            rec.key_type.clone(), rec.client_user_id, rec.host, rec.expires_at, rec.remaining_uses);
+    Ok(result.rows_affected())
+}
+
+/*
+ * Create the default admin user ~~admin
+ * This method should only be called when the --install option is specified.  
+ * It's a no-op if called during regular execution.
+ */
+pub async fn create_default_admin() -> Result<u64> {
+    // Guard against repeated initialization of admin.
+    if !TMS_CMD_ARGS.install {
+        return Ok(0);
+    }
+
+    // Get the timestamp string.
+    let now = timestamp_utc();
+
+    // Get a connection to the db and start a transaction.
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+
+    // Create admin user ids.
+    let dft_key_str = create_hex_secret();
+    let dft_key_hash = hash_hex_secret(&dft_key_str);
+    let dft_admin_result = sqlx::query(INSERT_ADMIN)
+        .bind(DEFAULT_ADMIN_ID)
+        .bind(&dft_key_hash)
+        .bind(PERM_ADMIN)
+        .bind(now)
+        .bind(now)
+        .execute(&mut *tx)
+        .await?;
+
+    // Commit the transaction.
+    tx.commit().await?;
+
+    // --- MOST IMPORTANT ---
+    // One time printout of the admin secret.
+    print_admin_secret_message(&dft_key_str)?;
+
+    // Return the number of insertions that took place.
+    Ok(dft_admin_result.rows_affected())
+}
+
 // ---------------------------------------------------------------------------
 // print_admin_secret_message:
 // ---------------------------------------------------------------------------
-/** Print one-time message to stdout that contains the admin_user and admin_secret
- * for the two standard tenents.  This only happens when the --install option was
- * specified and this program terminates after installation with the secret 
- * information visible to user.
+/*
+ * Print one-time message to stdout that contains the admin_user and admin_secret for the
+ * default admin user. This only happens when the --install option was specified and this program
+ * terminates after installation with the secret information visible to user.
  */
-fn print_admin_secret_message(dft_key_str: &String, tst_key_str: &String) -> Result<()> {
+fn print_admin_secret_message(dft_key_str: &String) -> Result<()> {
     // Compile time literal concatenation.
     let prefix = concat!(
         "\n***************************************************************************",
@@ -90,13 +166,10 @@ pub fn check_test_data() {
 /** This function either experiences an error or returns true (false is never returned). */
 async fn create_test_data() -> Result<bool> {
     // Constants used locally.
-    const TEST_APP: &str = "testapp1";
-    const TEST_APP_VERS: &str = "1.0";
-    const TEST_CLIENT: &str = "testclient1";
     let   test_secret: String = hash_hex_secret(&"secret1".to_string());
-    const TEST_USER: &str = "testuser1";
-    const TEST_HOST: &str = "testhost1";
-    const TEST_HOST_ACCOUNT: &str = "testhostaccount1";
+    const TEST_USER: &str = "testuser";
+    const TEST_HOST: &str = "testhost";
+    const TEST_HOST_ACCOUNT: &str = "testhostaccount";
 
     // Max expires_at
     let max_tms_utc = DateTime::parse_from_rfc3339(MAX_TMS_UTC_STR).unwrap().with_timezone(&Utc);
@@ -107,10 +180,9 @@ async fn create_test_data() -> Result<bool> {
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
 
-    // -------- Populate clients
+    // -------- Create the test client
     sqlx::query(INSERT_CLIENTS)
         .bind(TEST_APP)
-        .bind(TEST_APP_VERS)
         .bind(TEST_CLIENT)
         .bind(test_secret)
         .bind(DB_TRUE)
@@ -119,36 +191,83 @@ async fn create_test_data() -> Result<bool> {
         .execute(&mut *tx)
         .await?;
 
-    // -------- Populate user_mfa
-    sqlx::query(INSERT_USER_MFA)
-        .bind(TEST_USER)
-        .bind(max_tms_utc)
-        .bind(DB_TRUE)
-        .bind(now)
-        .bind(now)
-        .execute(&mut *tx)
-        .await?;
+    // Create records for 100 test users in the test client
+    for n in 1..=100 {
+        let test_user = format!("{}{:03}", TEST_USER, n);
+        let test_host = format!("{}{:03}", TEST_HOST, n);
+        let test_host_acct = format!("{}{:03}", TEST_HOST_ACCOUNT, n);
+
+        // -------- Populate user_mfa
+        sqlx::query(INSERT_USER_MFA)
+            .bind(test_user.clone())
+            .bind(max_tms_utc)
+            .bind(DB_TRUE)
+            .bind(now)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
 
         // -------- Populate user_hosts
-    sqlx::query(INSERT_USER_HOSTS)
-        .bind(TEST_USER)
-        .bind(TEST_HOST)
-        .bind(TEST_HOST_ACCOUNT)
-        .bind(max_tms_utc)
-        .bind(now)
-        .bind(now)
-        .execute(&mut *tx)
-        .await?;
+        sqlx::query(INSERT_USER_HOSTS)
+            .bind(test_user.clone())
+            .bind(test_host)
+            .bind(test_host_acct)
+            .bind(max_tms_utc)
+            .bind(now)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
 
-    // -------- Populate delegations
-    sqlx::query(INSERT_DELEGATIONS)
-        .bind(TEST_CLIENT)
-        .bind(TEST_USER)
-        .bind(max_tms_utc)
-        .bind(now)
-        .bind(now)
-        .execute(&mut *tx)
-        .await?;
+        // -------- Populate delegations
+        sqlx::query(INSERT_DELEGATIONS)
+            .bind(TEST_CLIENT)
+            .bind(test_user.clone())
+            .bind(max_tms_utc)
+            .bind(now)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
+    }
+    // TODO For each test user create one pubkey entry, ignore generated private key
+    for n in 1..=100 {
+        let test_user = format!("{}{:03}", TEST_USER, n);
+        let test_host = format!("{}{:03}", TEST_HOST, n);
+        let test_host_acct = format!("{}{:03}", TEST_HOST_ACCOUNT, n);
+
+        // Get the enumerated key type.
+        let key_type = KeyType::Ed25519;
+        // Generate the new key pair.
+        let keyinfo = match keygen::generate_key(key_type) {
+            Ok(k) => k,
+            Err(e) => {
+                return Result::Err(anyhow!(e));
+            }
+        };
+        let max_uses = i32::MAX;
+        let ttl_minutes = i32::MAX;
+        let now  = timestamp_utc();
+        let expires_at  = calc_expires_at(now, ttl_minutes);
+        let remaining_uses = max_uses;
+        // Create the input record.
+        let input_record = PubkeyInput::new(
+            TEST_CLIENT.to_string(),
+            test_user.clone(),
+            test_host.clone(),
+            test_host_acct,
+            keyinfo.public_key_fingerprint.clone(),
+            keyinfo.public_key.clone(),
+            keyinfo.key_type.clone(),
+            keyinfo.key_bits,
+            max_uses,
+            remaining_uses,
+            ttl_minutes,
+            expires_at.clone(),
+            now.clone(),
+            now.clone(),
+        );
+        // Insert the new key record.
+        insert_new_pubkey(input_record).await?;
+    }
 
     // Commit the transaction.
     tx.commit().await?;
@@ -436,4 +555,31 @@ pub async fn check_parent_reservation(resid: &String, client_id: &String, client
 
     // All checks passed.
     Ok(expires_at)
+}
+// ---------------------------------------------------------------------------
+// set_test_enabled_internal:
+// ---------------------------------------------------------------------------
+pub async fn set_test_enabled_internal(test_client: &String, enabled: bool) -> Result<u64>
+{
+    // Get timestamp.
+    let now = timestamp_utc();
+    let current_ts = timestamp_utc_to_str(now);
+    // Get a connection to the db and start a transaction.
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+
+    // Update count.
+    let mut updates: u64 = 0;
+
+    // Issue the db update call.
+    let result = sqlx::query(UPDATE_CLIENT_ENABLED)
+        .bind(enabled)
+        .bind(&current_ts)
+        .bind(test_client)
+        .execute(&mut *tx)
+        .await?;
+    updates += result.rows_affected();
+
+    // Commit the transaction.
+    tx.commit().await?;
+    Ok(updates)
 }

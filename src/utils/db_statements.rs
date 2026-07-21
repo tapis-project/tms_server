@@ -6,7 +6,7 @@ pub const PLACEHOLDER: &str = "${PLACEHOLDER}";
 // ========================= clients table =========================
 pub const INSERT_CLIENTS: &str = concat!(
     "INSERT INTO clients (app_name, client_id, client_secret, enabled, created, updated) ",
-    "VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+    "VALUES ($1, $2, $3, $4, $5, $6)",
 );
 
 pub const GET_CLIENT: &str = concat!(

@@ -7,8 +7,8 @@ use chrono::{DateTime, Utc};
 use crate::utils::errors::HttpResult;
 use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_DELEGATIONS_NOT_STRICT};
 use crate::utils::db_types::DelegationInput;
-use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header, X_TMS_TENANT}; 
-use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug, check_tenant_enabled};
+use crate::utils::authz::{authorize, AuthzTypes};
+use crate::utils::tms_utils::{self, timestamp_utc, timestamp_utc_to_str, calc_expires_at, RequestDebug};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
@@ -27,7 +27,6 @@ pub struct CreateDelegationsApi;
 #[derive(Object)]
 pub struct ReqCreateDelegations
 {
-    tenant: String,
     client_id: String,
     client_user_id: String,
     ttl_minutes: i32,  // negative means i32::MAX
@@ -49,8 +48,6 @@ impl RequestDebug for ReqCreateDelegations {
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
-        s.push_str("\n    tenant: ");
-        s.push_str(&self.tenant);
         s.push_str("\n    client_id: ");
         s.push_str(&self.client_id);
         s.push_str("\n    client_user_id: ");
@@ -99,34 +96,14 @@ fn make_http_500(msg: String) -> TmsResponse {
 impl CreateDelegationsApi {
     #[oai(path = "/tms/delegations", method = "post")]
     async fn create_client(&self, http_req: &Request, req: Json<ReqCreateDelegations>) -> TmsResponse {
-        // -------------------- Get Tenant Header --------------------
-        // Get the required tenant header value.
-        let hdr_tenant = match get_tenant_header(http_req) {
-            Ok(t) => t,
-            Err(e) => return make_http_400(e.to_string()),
-        };
-
-        // Check that the tenant specified in the header is the same as the one in the request body.
-        if hdr_tenant != req.tenant {
-            let msg = format!("ERROR: FORBIDDEN - The tenant in the {} header ({}) does not match the tenant in the request body ({})", 
-                                      X_TMS_TENANT, hdr_tenant, req.tenant);
-            error!("{}", msg);
-            return make_http_403(msg);  
-        }
-
-        // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant).await {
-            return make_http_400("Tenant not enabled.".to_string());
-        }
-
         // -------------------- Authorize ----------------------------
-        // Currently, only the tenant admin can create a delegation record.
+        // Currently, only the admin can create a delegation record.
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
-        let allowed = [AuthzTypes::TenantAdmin];
+        let allowed = [AuthzTypes::TmsAdmin];
         let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to add a client delegation record in tenant {}.", req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to add a client delegation record.");
             error!("{}", msg);
             return make_http_401(msg);
         }
@@ -168,7 +145,6 @@ impl RespCreateDelegations {
         // Create the input record.  Note that we save the hash of
         // the hex secret, but never the secret itself.  
         let input_record = DelegationInput::new(
-            req.tenant.clone(),
             req.client_id.clone(),
             req.client_user_id.clone(),
             expires_at.clone(),
@@ -178,8 +154,8 @@ impl RespCreateDelegations {
 
         // Insert the new key record.
         insert_delegation(input_record, STRICT).await?;
-        info!("Delegation for user '{}' to client '{}' created in tenant '{}' with expiration at {}.", 
-              req.client_user_id, req.client_id, req.tenant, expires_at);
+        info!("Delegation for user '{}' to client '{}' created with expiration at {}.",
+              req.client_user_id, req.client_id, expires_at);
         
         // Return the secret represented in hex.
         Ok(make_http_201(Self::new("0", "success".to_string(), 
@@ -204,7 +180,6 @@ pub async fn insert_delegation(rec: DelegationInput, strict: bool) -> Result<u64
     
     // Create the insert statement.
     let result = sqlx::query(sql_query)
-        .bind(rec.tenant)
         .bind(rec.client_id)
         .bind(rec.client_user_id)
         .bind(rec.expires_at)

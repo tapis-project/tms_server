@@ -47,6 +47,15 @@ enable_mvp = false
 # default = "allow"
 new_clients = "allow"
 
+# Enable or disable the test client
+#
+# We recommend setting this parameter to false in production 
+# environments to avoid misuse of access granted for testing
+# purposes.
+#
+# default = false
+enable_test_client = false
+
 # At least one server should be specified.  The base urls listed here
 # get displayed as targets in the openapi generated livedocs.
 server_urls = ["https://localhost:3000/v1"]

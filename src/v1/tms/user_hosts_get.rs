@@ -7,10 +7,10 @@ use chrono::{DateTime, Utc};
 use sqlx::Row;
 
 use crate::utils::errors::HttpResult;
-use crate::utils::authz::{authorize, AuthzTypes, get_tenant_header};
-use crate::utils::db_statements::GET_DELEGATION;
-use crate::utils::tms_utils::{self, RequestDebug, check_tenant_enabled};
-use crate::utils::db_types::Delegation;
+use crate::utils::authz::{authorize, AuthzTypes};
+use crate::utils::db_statements::GET_USER_HOST;
+use crate::utils::tms_utils::{self, RequestDebug};
+use crate::utils::db_types::UserHost;
 use log::error;
 
 use crate::RUNTIME_CTX;
@@ -18,42 +18,39 @@ use crate::RUNTIME_CTX;
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
-pub struct GetDelegationsApi;
+pub struct GetUserHostsApi;
 
 // ***************************************************************************
 //                          Request/Response Definiions
 // ***************************************************************************
 #[derive(Object)]
-struct ReqGetDelegations
+struct ReqGetUserHosts
 {
-    id: i32,
-    tenant: String,
+    id: i32
 }
 
 #[derive(Object, Debug)]
-pub struct RespGetDelegations
+pub struct RespGetUserHosts
 {
     result_code: String,
     result_msg: String,
     id: i32,
-    tenant: String,
-    client_id: String,
-    client_user_id: String,
+    tms_user_id: String,
+    host: String,
+    host_account: String,
     expires_at: DateTime<Utc>,
     created: DateTime<Utc>,
     updated: DateTime<Utc>,
 }
 
 // Implement the debug record trait for logging.
-impl RequestDebug for ReqGetDelegations {   
-    type Req = ReqGetDelegations;
+impl RequestDebug for ReqGetUserHosts {   
+    type Req = ReqGetUserHosts;
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
         s.push_str("\n    id: ");
         s.push_str(&self.id.to_string());
-        s.push_str("\n    tenant: ");
-        s.push_str(&self.tenant);
         s
     }
 }
@@ -62,7 +59,7 @@ impl RequestDebug for ReqGetDelegations {
 #[derive(Debug, ApiResponse)]
 enum TmsResponse {
     #[oai(status = 200)]
-    Http200(Json<RespGetDelegations>),
+    Http200(Json<RespGetUserHosts>),
     #[oai(status = 400)]
     Http400(Json<HttpResult>),
     #[oai(status = 401)]
@@ -73,7 +70,7 @@ enum TmsResponse {
     Http500(Json<HttpResult>),
 }
 
-fn make_http_200(resp: RespGetDelegations) -> TmsResponse {
+fn make_http_200(resp: RespGetUserHosts) -> TmsResponse {
     TmsResponse::Http200(Json(resp))
 }
 fn make_http_400(msg: String) -> TmsResponse {
@@ -93,40 +90,28 @@ fn make_http_500(msg: String) -> TmsResponse {
 //                             OpenAPI Endpoint
 // ***************************************************************************
 #[OpenApi]
-impl GetDelegationsApi {
-    #[oai(path = "/tms/delegations/:id", method = "get")]
-    async fn get_delegation_api(&self, http_req: &Request, id: Path<i32>) -> TmsResponse {
-        // -------------------- Get Tenant Header --------------------
-        // Get the required tenant header value.
-        let hdr_tenant = match get_tenant_header(http_req) {
-            Ok(t) => t,
-            Err(e) => return make_http_400(e.to_string()),
-        };
-        
-        // Check tenant.
-        if !check_tenant_enabled(&hdr_tenant).await {
-            return make_http_400("Tenant not enabled.".to_string());
-        }
-
-        // Package the request parameters.   
-        let req = ReqGetDelegations {id: *id, tenant: hdr_tenant};
+impl GetUserHostsApi {
+    #[oai(path = "/tms/userhosts/:id", method = "get")]
+    async fn get_user_host_api(&self, http_req: &Request, id: Path<i32>) -> TmsResponse {
+        // Package the request parameters.
+        let req = ReqGetUserHosts {id: *id};
         
         // -------------------- Authorize ----------------------------
-        // Currently, only the tenant admin can create a user host record.
+        // Currently, only the admin can create a user host record.
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
-        let allowed = [AuthzTypes::TenantAdmin];
+        let allowed = [AuthzTypes::TmsAdmin];
         let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED to view client delegation information for record #{} in tenant {}", 
-                                      req.id, req.tenant);
+            let msg = format!("ERROR: NOT AUTHORIZED to view host information for record #{}",
+                                      req.id);
             error!("{}", msg);
             return make_http_401(msg);
         }
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespGetDelegations::process(http_req, &req).await {
+        match RespGetUserHosts::process(http_req, &req).await {
             Ok(r) => r,
             Err(e) => {
                 let msg = "ERROR: ".to_owned() + e.to_string().as_str();
@@ -140,27 +125,28 @@ impl GetDelegationsApi {
 // ***************************************************************************
 //                          Request/Response Methods
 // ***************************************************************************
-impl RespGetDelegations {
+impl RespGetUserHosts {
     /// Create a new response.
     #[allow(clippy::too_many_arguments)]
-    fn new(result_code: &str, result_msg: String, id: i32, tenant: String, client_id: String, 
-           client_user_id: String, expires_at: DateTime<Utc>, created: DateTime<Utc>, updated: DateTime<Utc>) 
+    fn new(result_code: &str, result_msg: String, id: i32, tms_user_id: String,
+            host: String, host_account: String, expires_at: DateTime<Utc>, created: DateTime<Utc>, updated: DateTime<Utc>) 
     -> Self {
             Self {result_code: result_code.to_string(), result_msg, 
-                  id, tenant, client_id, client_user_id, expires_at, created, updated}
+                  id, tms_user_id, host, host_account, expires_at, created, updated}
         }
 
     /// Process the request.
-    async fn process(http_req: &Request, req: &ReqGetDelegations) -> Result<TmsResponse, anyhow::Error> {
+    async fn process(http_req: &Request, req: &ReqGetUserHosts) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);
 
-        // Search for the tenant/client id in the database.  Not found was already 
+        // Search for the client id in the database.  Not found was already
         // The client_secret is never part of the response.
-        let db_result = get_delegation(req).await;
+        let db_result = get_user_host(req).await;
         match db_result {
-            Ok(u) => Ok(make_http_200(Self::new("0", "success".to_string(), u.id, u.tenant, 
-                                        u.client_id, u.client_user_id, u.expires_at, u.created, u.updated))),
+            Ok(u) => Ok(make_http_200(Self::new("0", "success".to_string(), u.id,
+                                        u.tms_user_id, u.host, u.host_account, 
+                                        u.expires_at, u.created, u.updated))),
             Err(e) => {
                 // Determine if this is a real db error or just record not found.
                 let msg = e.to_string();
@@ -175,18 +161,17 @@ impl RespGetDelegations {
 //                          Private Functions
 // ***************************************************************************
 // ---------------------------------------------------------------------------
-// get_delegation:
+// get_user_host:
 // ---------------------------------------------------------------------------
-async fn get_delegation(req: &ReqGetDelegations) -> Result<Delegation> {
+async fn get_user_host(req: &ReqGetUserHosts) -> Result<UserHost> {
     // Get a connection to the db and start a transaction.  Uncommited transactions 
     // are automatically rolled back when they go out of scope. 
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
     
     // Create the select statement.
-    let result = sqlx::query(GET_DELEGATION)
+    let result = sqlx::query(GET_USER_HOST)
         .bind(req.id)
-        .bind(req.tenant.clone())
         .fetch_optional(&mut *tx)
         .await?;
 
@@ -196,8 +181,8 @@ async fn get_delegation(req: &ReqGetDelegations) -> Result<Delegation> {
     // We may have found the user host.
     match result {
         Some(row) => {
-            Ok(Delegation::new(row.get(0), row.get(1), row.get(2), 
-                               row.get(3),row.get(4), row.get(5), row.get(6)))
+            Ok(UserHost::new(row.get(0), row.get(1), row.get(2), row.get(3), 
+                           row.get(4), row.get(5), row.get(6)))
         },
         None => {
             Err(anyhow!("NOT_FOUND"))

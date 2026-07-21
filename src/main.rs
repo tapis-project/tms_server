@@ -29,7 +29,7 @@ use crate::v1::tms::pubkeys_update::UpdatePubkeyApi;
 use crate::v1::tms::version::VersionApi;
 
 // TMS Utilities
-use crate::utils::config::{TMS_CMD_ARGS, TMS_DIRS, init_log, init_runtime_context,
+use crate::utils::config::{TMS_CMD_ARGS, TMS_DIRS, TEST_CLIENT, init_log, init_runtime_context,
                            set_directories_and_check_install, prohibit_root_user, RuntimeCtx};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
@@ -105,9 +105,8 @@ async fn main() -> Result<(), std::io::Error> {
     //   - initialize database, makes db connections available to all modules.
     info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
 
-    // TODO/TBD: Should we still create a test client with some dummy test data?
-    // // Initialize test data. Skip if --schema-only specified.
-    // if (!TMS_CMD_ARGS.schema_only) { tms_init_data(); }
+    // Initialize test data. Skip if --schema-only specified.
+    if (!TMS_CMD_ARGS.schema_only) { tms_init_data(); }
 
     // If this was an installation run then we are done
     if (TMS_CMD_ARGS.install) {
@@ -120,8 +119,8 @@ async fn main() -> Result<(), std::io::Error> {
         return Ok(());
     }
 
-    // // This is a non-install startup. Perform second stage initialization
-    // tms_init2();
+    // This is a non-install startup. Perform second stage initialization
+    tms_init2();
 
     // --------------- Main Loop Set Up ---------------
     // Create a tuple with all the endpoints, create the service and add the server urls to it.
@@ -179,41 +178,36 @@ async fn main() -> Result<(), std::io::Error> {
 //                             Private Functions
 // ***************************************************************************
 
-// // ---------------------------------------------------------------------------
-// // tms_init1:
-// // ---------------------------------------------------------------------------
-// /*
-//  * Initialize all subsystems and data structures. Init needed for normal and install startup.
-//  */
-// fn tms_init_data() {
-//
-//     // Insert default records into database if they don't already exist.
-//     // This call is a no-op except when the --install option is set.
-//     let inserts = block_on(db::create_std_tenants())
-//         .expect("Unable to create or access standard tenant records.");
-//     info!("Number of standard tenants created: {}.", inserts);
-//
-//     // Optionally insert test records into test tenant
-//     // only if we just created the standard tenants.
-//     if inserts > 0 {db::check_test_data();}
-// }
+/*
+ * Initialize all subsystems and data structures. Init needed for normal and install startup.
+ */
+fn tms_init_data() {
+    // Insert default records into database if they don't already exist.
+    // This call is a no-op except when the --install option is set.
+    let inserts = block_on(db::create_default_admin())
+        .expect("Unable to create default admin user.");
+    info!("Number of admin user records created: {}.", inserts);
 
-// // ---------------------------------------------------------------------------
-// // tms_init2:
-// // ---------------------------------------------------------------------------
-// /*
-//  * Perform initialization steps for a normal non-install run
-//  */
-// fn tms_init2() {
-//     // Manage test tenant enablement by always setting the test tenant's enablement
-//     // flag to the value specified in the configuration.
-//     let tenant = TEST_TENANT.to_string();
-//     block_on(db::set_tenant_enabled_internal(
-//         &tenant, RUNTIME_CTX.parms.config.enable_test_tenant)).unwrap_or_else(|_|{
-//             panic!("Unable to set the {} tenant's enabled flag to match the enable_test_tenant configuration. \
-//                     Aborting server execution.", tenant);
-//         });
-// }
+    // Insert test records only if we just created the default admin user.
+    if inserts > 0 {db::check_test_data();}
+}
+
+// ---------------------------------------------------------------------------
+// tms_init2:
+// ---------------------------------------------------------------------------
+/*
+ * Perform initialization steps for a normal non-install run.
+ * Currently, this simply updates enabled flag for the test client based on current configuration.
+ */
+fn tms_init2() {
+    // Manage test client enablement by always setting flag based on current configuration.
+    let test_client = TEST_CLIENT.to_string();
+    block_on(db::set_test_enabled_internal(
+        &test_client, RUNTIME_CTX.parms.config.enable_test_client)).unwrap_or_else(|_|{
+            panic!("Unable to set the {} client's enabled flag to match the enable_test_client configuration. \
+                    Aborting server execution.", test_client);
+        });
+}
 
 // ---------------------------------------------------------------------------
 // print_version_info:
