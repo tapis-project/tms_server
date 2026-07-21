@@ -166,7 +166,7 @@ CREATE TABLE IF NOT EXISTS pubkeys
     public_key             TEXT NOT NULL,
     key_type               TEXT NOT NULL,
     key_bits               INT  NOT NULL,
-    max_uses               INT  NOT NULL CHECK (max_uses >= 0),
+    MAX_USES               INT  NOT NULL CHECK (MAX_USES >= 0),
     remaining_uses         INT  NOT NULL CHECK (remaining_uses >= 0),
     initial_ttl_minutes    INT  NOT NULL CHECK (initial_ttl_minutes >= 0),
     expires_at             TEXT NOT NULL,

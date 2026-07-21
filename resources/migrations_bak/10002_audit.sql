@@ -659,7 +659,7 @@ FOR EACH ROW EXECUTE FUNCTION insert_tenants_function();
 -- INSERT INTO pubkeys_audit (refid, refcol, change, newvalue)
 -- VALUES (NEW.id, 'row', 'I', json_array(NEW.id, NEW.tenant, NEW.client_id, NEW.client_user_id, NEW.host,
 --                                        NEW.host_account, NEW.public_key_fingerprint, NEW.public_key, NEW.key_type, NEW.key_bits,
---                                        NEW.max_uses, NEW.remaining_uses, NEW.initial_ttl_minutes, NEW.expires_at, NEW.created, NEW.updated));
+--                                        NEW.MAX_USES, NEW.remaining_uses, NEW.initial_ttl_minutes, NEW.expires_at, NEW.created, NEW.updated));
 -- END;
 --
 -- CREATE TRIGGER IF NOT EXISTS
@@ -671,7 +671,7 @@ FOR EACH ROW EXECUTE FUNCTION insert_tenants_function();
 -- INSERT INTO pubkeys_audit (refid, refcol, change, oldvalue)
 -- VALUES (OLD.id, 'row', 'D', json_array(OLD.id, OLD.tenant, OLD.client_id, OLD.client_user_id, OLD.host,
 --                OLD.host_account, OLD.public_key_fingerprint, OLD.public_key, OLD.key_type, OLD.key_bits,
---                OLD.max_uses, OLD.remaining_uses, OLD.initial_ttl_minutes, OLD.expires_at, OLD.created, OLD.updated));
+--                OLD.MAX_USES, OLD.remaining_uses, OLD.initial_ttl_minutes, OLD.expires_at, OLD.created, OLD.updated));
 -- END;
 --
 -- CREATE TRIGGER IF NOT EXISTS
@@ -789,10 +789,10 @@ FOR EACH ROW EXECUTE FUNCTION insert_tenants_function();
 -- AFTER UPDATE ON
 --     pubkeys
 -- FOR EACH ROW WHEN
---     OLD.max_uses != NEW.max_uses
+--     OLD.MAX_USES != NEW.MAX_USES
 -- BEGIN
 -- INSERT INTO pubkeys_audit (refid, refcol, change, oldvalue, newvalue)
--- VALUES (NEW.id, 'max_uses', 'U', OLD.max_uses, NEW.max_uses);
+-- VALUES (NEW.id, 'MAX_USES', 'U', OLD.MAX_USES, NEW.MAX_USES);
 -- END;
 --
 -- CREATE TRIGGER IF NOT EXISTS
@@ -851,7 +851,7 @@ FOR EACH ROW EXECUTE FUNCTION insert_tenants_function();
 -- --     public_key             TEXT NOT NULL,
 -- --     key_type               TEXT NOT NULL,
 -- --     key_bits               INT  NOT NULL,
--- --     max_uses               INT  NOT NULL CHECK (max_uses >= 0),
+-- --     MAX_USES               INT  NOT NULL CHECK (MAX_USES >= 0),
 -- --     remaining_uses         INT  NOT NULL CHECK (remaining_uses >= 0),
 -- --     initial_ttl_minutes    INT  NOT NULL CHECK (initial_ttl_minutes >= 0),
 -- --     expires_at             TEXT NOT NULL,

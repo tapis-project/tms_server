@@ -11,6 +11,10 @@ use crate::utils::authz::{authorize, AuthzTypes};
 use log::{error, info};
 
 use crate::RUNTIME_CTX;
+/*
+ * client_update endpoint. The only update that will happen is for the enabled flag.
+ * No other attributes may be updated.
+ */
 
 // ***************************************************************************
 //                          Request/Response Definitions
@@ -41,7 +45,6 @@ impl RequestDebug for ReqUpdateClient {
     fn get_request_info(&self) -> String {
         // Get optional values in displayable form. 
         let enabled = format!("{:#?}", &self.enabled);
-
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
         s.push_str("\n    client_id: ");
@@ -70,9 +73,6 @@ enum TmsResponse {
 fn make_http_200(resp: RespUpdateClient) -> TmsResponse {
     TmsResponse::Http200(Json(resp))
 }
-fn make_http_400(msg: String) -> TmsResponse {
-    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
-}
 fn make_http_401(msg: String) -> TmsResponse {
     TmsResponse::Http401(Json(HttpResult::new(401.to_string(), msg)))
 }
@@ -93,8 +93,7 @@ impl UpdateClientApi {
             -> TmsResponse {
         // Package the request parameters. The difference in query parameter processing
         // is because Option<String> does not implement the copy trait, but Option<bool> does.
-        let req = 
-            ReqUpdateClient {client_id: client_id.to_string(), enabled: *enabled};
+        let req = ReqUpdateClient {client_id: client_id.to_string(), enabled: *enabled};
 
         // -------------------- Authorize ----------------------------
         // Only the client and admin can query a client record.
@@ -116,14 +115,11 @@ impl UpdateClientApi {
 
         // -------------------- Process Request ----------------------
         // Process the request.
-        match RespUpdateClient::process(http_req, &req).await {
-            Ok(r) => r,
-            Err(e) => {
-                let msg = "ERROR: ".to_owned() + e.to_string().as_str();
-                error!("{}", msg);
-                make_http_500(msg)
-            }
-        }
+        RespUpdateClient::process(http_req, &req).await.unwrap_or_else(|e| {
+            let msg = "ERROR: ".to_owned() + e.to_string().as_str();
+            error!("{}", msg);
+            make_http_500(msg)
+        })
     }
 }
 
@@ -145,7 +141,7 @@ impl RespUpdateClient {
             return Ok(make_http_200(RespUpdateClient::new("0", "No updates specified".to_string(), 0)));
         } 
 
-        // Insert the new key record.
+        // Make the update
         let updates = update_client(req).await?;
         
         // Log result and return response.
@@ -165,27 +161,23 @@ async fn update_client(req: &ReqUpdateClient) -> Result<u64> {
     // Get timestamp.
     let now = timestamp_utc();
     let current_ts = timestamp_utc_to_str(now);
-
-    // Get a connection to the db and start a transaction.  Uncommited transactions 
+    // Get a connection to the db and start a transaction.  Uncommited transactions
     // are automatically rolled back when they go out of scope. 
     // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
-
     // Update count.
     let mut updates: u64 = 0;
-
     // Conditionally update the app version.
     if let Some(enabled) = &req.enabled {
         // Issue the db update call.
         let result = sqlx::query(UPDATE_CLIENT_ENABLED)
             .bind(enabled)
-            .bind(&current_ts)
+            .bind(now)
             .bind(&req.client_id)
             .execute(&mut *tx)
             .await?;
         updates += result.rows_affected();
     }
-
     // Commit the transaction.
     tx.commit().await?;
     Ok(updates)

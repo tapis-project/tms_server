@@ -6,7 +6,6 @@ use std::io::{self, Write};
 use chrono::{Utc, DateTime};
 use sqlx::Row;
 
-use futures::executor::block_on;
 use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime, create_hex_secret, hash_hex_secret, MAX_TMS_UTC_STR, timestamp_utc_to_str, calc_expires_at};
 use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_PUBKEYS, INSERT_USER_HOSTS, INSERT_USER_MFA};
 use crate::utils::config::{DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_CMD_ARGS, DB_TRUE, TEST_CLIENT, TEST_APP, TEST_CLIENT_SECRET};
@@ -21,6 +20,13 @@ use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RES
                            GET_USER_HOST_ACTIVE, GET_USER_HOST_EXISTS, GET_USER_MFA_ACTIVE,
                            GET_USER_MFA_EXISTS, INSERT_ADMIN, INSERT_CLIENT,
                            SELECT_PUBKEY_HOST_ACCOUNT, UPDATE_CLIENT_ENABLED};
+
+const TEST_USER: &str = "testuser";
+const TEST_HOST: &str = "testhost";
+const TEST_HOST_ACCOUNT: &str = "testhostaccount";
+const MAX_USES: i32 = i32::MAX;
+const MAX_TTL_MINUTES: i32 = i32::MAX;
+const KEY_TYPE: KeyType = KeyType::Ed25519;
 
 /** Multiple Query Transactions
  * 
@@ -170,9 +176,22 @@ fn print_admin_secret_message(dft_key_str: &String) -> Result<()> {
 // ---------------------------------------------------------------------------
 // check_test_data:
 // ---------------------------------------------------------------------------
-pub fn check_test_data() {
+pub async fn check_test_client() {
     // Assume we are initializing for the first time and need to create dummy test data.
-    match block_on(create_test_data()) {
+    match create_test_client().await {
+        Ok(b) => {
+            if b {info!("Test client record inserted");}
+        }
+        Err(e) => {warn!("****** Ignoring error while inserting test client. Error: {}", e);}
+    };
+}
+
+// ---------------------------------------------------------------------------
+// check_test_data:
+// ---------------------------------------------------------------------------
+pub async fn check_test_data() {
+    // Assume we are initializing for the first time and need to create dummy test data.
+    match create_test_data().await {
         Ok(b) => {
             if b {info!("Test records inserted");}
         }
@@ -181,23 +200,26 @@ pub fn check_test_data() {
 }
 
 // ---------------------------------------------------------------------------
-// create_test_data:
+// check_test_keys:
+// ---------------------------------------------------------------------------
+pub async fn check_test_keys() {
+    // Assume we are initializing for the first time and need to create dummy test data.
+    match create_test_keys().await {
+        Ok(b) => {
+            if b {info!("Test records inserted");}
+        }
+        Err(e) => {warn!("****** Ignoring error while inserting test records. Error: {}", e);}
+    };
+}
+
+// ---------------------------------------------------------------------------
+// create_test_client:
 // ---------------------------------------------------------------------------
 /** This function either experiences an error or returns true (false is never returned). */
-async fn create_test_data() -> Result<bool> {
-    // Constants used locally.
+async fn create_test_client() -> Result<bool> {
     let test_client_secret_hash: String = hash_hex_secret(&TEST_CLIENT_SECRET.to_string());
-    const TEST_USER: &str = "testuser";
-    const TEST_HOST: &str = "testhost";
-    const TEST_HOST_ACCOUNT: &str = "testhostaccount";
-
-    // Max expires_at
-    let max_tms_utc = DateTime::parse_from_rfc3339(MAX_TMS_UTC_STR).unwrap().with_timezone(&Utc);
-
-    // Get the timestamp string.
     let now = timestamp_utc();
-
-    // Create the client, this happens in it's own txn
+    // Create the client
     // Create the input record. Note we save the hash of the hex secret, but never the secret.
     let client_input = ClientInput::new(
         TEST_APP.to_string(),
@@ -208,6 +230,18 @@ async fn create_test_data() -> Result<bool> {
         now.clone(),
     );
     insert_new_client(client_input).await?;
+    Ok(true)
+}
+
+// ---------------------------------------------------------------------------
+// create_test_data:
+// ---------------------------------------------------------------------------
+/** This function either experiences an error or returns true (false is never returned). */
+async fn create_test_data() -> Result<bool> {
+    // Max expires_at
+    let max_tms_utc = DateTime::parse_from_rfc3339(MAX_TMS_UTC_STR).unwrap().with_timezone(&Utc);
+    // Get the timestamp string.
+    let now = timestamp_utc();
 
     // Create records for 100 test users in the test client. Do this in a txn
     // Get a connection to the db and start a transaction.
@@ -252,26 +286,31 @@ async fn create_test_data() -> Result<bool> {
         info!("Created delegation records for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
     }
 
+    Ok(true)
+}
+
+// ---------------------------------------------------------------------------
+// create_test_keys:
+// ---------------------------------------------------------------------------
+/** This function either experiences an error or returns true (false is never returned). */
+async fn create_test_keys() -> Result<bool> {
+    // Get the enumerated key type.
     // For each test user create one pubkey entry, ignore generated private key
     for n in 1..=100 {
         let test_user = format!("{}{:03}", TEST_USER, n);
         let test_host = format!("{}{:03}", TEST_HOST, n);
         let test_host_acct = format!("{}{:03}", TEST_HOST_ACCOUNT, n);
 
-        // Get the enumerated key type.
-        let key_type = KeyType::Ed25519;
         // Generate the new key pair.
-        let keyinfo = match keygen::generate_key(key_type) {
+        let keyinfo = match keygen::generate_key(KEY_TYPE) {
             Ok(k) => k,
             Err(e) => {
                 return Result::Err(anyhow!(e));
             }
         };
-        let max_uses = i32::MAX;
-        let ttl_minutes = i32::MAX;
         let now  = timestamp_utc();
-        let expires_at  = calc_expires_at(now, ttl_minutes);
-        let remaining_uses = max_uses;
+        let expires_at  = calc_expires_at(now, MAX_TTL_MINUTES);
+        let remaining_uses = MAX_USES;
         // Create the input record.
         let input_record = PubkeyInput::new(
             TEST_CLIENT.to_string(),
@@ -282,16 +321,17 @@ async fn create_test_data() -> Result<bool> {
             keyinfo.public_key.clone(),
             keyinfo.key_type.clone(),
             keyinfo.key_bits,
-            max_uses,
+            MAX_USES,
             remaining_uses,
-            ttl_minutes,
+            MAX_TTL_MINUTES,
             expires_at.clone(),
             now.clone(),
             now.clone(),
         );
         info!("Creating keypair for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
         // Insert the new key record.
-        insert_new_pubkey(input_record);
+        let inserts = insert_new_pubkey(input_record).await?;
+        info!("Created keypair for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
     }
 
     Ok(true)
@@ -586,21 +626,19 @@ pub async fn set_test_enabled_internal(test_client: &String, enabled: bool) -> R
     // Get timestamp.
     let now = timestamp_utc();
     let current_ts = timestamp_utc_to_str(now);
-    // Get a connection to the db and start a transaction.
-    let mut tx = RUNTIME_CTX.db.begin().await?;
-
     // Update count.
     let mut updates: u64 = 0;
-
+    info!("Updating client enabled flag. Client Id: {} enabled: {} updated: {}", test_client, enabled, current_ts);
+    // Get a connection to the db and start a transaction.
+    let mut tx = RUNTIME_CTX.db.begin().await?;
     // Issue the db update call.
     let result = sqlx::query(UPDATE_CLIENT_ENABLED)
         .bind(enabled)
-        .bind(&current_ts)
+        .bind(now)
         .bind(test_client)
         .execute(&mut *tx)
         .await?;
     updates += result.rows_affected();
-
     // Commit the transaction.
     tx.commit().await?;
     Ok(updates)

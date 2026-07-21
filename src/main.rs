@@ -120,7 +120,7 @@ async fn main() -> Result<(), std::io::Error> {
     }
 
     // This is a non-install startup. Perform second stage initialization
-    tms_init2();
+//    tms_init2();
 
     // --------------- Main Loop Set Up ---------------
     // Create a tuple with all the endpoints, create the service and add the server urls to it.
@@ -189,7 +189,12 @@ fn tms_init_data() {
     info!("Number of admin user records created: {}.", inserts);
 
     // Insert test records only if we just created the default admin user.
-    if inserts > 0 {db::check_test_data();}
+    if inserts > 0 {
+        // Create test client, delegation records and pubkeys
+        block_on(db::check_test_client());
+        block_on(db::check_test_data());
+        block_on(db::check_test_keys());
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -199,15 +204,12 @@ fn tms_init_data() {
  * Perform initialization steps for a normal non-install run.
  * Currently, this simply updates enabled flag for the test client based on current configuration.
  */
-fn tms_init2() {
-    // Manage test client enablement by always setting flag based on current configuration.
-    let test_client = TEST_CLIENT.to_string();
-    block_on(db::set_test_enabled_internal(
-        &test_client, RUNTIME_CTX.parms.config.enable_test_client)).unwrap_or_else(|_|{
-            panic!("Unable to set the {} client's enabled flag to match the enable_test_client configuration. \
-                    Aborting server execution.", test_client);
-        });
-}
+// fn tms_init2() {
+//     // Manage test client enablement by always setting flag based on current configuration.
+//     let test_client = TEST_CLIENT.to_string();
+//     // block_on(db::set_test_enabled_internal(&test_client, RUNTIME_CTX.parms.config.enable_test_client))
+//     //     .expect(&format!("Unable to set the {} client's enabled flag to match the enable_test_client configuration. Aborting server execution.", test_client));
+// }
 
 // ---------------------------------------------------------------------------
 // print_version_info:
