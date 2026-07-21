@@ -9,17 +9,17 @@ use sqlx::Row;
 use futures::executor::block_on;
 use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime, create_hex_secret, hash_hex_secret, MAX_TMS_UTC_STR, timestamp_utc_to_str, calc_expires_at};
 use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_PUBKEYS, INSERT_USER_HOSTS, INSERT_USER_MFA};
-use crate::utils::config::{DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_CMD_ARGS, DB_TRUE, TEST_CLIENT, TEST_APP};
+use crate::utils::config::{DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_CMD_ARGS, DB_TRUE, TEST_CLIENT, TEST_APP, TEST_CLIENT_SECRET};
 
 use log::error;
 
 use crate::RUNTIME_CTX;
-use crate::utils::db_types::PubkeyInput;
+use crate::utils::db_types::{ClientInput, PubkeyInput};
 use crate::utils::keygen;
 use crate::utils::keygen::KeyType;
 use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RESERVATION_FOR_EXTEND,
                            GET_USER_HOST_ACTIVE, GET_USER_HOST_EXISTS, GET_USER_MFA_ACTIVE,
-                           GET_USER_MFA_EXISTS, INSERT_ADMIN, INSERT_CLIENTS,
+                           GET_USER_MFA_EXISTS, INSERT_ADMIN, INSERT_CLIENT,
                            SELECT_PUBKEY_HOST_ACCOUNT, UPDATE_CLIENT_ENABLED};
 
 /** Multiple Query Transactions
@@ -35,6 +35,26 @@ use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RES
  * tables in a different order, which could lead to conflicts and deadlocks.
 */
 
+/*
+ * Insert a client pubkey record
+ */
+pub async fn insert_new_client(rec: ClientInput) -> Result<u64> {
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+    // Create the insert statement.
+    let result = sqlx::query(INSERT_CLIENT)
+        .bind(rec.app_name.clone())
+        .bind(rec.client_id.clone())
+        .bind(rec.client_secret)
+        .bind(rec.enabled)
+        .bind(rec.created)
+        .bind(rec.updated)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    info!("New client created. ClientId: {} App: '{}' enabled: {} created: {} updated: {}",
+          rec.client_id, rec.app_name, rec.enabled, rec.created, rec.updated);
+    Ok(result.rows_affected())
+}
 
 /*
  * Insert a new pubkey record
@@ -166,7 +186,7 @@ pub fn check_test_data() {
 /** This function either experiences an error or returns true (false is never returned). */
 async fn create_test_data() -> Result<bool> {
     // Constants used locally.
-    let   test_secret: String = hash_hex_secret(&"secret1".to_string());
+    let test_client_secret_hash: String = hash_hex_secret(&TEST_CLIENT_SECRET.to_string());
     const TEST_USER: &str = "testuser";
     const TEST_HOST: &str = "testhost";
     const TEST_HOST_ACCOUNT: &str = "testhostaccount";
@@ -177,26 +197,26 @@ async fn create_test_data() -> Result<bool> {
     // Get the timestamp string.
     let now = timestamp_utc();
 
+    // Create the client, this happens in it's own txn
+    // Create the input record. Note we save the hash of the hex secret, but never the secret.
+    let client_input = ClientInput::new(
+        TEST_APP.to_string(),
+        TEST_CLIENT.to_string(),
+        test_client_secret_hash,
+        DB_TRUE,
+        now.clone(),
+        now.clone(),
+    );
+    insert_new_client(client_input).await?;
+
+    // Create records for 100 test users in the test client. Do this in a txn
     // Get a connection to the db and start a transaction.
-    let mut tx = RUNTIME_CTX.db.begin().await?;
-
-    // -------- Create the test client
-    sqlx::query(INSERT_CLIENTS)
-        .bind(TEST_APP)
-        .bind(TEST_CLIENT)
-        .bind(test_secret)
-        .bind(DB_TRUE)
-        .bind(now)
-        .bind(now)
-        .execute(&mut *tx)
-        .await?;
-
-    // Create records for 100 test users in the test client
     for n in 1..=100 {
+        let mut tx = RUNTIME_CTX.db.begin().await?;
         let test_user = format!("{}{:03}", TEST_USER, n);
         let test_host = format!("{}{:03}", TEST_HOST, n);
         let test_host_acct = format!("{}{:03}", TEST_HOST_ACCOUNT, n);
-
+        info!("Creating delegation records for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
         // -------- Populate user_mfa
         sqlx::query(INSERT_USER_MFA)
             .bind(test_user.clone())
@@ -210,8 +230,8 @@ async fn create_test_data() -> Result<bool> {
         // -------- Populate user_hosts
         sqlx::query(INSERT_USER_HOSTS)
             .bind(test_user.clone())
-            .bind(test_host)
-            .bind(test_host_acct)
+            .bind(test_host.clone())
+            .bind(test_host_acct.clone())
             .bind(max_tms_utc)
             .bind(now)
             .bind(now)
@@ -227,8 +247,12 @@ async fn create_test_data() -> Result<bool> {
             .bind(now)
             .execute(&mut *tx)
             .await?;
+        // Commit the transaction.
+        tx.commit().await?;
+        info!("Created delegation records for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
     }
-    // TODO For each test user create one pubkey entry, ignore generated private key
+
+    // For each test user create one pubkey entry, ignore generated private key
     for n in 1..=100 {
         let test_user = format!("{}{:03}", TEST_USER, n);
         let test_host = format!("{}{:03}", TEST_HOST, n);
@@ -253,7 +277,7 @@ async fn create_test_data() -> Result<bool> {
             TEST_CLIENT.to_string(),
             test_user.clone(),
             test_host.clone(),
-            test_host_acct,
+            test_host_acct.clone(),
             keyinfo.public_key_fingerprint.clone(),
             keyinfo.public_key.clone(),
             keyinfo.key_type.clone(),
@@ -265,13 +289,11 @@ async fn create_test_data() -> Result<bool> {
             now.clone(),
             now.clone(),
         );
+        info!("Creating keypair for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
         // Insert the new key record.
-        insert_new_pubkey(input_record).await?;
+        insert_new_pubkey(input_record);
     }
 
-    // Commit the transaction.
-    tx.commit().await?;
-    
     Ok(true)
 }
 

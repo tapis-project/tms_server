@@ -4,7 +4,7 @@
 pub const PLACEHOLDER: &str = "${PLACEHOLDER}";
 
 // ========================= clients table =========================
-pub const INSERT_CLIENTS: &str = concat!(
+pub const INSERT_CLIENT: &str = concat!(
     "INSERT INTO clients (app_name, client_id, client_secret, enabled, created, updated) ",
     "VALUES ($1, $2, $3, $4, $5, $6)",
 );
@@ -41,12 +41,12 @@ pub const DELETE_CLIENT: &str = concat!(
 // ========================= user_mfa table ========================
 pub const INSERT_USER_MFA: &str = concat!(
     "INSERT INTO user_mfa (tms_user_id, expires_at, enabled, created, updated) ",
-    "VALUES ($1, $2, $3, $4, $5, $6)",
+    "VALUES ($1, $2, $3, $4, $5)",
 );
 
 pub const INSERT_USER_MFA_NOT_STRICT: &str = concat!(
     "INSERT INTO user_mfa (tms_user_id, expires_at, enabled, created, updated) ",
-    "VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING",
+    "VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
 );
 
 pub const GET_USER_MFA: &str = concat!(
@@ -80,12 +80,12 @@ pub const LIST_USER_MFA: &str = concat!(
 // ========================= user_hosts table =======================
 pub const INSERT_USER_HOSTS: &str = concat!(
     "INSERT INTO user_hosts (tms_user_id, host, host_account, expires_at, created, updated) ",
-    "VALUES ($1, $2, $3, $4, $5, $6, $7)",
+    "VALUES ($1, $2, $3, $4, $5, $6)",
 );
 
 pub const INSERT_USER_HOSTS_NOT_STRICT: &str = concat!(
     "INSERT INTO user_hosts (tms_user_id, host, host_account, expires_at, created, updated) ",
-    "VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING",
+    "VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING",
 );
 
 pub const GET_USER_HOST: &str = concat!(
@@ -119,12 +119,12 @@ pub const UPDATE_USER_HOST_EXPIRY: &str = concat!(
 // ========================= user_delegations table =================
 pub const INSERT_DELEGATIONS: &str = concat!(
     "INSERT INTO delegations (client_id, client_user_id, expires_at, created, updated) ",
-    "VALUES ($1, $2, $3, $4, $5, $6)",
+    "VALUES ($1, $2, $3, $4, $5)",
 );
 
 pub const INSERT_DELEGATIONS_NOT_STRICT: &str = concat!(
     "INSERT INTO delegations (client_id, client_user_id, expires_at, created, updated) ",
-    "VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING",
+    "VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
 );
 
 pub const GET_DELEGATION: &str = concat!(
@@ -159,7 +159,7 @@ pub const UPDATE_DELEGATION_EXPIRY: &str = concat!(
 pub const INSERT_PUBKEYS: &str = concat!(
     "INSERT INTO pubkeys (client_id, client_user_id, host, host_account, public_key_fingerprint, public_key, ",
     "key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, expires_at, created, updated) ", 
-    "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
+    "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
 );
 
 pub const SELECT_PUBKEY: &str = concat!(
@@ -211,7 +211,7 @@ pub const DELETE_PUBKEY: &str = concat!(
 // ========================= admin table ===========================
 pub const INSERT_ADMIN: &str = concat!(
     "INSERT INTO admin (admin_user, admin_secret, privilege, created, updated) ",
-    "VALUES ($1, $2, $3, $4, $5, $6)",
+    "VALUES ($1, $2, $3, $4, $5)",
 );
 
 // Conforms to the signature required for secret retrieval queries as defined by 
@@ -223,7 +223,7 @@ pub const GET_ADMIN_SECRET: &str = concat!(
 // ========================= hosts table ===========================
 pub const INSERT_HOSTS: &str = concat!(
     "INSERT INTO hosts (host, addr, created, updated) ",
-    "VALUES ($1, $2, $3, $4, $5)",
+    "VALUES ($1, $2, $3, $4)",
 );
 
 pub const GET_HOST: &str = concat!(
@@ -244,7 +244,7 @@ pub const LIST_HOSTS: &str = concat!(
 pub const INSERT_RESERVATIONS: &str = concat!(
     "INSERT INTO reservations (resid, parent_resid, client_id, client_user_id, ",
     "host, public_key_fingerprint, expires_at, created, updated) ",
-    "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+    "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
 );
 
 pub const GET_RESERVATION: &str = concat!(

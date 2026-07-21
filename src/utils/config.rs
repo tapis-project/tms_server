@@ -49,6 +49,7 @@ const DEFAULT_SVR_URL      : &str = "https://localhost:3000/v1";
 
 // Test data constants.
 pub const TEST_CLIENT : &str = "testclient";
+pub const TEST_CLIENT_SECRET : &str = "secret1";
 pub const TEST_APP: &str = "testapp1";
 
 // Admin table constants.

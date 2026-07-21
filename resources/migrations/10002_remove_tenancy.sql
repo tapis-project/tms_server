@@ -93,10 +93,6 @@ ALTER TABLE clients DROP COLUMN tenant;
 -- Remove app_version column from table clients
 ------------------------------------------
 ALTER TABLE clients DROP COLUMN app_version;
-ALTER TABLE admin DROP COLUMN tenant;
-ALTER TABLE reservations DROP COLUMN tenant;
-ALTER TABLE pubkeys DROP COLUMN tenant;
-ALTER TABLE delegations DROP COLUMN tenant;
 
 ------------------------------------------
 -- Last action is to drop the tenants table

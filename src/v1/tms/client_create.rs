@@ -5,8 +5,9 @@ use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
 use anyhow::Result;
 
 use crate::utils::errors::HttpResult;
-use crate::utils::db_statements::INSERT_CLIENTS;
-use crate::utils::db_types::ClientInput; 
+use crate::utils::db_statements::INSERT_CLIENT;
+use crate::utils::db_types::ClientInput;
+use crate::utils::db::insert_new_client;
 use crate::utils::config::{DB_TRUE, NEW_CLIENTS_DISALLOW};
 use crate::utils::tms_utils::{self, create_hex_secret, hash_hex_secret, timestamp_utc, timestamp_utc_to_str, 
                               RequestDebug, validate_semver};
@@ -152,28 +153,3 @@ impl RespCreateClient {
 // ***************************************************************************
 //                          Private Functions
 // ***************************************************************************
-// ---------------------------------------------------------------------------
-// insert_new_client:
-// ---------------------------------------------------------------------------
-async fn insert_new_client(rec: ClientInput) -> Result<u64> {
-    // Get a connection to the db and start a transaction.  Uncommited transactions 
-    // are automatically rolled back when they go out of scope. 
-    // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
-    let mut tx = RUNTIME_CTX.db.begin().await?;
-    
-    // Create the insert statement.
-    let result = sqlx::query(INSERT_CLIENTS)
-        .bind(rec.app_name)
-        .bind(rec.client_id)
-        .bind(rec.client_secret)
-        .bind(rec.enabled)
-        .bind(rec.created)
-        .bind(rec.updated)
-        .execute(&mut *tx)
-        .await?;
-
-    // Commit the transaction.
-    tx.commit().await?;
-
-    Ok(result.rows_affected())
-}
