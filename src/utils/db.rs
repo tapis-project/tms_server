@@ -174,49 +174,10 @@ fn print_admin_secret_message(dft_key_str: &String) -> Result<()> {
 }
 
 // ---------------------------------------------------------------------------
-// check_test_data:
-// ---------------------------------------------------------------------------
-pub async fn check_test_client() {
-    // Assume we are initializing for the first time and need to create dummy test data.
-    match create_test_client().await {
-        Ok(b) => {
-            if b {info!("Test client record inserted");}
-        }
-        Err(e) => {warn!("****** Ignoring error while inserting test client. Error: {}", e);}
-    };
-}
-
-// ---------------------------------------------------------------------------
-// check_test_data:
-// ---------------------------------------------------------------------------
-pub async fn check_test_data() {
-    // Assume we are initializing for the first time and need to create dummy test data.
-    match create_test_data().await {
-        Ok(b) => {
-            if b {info!("Test records inserted");}
-        }
-        Err(e) => {warn!("****** Ignoring error while inserting test records. Error: {}", e);}
-    };
-}
-
-// ---------------------------------------------------------------------------
-// check_test_keys:
-// ---------------------------------------------------------------------------
-pub async fn check_test_keys() {
-    // Assume we are initializing for the first time and need to create dummy test data.
-    match create_test_keys().await {
-        Ok(b) => {
-            if b {info!("Test records inserted");}
-        }
-        Err(e) => {warn!("****** Ignoring error while inserting test records. Error: {}", e);}
-    };
-}
-
-// ---------------------------------------------------------------------------
 // create_test_client:
 // ---------------------------------------------------------------------------
 /** This function either experiences an error or returns true (false is never returned). */
-async fn create_test_client() -> Result<bool> {
+pub async fn create_test_client() -> Result<bool> {
     let test_client_secret_hash: String = hash_hex_secret(&TEST_CLIENT_SECRET.to_string());
     let now = timestamp_utc();
     // Create the client
@@ -237,7 +198,7 @@ async fn create_test_client() -> Result<bool> {
 // create_test_data:
 // ---------------------------------------------------------------------------
 /** This function either experiences an error or returns true (false is never returned). */
-async fn create_test_data() -> Result<bool> {
+pub async fn create_test_data() -> Result<bool> {
     // Max expires_at
     let max_tms_utc = DateTime::parse_from_rfc3339(MAX_TMS_UTC_STR).unwrap().with_timezone(&Utc);
     // Get the timestamp string.
@@ -293,7 +254,7 @@ async fn create_test_data() -> Result<bool> {
 // create_test_keys:
 // ---------------------------------------------------------------------------
 /** This function either experiences an error or returns true (false is never returned). */
-async fn create_test_keys() -> Result<bool> {
+pub async fn create_test_keys() -> Result<bool> {
     // Get the enumerated key type.
     // For each test user create one pubkey entry, ignore generated private key
     for n in 1..=100 {

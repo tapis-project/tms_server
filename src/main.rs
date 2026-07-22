@@ -13,7 +13,6 @@ use poem::listener::{Listener, OpensslTlsConfig};
 use poem::{listener::TcpListener, Route};
 use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 use poem_extensions::api;
-use futures::executor::block_on;
 // TMS APIs
 use crate::v1::tms::client_create::CreateClientApi;
 use crate::v1::tms::client_delete::DeleteClientApi;
@@ -54,6 +53,7 @@ const TMSS_CERT_FILE: &str = "/cert.pem";
 // This will exit if there is a problem reading the config file or connecting to the database.
 // This depends on install directories being present, so this should be instantiated after
 //   processing of --install
+// NOTE: This makes a block_on call to initialize the DB pool
 lazy_static! {
     static ref RUNTIME_CTX: RuntimeCtx = init_runtime_context();
 }
@@ -103,10 +103,13 @@ async fn main() -> Result<(), std::io::Error> {
     //   - Check resource files
     //   - read configuration parameters from tms.toml and environment
     //   - initialize database, makes db connections available to all modules.
+    // NOTE: This makes a block_on call to initialize the DB pool
     info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
 
     // Initialize test data. Skip if --schema-only specified.
-    if (!TMS_CMD_ARGS.schema_only) { tms_init_data(); }
+    if (!TMS_CMD_ARGS.schema_only) {
+        tms_init_data().await.expect("Error initializing data");
+    }
 
     // If this was an installation run then we are done
     if (TMS_CMD_ARGS.install) {
@@ -120,7 +123,7 @@ async fn main() -> Result<(), std::io::Error> {
     }
 
     // This is a non-install startup. Perform second stage initialization
-//    tms_init2();
+    tms_init2().await.expect("Error during second stage initialization.");
 
     // --------------- Main Loop Set Up ---------------
     // Create a tuple with all the endpoints, create the service and add the server urls to it.
@@ -180,21 +183,22 @@ async fn main() -> Result<(), std::io::Error> {
 
 /*
  * Initialize all subsystems and data structures. Init needed for normal and install startup.
+ * This function either experiences an error or returns true (false is never returned).
  */
-fn tms_init_data() {
+async fn tms_init_data() -> Result<bool> {
     // Insert default records into database if they don't already exist.
     // This call is a no-op except when the --install option is set.
-    let inserts = block_on(db::create_default_admin())
-        .expect("Unable to create default admin user.");
+    let inserts = db::create_default_admin().await.expect("Unable to create default admin user.");
     info!("Number of admin user records created: {}.", inserts);
 
     // Insert test records only if we just created the default admin user.
     if inserts > 0 {
         // Create test client, delegation records and pubkeys
-        block_on(db::check_test_client());
-        block_on(db::check_test_data());
-        block_on(db::check_test_keys());
+        db::create_test_client().await;
+        db::create_test_data().await;
+        db::create_test_keys().await;
     }
+    Ok(true)
 }
 
 // ---------------------------------------------------------------------------
@@ -204,12 +208,11 @@ fn tms_init_data() {
  * Perform initialization steps for a normal non-install run.
  * Currently, this simply updates enabled flag for the test client based on current configuration.
  */
-// fn tms_init2() {
-//     // Manage test client enablement by always setting flag based on current configuration.
-//     let test_client = TEST_CLIENT.to_string();
-//     // block_on(db::set_test_enabled_internal(&test_client, RUNTIME_CTX.parms.config.enable_test_client))
-//     //     .expect(&format!("Unable to set the {} client's enabled flag to match the enable_test_client configuration. Aborting server execution.", test_client));
-// }
+async fn tms_init2() -> Result<u64> {
+    // Manage test client enablement by always setting flag based on current configuration.
+    let test_client = TEST_CLIENT.to_string();
+    db::set_test_enabled_internal(&test_client, RUNTIME_CTX.parms.config.enable_test_client).await
+}
 
 // ---------------------------------------------------------------------------
 // print_version_info:
