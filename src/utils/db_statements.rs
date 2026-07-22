@@ -95,15 +95,15 @@ pub const GET_USER_HOST: &str = concat!(
 
 pub const GET_USER_HOST_ACTIVE: &str = concat!(
     "SELECT expires_at ",
-    "FROM user_hosts WHERE tms_user_id = $1 AND host = $3 AND host_account = $4"
+    "FROM user_hosts WHERE tms_user_id = $1 AND host = $2 AND host_account = $3"
 );
 
 pub const GET_USER_HOST_EXISTS: &str = concat!(
-    "SELECT 1 FROM user_hosts WHERE tms_user_id = $1 AND host = $3 AND host_account = $4"
+    "SELECT 1 FROM user_hosts WHERE tms_user_id = $1 AND host = $2 AND host_account = $3"
 );
 
 pub const DELETE_USER_HOST: &str = concat!(
-    "DELETE FROM user_hosts WHERE tms_user_id = $1 AND host = $3 AND host_account = $4"
+    "DELETE FROM user_hosts WHERE tms_user_id = $1 AND host = $2 AND host_account = $3"
 );
 
 pub const LIST_USER_HOSTS: &str = concat!(
@@ -134,11 +134,11 @@ pub const GET_DELEGATION: &str = concat!(
 
 pub const GET_DELEGATION_ACTIVE: &str = concat!(
     "SELECT expires_at ",
-    "FROM delegations WHERE client_id = $2 AND client_user_id = $3"
+    "FROM delegations WHERE client_id = $1 AND client_user_id = $2"
 );
 
 pub const GET_DELEGATION_EXISTS: &str = concat!(
-    "SELECT 1 FROM delegations WHERE client_id = $2 AND client_user_id = $3"
+    "SELECT 1 FROM delegations WHERE client_id = $1 AND client_user_id = $2"
 );
 
 pub const LIST_DELEGATIONS: &str = concat!(
@@ -169,17 +169,17 @@ pub const SELECT_PUBKEY: &str = concat!(
 
 pub const SELECT_PUBKEY_FOR_UPDATE: &str = concat!(
     "SELECT max_uses, remaining_uses FROM pubkeys ",
-    "WHERE client_id = $1 AND host = $3 AND public_key_fingerprint = $4",
+    "WHERE client_id = $1 AND host = $2 AND public_key_fingerprint = $3",
 );
 
 pub const SELECT_PUBKEY_HOST_ACCOUNT: &str = concat!(
     "SELECT host_account FROM pubkeys ",
-    "WHERE client_id = $1 AND host = $3 AND public_key_fingerprint = $4",
+    "WHERE client_id = $1 AND host = $2 AND public_key_fingerprint = $3",
 );
 
 pub const SELECT_PUBKEY_RESERVATION_INFO: &str = concat!(
     "SELECT remaining_uses, expires_at, host_account FROM pubkeys ",
-    "WHERE client_id = $1 AND host = $3 AND public_key_fingerprint = $4",
+    "WHERE client_id = $1 AND host = $2 AND public_key_fingerprint = $3",
 );
 
 pub const GET_PUBKEY_TEMPLATE: &str = concat!(
@@ -205,7 +205,7 @@ pub const UPDATE_EXPIRES_AT: &str = concat!(
 );
 
 pub const DELETE_PUBKEY: &str = concat!(
-    "DELETE FROM pubkeys WHERE client_id = $1 AND host = $3 AND public_key_fingerprint = $4"
+    "DELETE FROM pubkeys WHERE client_id = $1 AND host = $2 AND public_key_fingerprint = $3"
 );
 
 // ========================= admin table ===========================
@@ -232,7 +232,7 @@ pub const GET_HOST: &str = concat!(
 );
 
 pub const DELETE_HOST: &str = concat!(
-    "DELETE FROM hosts WHERE host = $2 AND addr = $3"
+    "DELETE FROM hosts WHERE host = $1 AND addr = $2"
 );
 
 pub const LIST_HOSTS: &str = concat!(
@@ -255,7 +255,7 @@ pub const GET_RESERVATION: &str = concat!(
 
 pub const GET_RESERVATION_FOR_EXTEND: &str = concat!(
     "SELECT parent_resid, expires_at FROM reservations ", 
-    "WHERE resid = $1 AND client_id = $3",
+    "WHERE resid = $1 AND client_id = $2",
 );
 
 pub const DELETE_RESERVATION: &str = concat!(
