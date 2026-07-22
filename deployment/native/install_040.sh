@@ -1,19 +1,19 @@
 #!/bin/bash
-# Combined build/upgrade script for TMS Server 0.3.0
-#  - Upgrade support only for 0.2.0->0.3.0
+# Combined build/upgrade script for TMS Server 0.4.0
+#  - Upgrade support only for 0.3.0->0.4.0
+#
 # Build and install the latest native version TMS Server
 # This script must be run as root or run in --test mode.
 #
-# This script builds a release version and either updates or installs files in the
-# install and root directories as needed.
+# This script builds a release version and either updates or installs files in the install and root directories.
 #
 # Default install directory is /opt/tms_server. May be overridden using env variable TMS_INSTALL_DIR.
-#   In test mode this defaults to /tmp/tms_server so any user can perform the service related config.
+#   - In test mode this defaults to /tmp/tms_server so any user can perform the service related config.
 #
 # Default root directory is $HOME/.tms as the install user. May be overridden using env variable TMS_ROOT_DIR.
 #
-# User may define TMS_LOCAL_DIR for local customizations. Default is $TMS_ROOT_DIR/local
-# Local directory will contain install output and may contain custom tms.toml and log4rs.yml files.
+# User may define TMS_LOCAL_DIR for local customizations. Default is $HOME/tms_local
+#  - Local directory may contain custom tms.toml and log4rs.yml files.
 #
 # User used to build and install TMS may be given on the command line. Default user is "tms"
 #
@@ -21,7 +21,6 @@
 #  - We are running from a checkout of tms_server github repo.
 #  - When running in non-test mode (i.e. as root), the source code is checked out under $HOME/tms_server.
 #  - Following are installed: rust tool chain (cargo, rustc), postgres psql.
-#  - If this is an upgrade from TMS version 0.2.0 then SQLite must also be installed.
 #
 # Configuration:
 #  - Following env variables are set at minimum:
@@ -196,8 +195,8 @@ else
   INSTALL_DIR="$INSTALL_DEF_DIR"
 fi
 
-# Set local directory. Location of install output and optional custom tms.toml, log4rs.yml files.
-LOCAL_DEF_DIR="$ROOT_DIR/local"
+# Set local directory. Location of optional custom tms.toml, log4rs.yml files.
+LOCAL_DEF_DIR="$HOME/tms_local/local"
 if [ -n "$TMS_LOCAL_DIR" ]; then
   LOCAL_DIR="$TMS_LOCAL_DIR"
 else
@@ -404,7 +403,7 @@ echo
 echo "===== Configuring TMS service"
 echo "========================================================================================="
 SVC_CFG_FILE="$SVC_CFG_DIR/tms_server.service"
-SVC_ENV_PATH="$LOCAL_DIR/tms_service.env"
+SVC_ENV_PATH="$ROOT_DIR/tms_service.env"
 # Copy service config into place
 cp -p "${SRC_DIR}/deployment/native/tms_server.service" "$SVC_CFG_FILE"
 RET_CODE=$?
@@ -452,7 +451,7 @@ chmod +x "$BAK_FILE_PATH"
 chown -R $INSTALL_USR:$INSTALL_USR $BAK_DIR
 
 # Create environment file for backup script
-DB_ENV_FILE="$LOCAL_DIR/tms-db-env"
+DB_ENV_FILE="$ROOT_DIR/tms-db-env"
 echo
 echo "===== Creating environment file for backup script. File path: $DB_ENV_FILE"
 echo "========================================================================================="
@@ -527,7 +526,7 @@ else
   # --------------------------------------
   # Clean install specific steps
   # --------------------------------------
-  # First Time Install Processing. Save output to LOCAL_DIR
+  # First Time Install Processing. Save output to ROOT_DIR
 
   # Copy the SSL cert files into place
   mkdir -p $ROOT_DIR/certs
@@ -543,21 +542,21 @@ else
   INSTALL_INIT_CMD="$EXEC_FILE_DST --install --root-dir $ROOT_DIR"
   # We must run from the top of the source code checkout so the files under resources are available
   if [ "$TEST_MODE" != "true" ]; then
-    su - $INSTALL_USR -c "cd $SRC_DIR; set -a; source $SVC_ENV_PATH; set +a; $INSTALL_INIT_CMD > ${LOCAL_DIR}/tms-install.out 2>&1"
+    su - $INSTALL_USR -c "cd $SRC_DIR; set -a; source $SVC_ENV_PATH; set +a; $INSTALL_INIT_CMD > ${ROOT_DIR}/tms-install.out 2>&1"
     RET_CODE=$?
   else
     cd $SRC_DIR || exit 1
-    $INSTALL_INIT_CMD > ${LOCAL_DIR}/tms-install.out 2>&1
+    $INSTALL_INIT_CMD > ${ROOT_DIR}/tms-install.out 2>&1
     RET_CODE=$?
   fi
   if [ $RET_CODE -ne 0 ]; then
     echo "ERROR: Error running tms_server init. Command: $INSTALL_INIT_CMD"
-    echo "       Please see output here: ${LOCAL_DIR}/tms-install.out"
+    echo "       Please see output here: ${ROOT_DIR}/tms-install.out"
     echo "Exiting ..."
     exit $RET_CODE
   fi
-  chmod 400 $LOCAL_DIR/tms-install.out
-  chown $INSTALL_USR:$INSTALL_USR $LOCAL_DIR/tms-install.out
+  chmod 400 $ROOT_DIR/tms-install.out
+  chown $INSTALL_USR:$INSTALL_USR $ROOT_DIR/tms-install.out
 
   # If there are custom tms or log4s config then copy into place
   if [ -f $LOCAL_DIR/tms.toml ]; then

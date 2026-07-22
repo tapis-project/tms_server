@@ -5,10 +5,9 @@
 #
 # NOTE: If default installation directories are not used for TMS, please update TMS_ROOT and TMS_HOME
 #
-# Support backup for two types of DB, postgres and sqlite. For TMS 0.2.0 and earlier use SQLITE.
-#    For 0.3.0 and later use POSTGRES.
+# Support backup for TMS version 0.3.0 and later.
 #
-# For POSTGRES the file ~/.tms/local/tms-db-env must contain the DB configuration, for example:
+# For POSTGRES the file ~/.tms/tms-db-env must contain the DB configuration, for example:
 #   PG_USER=tms
 #   PG_DBNAME=tmsdb
 #   PG_HOST="localhost"
@@ -26,9 +25,6 @@ PRG_RELPATH=$(dirname "$0")
 cd "$PRG_RELPATH"/. || exit
 PRG_PATH=$(pwd)
 
-# Set DB_TYPE. Two types supported, SQLITE and POSTGRES
-DB_TYPE="POSTGRES"
-
 # Set TMS root and home directories to the default. Customize as needed.
 TMS_ROOT="$HOME/.tms"
 TMS_HOME="$HOME"
@@ -41,19 +37,9 @@ backuptimestamp=$(date +%Y%m%d)
 backupyear=$(date +%Y)
 backupdir="$TMS_HOME/backups/${SERVICE}"
 
-# Set some DB_TYPE specific parameters
-if [ "$DB_TYPE" == "SQLITE" ]; then
-  backupfilename=${HOST}-${SERVICE}-backup-${backuptimestamp}.sq3
-  backupsrcdb="$TMS_ROOT/database/tms.db"
-elif [ "$DB_TYPE" == "POSTGRES" ]; then
-  backupfilename=${HOST}-${SERVICE}-backup-${backuptimestamp}.sql
-  source "$TMS_ROOT/local/tms-db-env"
-  PG_URL="postgresql://$PG_USER:$PG_PASSWORD@$PG_HOST:$PG_PORT/$PG_DBNAME"
-else
-  echo "Unsupported DB_TYPE: $DB_TYPE"
-  echo "Exiting ..."
-  exit 1
-fi
+backupfilename=${HOST}-${SERVICE}-backup-${backuptimestamp}.sql
+source "$TMS_ROOT/tms-db-env"
+PG_URL="postgresql://$PG_USER:$PG_PASSWORD@$PG_HOST:$PG_PORT/$PG_DBNAME"
 
 backupfilepath="${backupdir}/${backupfilename}"
 backupfilegz="${backupfilepath}.gz"
@@ -69,23 +55,12 @@ if [ -f "${backupfilegz}" ]; then
   exit 1
 fi
 
-# Make the backup based on DB_TYPE
-if [ "$DB_TYPE" == "SQLITE" ]; then
-  echo "Creating backup using sqlite3 .backup command"
-  sqlite3 "${backupsrcdb}" ".backup ${backupfilepath}"
-  RET_CODE=$?
-elif [ "$DB_TYPE" == "POSTGRES" ]; then
-  echo "Creating backup using postgres pg_dump command"
-  docker exec "$PG_DEPLOYMENT" /bin/bash -c "pg_dump --dbname=$PG_URL" > "${backupfilepath}"
-  RET_CODE=$?
-else
-  echo "Unsupported DB_TYPE: $DB_TYPE"
-  echo "Exiting ..."
-  exit 1
-fi
+echo "Creating backup using postgres pg_dump command"
+docker exec "$PG_DEPLOYMENT" /bin/bash -c "pg_dump --dbname=$PG_URL" > "${backupfilepath}"
+RET_CODE=$?
 # Check return code of backup execution
 if [ $RET_CODE -ne 0 ]; then
-  echo "Backup command failed for DB_TYPE=$DB_TYPE"
+  echo "Backup command failed."
   echo "Exiting ..."
   exit $RET_CODE
 fi
