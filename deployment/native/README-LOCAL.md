@@ -1,4 +1,4 @@
-# Locally Installing and Testing TMS Server version 0.3
+# Locally Installing and Testing TMS Server version 0.4
 
 ## Overview
 This document describes how to set up and natively install TMS Server (TMSS) for local testing.
@@ -42,7 +42,7 @@ and `TMS_DB_PORT` may be used to override the settings.
 ### Required
 The following environment variables are required when installing TMSS:
 - POSTGRES_PASSWORD
-  - Password for the postgresql admin user `postgres`
+  - Password for the postgres admin user `postgres`
 - TMS_DB_USER_PASSWORD
   - Password for the TMS DB user
 - TMS_SSL_CERT_PATH
@@ -63,7 +63,11 @@ Other less common env variable overrides:
 - TMS_ROOT_DIR
   - Location of `certs/`, `config/`, `logs/`, `migrations/`. default = $HOME/.tms
 - TMS_LOCAL_DIR
-  - Location of install output and optional custom `tms.toml`, `log4rs.yml`. default = $TMS_ROOT_DIR/local
+  - Location of install output and optional custom `tms.toml`, `log4rs.yml`. default = $HOME/tms_local
+
+NOTE: It is strongly recommended that *TMS_LOCAL_DIR* be left as the default or set to a directory
+outside of *TMS_ROOT_DIR*. This will allow you to keep custom configuration files separate which will make it easier
+to fully remove TMSS without removing custom settings. 
 
 ## Installing TMSS
 Once the prerequisite steps are taken and the required and optional environment variables are set, simply run the
@@ -74,7 +78,7 @@ cd $HOME/src/tms_server
 ```
 
 You will be prompted to review and accept the detected settings before continuing. Once installation is complete,
-output of the initialization run may be found in file `$TMS_LOCAL_DIR/tms-install.out`. By default, this file
+output of the initialization run may be found in file `$TMS_ROOT_DIR/tms-install.out`. By default, this file
 is located at `$HOME/.tms/tms-install.out`.
 
 This output file contains the administrator credentials.
@@ -94,6 +98,13 @@ cargo. For example:
 cd $HOME/src/tms_server
 cargo run
 ```
+Or started in the foreground by running the executable:
+```
+cd $HOME/src/tms_server
+./target/release/tms_server
+```
+
+Note that a copy of the binary executable is also installed at `/tmp/tms_server/tms_server`
 
 The server should now be available on the localhost at port 3000. For example, to fetch the current TMS Server
 version:
@@ -113,26 +124,26 @@ In this section we list the directories and files that are part of a TMSS instal
 Defaults:
 ```
 TMS_ROOT_DIR    : $HOME/.tms
-TMS_LOCAL_DIR   : $HOME/.tms/local
+TMS_LOCAL_DIR   : $HOME/tms_local
 ```
 
 Under `$TMS_ROOT_DIR`
-1. Directory **certs/** - Files:
-     * *cert.pem* - Full-chain SSL certificate. Loaded at startup. In PEM format.
-     * *key.pem* - Private key associated with the SSL certificate. In PEM format.
-2. Directory **config** - Files:
-    * *tms.toml* - The tms_server parameter file, which specifies the runtime options with which TMSS executes.
-    * *log4rs.yml* - The log configuration and formatting for tms_server.
-3. Directory **logs** - Default location of log files as configured in *log4rs.yml*.
-4. Directory **migrations** - Files defining the DB schema.
-
-Under `$TMS_LOCAL_DIR`
 1. File *tms-db-env* - PostgreSQL DB settings. Used by backup script.
 2. File *tms-install.out* - Output generated during installation, including administrator credentials.
-   * **WARNING This is only place where these credentials are displayed. Losing them will likely make reinstallation necessary.**  
 3. File *tms_service.env* - Settings required when running `tms_server` as a service.
-4. File *tms.toml* - (Optional) Local customizations of TMSS configuration settings.
-5. File *log4rs.toml* - (Optional) Local customizations of TMSS log settings.
+    * **WARNING This is only place where these credentials are displayed. Losing them will likely make reinstallation necessary.**
+4. Directory **certs/** - Files:
+     * *cert.pem* - Full-chain SSL certificate. Loaded at startup. In PEM format.
+     * *key.pem* - Private key associated with the SSL certificate. In PEM format.
+5. Directory **config** - Files:
+    * *tms.toml* - The tms_server parameter file, which specifies the runtime options with which TMSS executes.
+    * *log4rs.yml* - The log configuration and formatting for tms_server.
+6. Directory **logs** - Default location of log files as configured in *log4rs.yml*.
+7. Directory **migrations** - Files defining the DB schema.
+
+Under `$TMS_LOCAL_DIR`
+1. File *tms.toml* - (Optional) Local customizations of TMSS configuration settings.
+2. File *log4rs.toml* - (Optional) Local customizations of TMSS log settings.
 
 Under `$HOME/backups`
 1. Directory **scripts/** - Files:

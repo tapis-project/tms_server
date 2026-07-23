@@ -1,6 +1,6 @@
 #!/bin/bash
 # Combined build/upgrade script for TMS Server 0.4.0
-#  - Upgrade support only for 0.3.0->0.4.0
+#  - Upgrade support for 0.3.0->0.4.0 only.
 #
 # Build and install the latest native version TMS Server
 # This script must be run as root or run in --test mode.
@@ -14,6 +14,10 @@
 #
 # User may define TMS_LOCAL_DIR for local customizations. Default is $HOME/tms_local
 #  - Local directory may contain custom tms.toml and log4rs.yml files.
+#
+#  NOTE: It is strongly recommended that *TMS_LOCAL_DIR* be left as the default or at a minimum set to a directory
+#  outside of *TMS_ROOT_DIR*. This will allow you to keep custom configuration files separate which will make it easier
+#  to fully remove TMSS without removing custom settings.
 #
 # User used to build and install TMS may be given on the command line. Default user is "tms"
 #
@@ -46,6 +50,9 @@ RUN_DIR=$(pwd)
 PRG_RELPATH=$(dirname "$0")
 cd "$PRG_RELPATH"/. || exit
 PRG_PATH=$(pwd)
+
+# We only support upgrading from version 0.3.0
+VERS_UPG_SUPPORTED="0.3.0"
 
 # This script is located under deployment/native. Some operations are relative to the top level source directory.
 SRC_DIR=$PRG_PATH/../..
@@ -196,7 +203,7 @@ else
 fi
 
 # Set local directory. Location of optional custom tms.toml, log4rs.yml files.
-LOCAL_DEF_DIR="$HOME/tms_local/local"
+LOCAL_DEF_DIR="$HOME/tms_local"
 if [ -n "$TMS_LOCAL_DIR" ]; then
   LOCAL_DIR="$TMS_LOCAL_DIR"
 else
@@ -253,6 +260,22 @@ if [ $RET_CODE -ne 0 ]; then
     exit $RET_CODE
 fi
 
+VERS_OLD=None
+# If upgrading determine the current version
+if [ "$UPGRADE" == "true" ]; then
+  if [ ! -f "$VERS_FILE" ]; then
+    echo "Unable to determine existing TMS version. Cannot find file: $VERS_FILE"
+    echo "Exiting ..."
+    exit 1
+  fi
+  VERS_OLD=$(cat $VERS_FILE)
+  if [ "$VERS_OLD" != "$VERS_UPG_SUPPORTED" ]; then
+    echo "Uprading from version $VERSION_OLD is not supported."
+    echo "Exiting ..."
+    exit 1
+  fi
+fi
+
 # Output configuration
 echo "******* Install / Upgrade Settings ************************"
 echo "******* TMS Version: $VERS_NEW ********************************"
@@ -266,6 +289,7 @@ echo "   SVC_CFG_DIR=$SVC_CFG_DIR"
 echo "   BAK_FILE_PATH=$BAK_FILE_PATH"
 echo "   TMS_DB_HOST=$TMS_DB_HOST"
 echo "   VERS_FILE=$VERS_FILE"
+echo "   VERS_OLD=$VERS_OLD"
 echo "   TMS_SSL_CERT_PATH=$TMS_SSL_CERT_PATH"
 echo "   TMS_SSL_KEY_PATH=$TMS_SSL_KEY_PATH"
 echo "***********************************************************"
@@ -472,29 +496,8 @@ chmod 400 "$DB_ENV_FILE"
 # =====================================================================================
 if [ "$UPGRADE" == "true" ]; then
   # --------------------------------------
-  # Upgrade specific steps
+  # TODO Upgrade specific steps
   # --------------------------------------
-  # Determine existing version
-  if [ ! -f "$VERS_FILE" ]; then
-    echo "Unable to determine existing TMS version. Cannot find file: $VERS_FILE"
-    echo "Exiting ..."
-    exit 1
-  fi
-  VERS_OLD=$(cat $VERS_FILE)
-
-  # If there is a customizations directory then rename it to local to match layout as of 0.3.0
-  CUST_DIR="${TMS_HOME}/tms_customizations"
-  if [ -d ${CUST_DIR} ]; then
-    echo
-    echo "===== Backing up customizations directory from ${CUST_DIR} to ${CUST_DIR}.bak_${BAK_TIMESTAMP}"
-    echo "========================================================================================="
-    cp -pr "${CUST_DIR}" "${CUST_DIR}.bak_${BAK_TIMESTAMP}"
-    echo
-    echo "===== Moving customizations directory from ${CUST_DIR} to $LOCAL_DIR"
-    echo "========================================================================================="
-    mv "${CUST_DIR}" "$LOCAL_DIR"
-  fi
-
   # Update migrations files.
   mv "$ROOT_DIR/migrations" "${ROOT_DIR}/migrations.bak_${BAK_TIMESTAMP}"
   cp -pr "${SRC_DIR}/resources/migrations" "${ROOT_DIR}/migrations"
@@ -526,8 +529,7 @@ else
   # --------------------------------------
   # Clean install specific steps
   # --------------------------------------
-  # First Time Install Processing. Save output to ROOT_DIR
-
+  # First Time Install Processing. Save output of initial --install run to ROOT_DIR
   # Copy the SSL cert files into place
   mkdir -p $ROOT_DIR/certs
   chmod 700 $ROOT_DIR/certs
@@ -563,7 +565,7 @@ else
     cp -p $LOCAL_DIR/tms.toml $ROOT_DIR/config
     RET_CODE=$?
     if [ $RET_CODE -ne 0 ]; then
-      echo "ERROR: Unable to copy: $LOCAL_DIR/tms.toml"
+      echo "ERROR: Unable to copy: $LOCAL_DIR/tms.toml to $ROOT_DIR/config"
       echo "Exiting ..."
       exit $RET_CODE
     fi
@@ -573,7 +575,7 @@ else
     cp -p $LOCAL_DIR/log4rs.yml $ROOT_DIR/config
     RET_CODE=$?
     if [ $RET_CODE -ne 0 ]; then
-      echo "ERROR: Unable to copy file: $LOCAL_DIR/log4rs.yml"
+      echo "ERROR: Unable to copy file: $LOCAL_DIR/log4rs.yml to $ROOT_DIR/config"
       echo "Exiting ..."
       exit $RET_CODE
     fi
@@ -599,7 +601,7 @@ fi
 echo "$VERS_NEW" > $VERS_FILE
 chown $INSTALL_USR:$INSTALL_USR $VERS_FILE
 
-# Start up the service
+# For normal non-test install log a message about how to start the service
 if [ "$TEST_MODE" != "true" ]; then
   echo
   echo "===== To start the TMS service, please run:"

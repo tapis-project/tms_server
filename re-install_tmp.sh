@@ -19,6 +19,9 @@ set -xv
 ./deployment/postgres/tms_drop_db.sh
 ./deployment/postgres/tms_init_db.sh
 
+#
+# NOTE: Once 0.4.0 is ready we should be able to simply remove ~/.tms
+#
 # Clean up installed directories, but not ~/.tms/local which contains a modified tms.toml
 rm -fr ~/.tms/certs
 rm -fr ~/.tms/config/
@@ -36,4 +39,4 @@ fi
 /bin/rm -f ~/.tms/local/tms_service.env
 
 # re-install
-./deployment/native/install_030.sh --test
+./deployment/native/install_040.sh --test

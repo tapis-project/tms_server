@@ -1,4 +1,4 @@
-# Installing and Upgrading the TMS Server version 0.3
+# Installing and Upgrading the TMS Server version 0.4
 
 ## Overview
 A native installation of the TMS Server (TMSS) sets up the `tms_server` binary to run as a service that is managed
@@ -6,9 +6,6 @@ by `systemctl`. This file describes the installation, configuration and executio
 
 ## One-Time Installation Prerequisite Procedures
 Perform the following one-time installation steps prior to installing TMSS for the first time.
-
-Note that the steps related to setting up for PostgreSQL will also be needed when upgrading from version `0.2`.
-These steps will not be needed when upgrading from later versions.
 
 ### Install PostgreSQL
 This may be installed and running almost anywhere. The simplest option is to install locally as a docker deployment.
@@ -73,6 +70,10 @@ Other less common env variable overrides:
 - TMS_LOCAL_DIR
   - Location of install output and optional custom `tms.toml`, `log4rs.yml`. default = $TMS_ROOT_DIR/local
 
+NOTE: It is strongly recommended that *TMS_LOCAL_DIR* be left as the default or set to a directory
+outside of *TMS_ROOT_DIR*. This will allow you to keep custom configuration files separate which will make it easier
+to fully remove TMSS without removing custom settings.
+
 ## Installing TMSS
 When installing or upgrading TMSS you must be running as the root user. After the installation or upgrade, all operations
 except for starting and stopping the service should be performed as the user `tms`.
@@ -86,7 +87,7 @@ cd ~tms/tms_server
 ```
 
 You will be prompted to review and accept the detected settings before continuing. Once installation is complete,
-output of the initialization run may be found in file `$TMS_LOCAL_DIR/tms-install.out`. By default, this file
+output of the initialization run may be found in file `$TMS_ROOT_DIR/tms-install.out`. By default, this file
 is located at `~tms/.tms/tms-install.out`.
 
 This output file contains credentials for the default admin user `~~admin`. 
@@ -100,13 +101,9 @@ The installation script will:
 - Initialize the configuration by running `tms_server --install --root-dir $TMS_ROOT_DIR`.
 - If needed copy custom `tms.toml` and `log4rs.yml` files from `$TMS_LOCAL_DIR`.
 
-## Upgrading TMSS from version `0.2` to version `0.3`
+## Upgrading TMSS from version `0.3` to version `0.4`
 When installing or upgrading TMSS you must be running as the root user. After the installation or upgrade  all operations
 except for starting and stopping the service should be performed as the user `tms`.
-
-### Install and initialize PostgreSQL
-When upgrading from version `0.2` it will be necessary to perform the prerequisite steps described above for
-setting up and initializing the PostgreSQL DB. These steps will not be needed when upgrading from later versions.
 
 ### Run the installation script with upgrade option
 Once the prerequisite steps are taken and the required and optional environment variables are set, simply run the
@@ -123,13 +120,10 @@ The upgrade script will:
 - Create and update ownership of any new directories or files that are included as part of the upgrade.
 - Build TMSS from source files and copy the updated executable into place.
 - Stop the TMSS service using `systemctl`.
-- If there is a `~tms/tms_customizations` directory it will be backed up and then moved to `$TMS_LOCAL_DIR`.
 - The existing `$TMS_ROOT_DIR/migrations` directory will be moved to a backup directory.
 - The new `migrations` directory will be copied into place from `~tms/tms_server/resources/migrations`.
-- Data will be migrated from the SQLite DB to the PostgreSQL DB.
-- The SQLite DB under `$TMS_ROOT_DIR/database` will be moved to a backup directory.
 
-Please note that the update script will not overwrite the `tms.toml` or `log4rs.yml` files located in
+Please note that if upgrading the script will not overwrite the `tms.toml` or `log4rs.yml` files located in
 `$TMS_ROOT_DIR/config`. Any customizations will remain in place.
 
 ## Running TMSS
@@ -147,7 +141,6 @@ ln -s /opt/tms_server/lib/systemd/system/tms_server.service /etc/systemd/system/
 
 Note that the specific configuration may vary based on the host OS setup.
 
-
 Once the service is configured the following commands may then be used to manage and monitor the service:
 ```
 systemctl start tms_server.service
@@ -156,8 +149,8 @@ systemctl status tms_server.service
 journalctl -u tms_server.service -n 500 -b -f
 ```
 
-The service configuration file `tms_server.service` has an entry that points to `$TMS_LOCAL_DIR/tms_service.env` in
-order to set up enviroment variables for the service.
+The service configuration file `tms_server.service` has an entry that points to `$TMS_ROOT_DIR/tms_service.env` in
+order to set up environment variables for the service.
 
 ## Logging
 The log configuration and formatting for `tms_server` is specified in the configuration file
@@ -167,7 +160,7 @@ The log configuration and formatting for `tms_server` is specified in the config
 ## Managing SSL Certificate
 An important consideration for administrators is how to manage certificate expiration. We assume some administrative
 process external to TMSS replaces the certificate and key before they expire. Ideally, this event will trigger the
-TMSS certificate and key file processing just described and then restart TMSS.
+TMSS certificate and key file processing and then restart TMSS.
 
 ## TMSS Directories and Files
 
@@ -176,27 +169,27 @@ In this section we list the directories and files that are part of a TMSS instal
 Defaults:
 ```
 TMS_ROOT_DIR    : ~tms/.tms
-TMS_LOCAL_DIR   : ~tms/.tms/local
+TMS_LOCAL_DIR   : ~tms/tms_local
 TMS_INSTALL_DIR : /opt/tms_server 
 ```
 
 Under `$TMS_ROOT_DIR`
-1. Directory **certs/** - Files:
-     * *cert.pem* - Full-chain SSL certificate. Loaded at startup. In PEM format.
-     * *key.pem* - Private key associated with the SSL certificate. In PEM format.
-2. Directory **config** - Files:
-    * *tms.toml* - The tms_server parameter file, which specifies the runtime options with which TMSS executes.
-    * *log4rs.yml* - The log configuration and formatting for tms_server.
-3. Directory **logs** - Default location of log files as configured in *log4rs.yml*.
-4. Directory **migrations** - Files defining the DB schema.
-
-Under `$TMS_LOCAL_DIR`
 1. File *tms-db-env* - PostgreSQL DB settings. Used by backup script.
 2. File *tms-install.out* - Output generated during installation, including administrator credentials.
-   * **WARNING This is only place where these credentials are displayed. Losing them will likely make reinstallation necessary.**  
 3. File *tms_service.env* - Settings required when running `tms_server` as a service.
-4. File *tms.toml* - (Optional) Local customizations of TMSS configuration settings.
-5. File *log4rs.toml* - (Optional) Local customizations of TMSS log settings.
+    * **WARNING This is only place where these credentials are displayed. Losing them will likely make reinstallation necessary.**
+4. Directory **certs/** - Files:
+    * *cert.pem* - Full-chain SSL certificate. Loaded at startup. In PEM format.
+    * *key.pem* - Private key associated with the SSL certificate. In PEM format.
+5. Directory **config** - Files:
+    * *tms.toml* - The tms_server parameter file, which specifies the runtime options with which TMSS executes.
+    * *log4rs.yml* - The log configuration and formatting for tms_server.
+6. Directory **logs** - Default location of log files as configured in *log4rs.yml*.
+7. Directory **migrations** - Files defining the DB schema.
+
+Under `$TMS_LOCAL_DIR`
+1. File *tms.toml* - (Optional) Local customizations of TMSS configuration settings.
+2. File *log4rs.toml* - (Optional) Local customizations of TMSS log settings.
 
 Under `~tms/backups`
 1. Directory **scripts/** - Files:
