@@ -496,7 +496,7 @@ chmod 400 "$DB_ENV_FILE"
 # =====================================================================================
 if [ "$UPGRADE" == "true" ]; then
   # --------------------------------------
-  # TODO Upgrade specific steps
+  # Upgrade specific steps
   # --------------------------------------
   # Update migrations files.
   mv "$ROOT_DIR/migrations" "${ROOT_DIR}/migrations.bak_${BAK_TIMESTAMP}"
@@ -504,26 +504,15 @@ if [ "$UPGRADE" == "true" ]; then
   chmod 0700 "${ROOT_DIR}/migrations"
   chown $INSTALL_USR:$INSTALL_USR "${ROOT_DIR}/migrations"
 
-  # Before updating version and starting up new tms_server, perform the migration from sqlite to postgres
+  # If there is a local directory under ROOT_DIR back it up
   echo
-  echo "===== Migrating DB from sqlite to postgres"
+  echo "===== Checking for local directory at $ROOT_DIR/local"
   echo "========================================================================================="
-  # Fill in some defaults as needed before running migration
-  TMS_TEST_MODE=$TEST_MODE
-  TMS_USR=$INSTALL_USR
-  # Set TMS_ROOT_DIR and TMS_INSTALL_DIR to the final resolved values
-  TMS_ROOT_DIR=$ROOT_DIR
-  TMS_INSTALL_DIR=$INSTALL_DIR
-  TMS_VERS_NEW=$VERS_NEW
-  export TMS_DB_HOST TMS_DB_PORT TMS_ROOT_DIR TMS_INSTALL_DIR TMS_TEST_MODE TMS_VERS_NEW TMS_USR
-
-  $SRC_DIR/migrate_to_psql/migrate_from_sqlite.sh
-  RET_CODE=$?
-  if [ $RET_CODE -ne 0 ]; then
-    echo
-    echo "*************** Error running migration script"
-    echo "Exiting ..."
-    exit $RET_CODE
+  if [ -e "$ROOT_DIR/local" ]; then
+    echo "Backing local directory by moving it from $ROOT_DIR/local to ${ROOT_DIR}/local.bak_${BAK_TIMESTAMP}"
+    mv "$ROOT_DIR/local" "${ROOT_DIR}/local.bak_${BAK_TIMESTAMP}"
+  else
+    echo "Nothing found at $ROOT_DIR/local"
   fi
 else
   # --------------------------------------
