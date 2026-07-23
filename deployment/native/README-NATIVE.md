@@ -105,6 +105,12 @@ The installation script will:
 When installing or upgrading TMSS you must be running as the root user. After the installation or upgrade  all operations
 except for starting and stopping the service should be performed as the user `tms`.
 
+Note that there have been some updates to the configuration file `tms.toml`. The existing file will be backed up and
+placed under `$TMS_LOCAL_DIR`. A new configuration file will be put in place at `$TMS_ROOT_DIR/config/tms.toml`. This
+file will not have customizations. Please port any customizations from `$TMS_LOCAL_DIR/tms.toml` to
+`$TMS_ROOT_DIR/config/tms.toml`. Then save a copy of the resulting file `$TMS_ROOT_DIR/config/tms.toml` to
+`$TMS_LOCAL_DIR/tms.toml` for possible use in future upgrades.
+
 ### Run the installation script with upgrade option
 Once the prerequisite steps are taken and the required and optional environment variables are set, simply run the
 installation script as root specifying the option `--upgrade`:

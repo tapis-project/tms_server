@@ -499,8 +499,12 @@ if [ "$UPGRADE" == "true" ]; then
   # Upgrade specific steps
   # --------------------------------------
   # Update migrations files.
-  mv "$ROOT_DIR/migrations" "${ROOT_DIR}/migrations.bak_${BAK_TIMESTAMP}"
-  cp -pr "${SRC_DIR}/resources/migrations" "${ROOT_DIR}/migrations"
+  echo
+  echo "===== Updating DB schema migration files"
+  echo "========================================================================================="
+  cp -pr "$ROOT_DIR/migrations" "${ROOT_DIR}/migrations.bak_${BAK_TIMESTAMP}"
+  # Copy new migration files
+  cp "${SRC_DIR}/resources/migrations/10002_remove_tenancy.sql" "${ROOT_DIR}/migrations"
   chmod 0700 "${ROOT_DIR}/migrations"
   chown $INSTALL_USR:$INSTALL_USR "${ROOT_DIR}/migrations"
 
@@ -514,6 +518,17 @@ if [ "$UPGRADE" == "true" ]; then
   else
     echo "Nothing found at $ROOT_DIR/local"
   fi
+
+  # Back up the existing configuration file
+  echo
+  echo "===== Backing upd configuration file from $ROOT_DIR/config/tms.toml to $LOCAL_DIR/tms.toml.bak_${BAK_TIMESTAMP}"
+  echo "========================================================================================="
+  cp -p "$ROOT_DIR/config/tms.toml" "$LOCAL_DIR/tms.toml.bak_${BAK_TIMESTAMP}"
+  # Copy new config file into place
+  echo
+  echo "===== Copying configuration file from ${SRC_DIR}/resources/config/tms.toml to ${ROOT_DIR}/config"
+  echo "========================================================================================="
+  cp -p "${SRC_DIR}/resources/config/tms.toml" "${ROOT_DIR}/config"
 else
   # --------------------------------------
   # Clean install specific steps

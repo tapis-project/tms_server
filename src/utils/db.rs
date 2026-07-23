@@ -19,7 +19,7 @@ use crate::utils::keygen::KeyType;
 use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RESERVATION_FOR_EXTEND,
                            GET_USER_HOST_ACTIVE, GET_USER_HOST_EXISTS, GET_USER_MFA_ACTIVE,
                            GET_USER_MFA_EXISTS, INSERT_ADMIN, INSERT_CLIENT,
-                           SELECT_PUBKEY_HOST_ACCOUNT, UPDATE_CLIENT_ENABLED};
+                           SELECT_PUBKEY_HOST_ACCOUNT, UPDATE_CLIENT_ENABLED, SEL_DELEGATION_EXISTS};
 
 const TEST_USER: &str = "testuser";
 const TEST_HOST: &str = "testhost";
@@ -177,7 +177,7 @@ fn print_admin_secret_message(dft_key_str: &String) -> Result<()> {
 // create_test_client:
 // ---------------------------------------------------------------------------
 /** This function either experiences an error or returns true (false is never returned). */
-pub async fn create_test_client() -> Result<bool> {
+pub async fn create_test_client() -> Result<u64> {
     let test_client_secret_hash: String = hash_hex_secret(&TEST_CLIENT_SECRET.to_string());
     let now = timestamp_utc();
     // Create the client
@@ -190,15 +190,15 @@ pub async fn create_test_client() -> Result<bool> {
         now.clone(),
         now.clone(),
     );
-    insert_new_client(client_input).await?;
-    Ok(true)
+    let inserts = insert_new_client(client_input).await?;
+    Ok(inserts)
 }
 
 // ---------------------------------------------------------------------------
 // create_test_data:
 // ---------------------------------------------------------------------------
 /** This function either experiences an error or returns true (false is never returned). */
-pub async fn create_test_data() -> Result<bool> {
+pub async fn create_test_data() -> Result<u64> {
     // Max expires_at
     let max_tms_utc = DateTime::parse_from_rfc3339(MAX_TMS_UTC_STR).unwrap().with_timezone(&Utc);
     // Get the timestamp string.
@@ -206,11 +206,19 @@ pub async fn create_test_data() -> Result<bool> {
 
     // Create records for 100 test users in the test client. Do this in a txn
     // Get a connection to the db and start a transaction.
+    let mut insert_count = 0;
     for n in 1..=100 {
-        let mut tx = RUNTIME_CTX.db.begin().await?;
         let test_user = format!("{}{:03}", TEST_USER, n);
         let test_host = format!("{}{:03}", TEST_HOST, n);
         let test_host_acct = format!("{}{:03}", TEST_HOST_ACCOUNT, n);
+        let mut tx = RUNTIME_CTX.db.begin().await?;
+
+        // Check for existing record. If found then continue;
+        let skip_create: bool = sqlx::query_scalar(SEL_DELEGATION_EXISTS)
+            .bind(TEST_CLIENT)
+            .bind(test_user.clone())
+            .fetch_one(&mut *tx).await?;
+        if skip_create {continue};
         info!("Creating delegation records for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
         // -------- Populate user_mfa
         sqlx::query(INSERT_USER_MFA)
@@ -245,17 +253,17 @@ pub async fn create_test_data() -> Result<bool> {
         // Commit the transaction.
         tx.commit().await?;
         info!("Created delegation records for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
+        insert_count += 1;
     }
 
-    Ok(true)
+    Ok(insert_count)
 }
 
 // ---------------------------------------------------------------------------
 // create_test_keys:
 // ---------------------------------------------------------------------------
 /** This function either experiences an error or returns true (false is never returned). */
-pub async fn create_test_keys() -> Result<bool> {
-    // Get the enumerated key type.
+pub async fn create_test_keys() -> Result<u64> {
     // For each test user create one pubkey entry, ignore generated private key
     for n in 1..=100 {
         let test_user = format!("{}{:03}", TEST_USER, n);

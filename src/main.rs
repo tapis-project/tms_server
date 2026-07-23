@@ -188,16 +188,20 @@ async fn main() -> Result<(), std::io::Error> {
 async fn tms_init_data() -> Result<bool> {
     // Insert default records into database if they don't already exist.
     // This call is a no-op except when the --install option is set.
-    let inserts = db::create_default_admin().await.expect("Unable to create default admin user.");
+    let inserts = db::create_default_admin().await.expect("Error creating default admin user.");
     info!("Number of admin user records created: {}.", inserts);
 
-    // Insert test records only if we just created the default admin user.
-    if inserts > 0 {
-        // Create test client, delegation records and pubkeys
-        db::create_test_client().await;
-        db::create_test_data().await;
-        db::create_test_keys().await;
-    }
+    // Create test client if it does not already exist.
+    let inserts = db::create_test_client().await.expect("Error creating test client.");
+    info!("Number of test clients created: {}.", inserts);
+
+    // Create test delegations records if they do not already exist.
+    let inserts = db::create_test_data().await.expect("Error creating delegation records for test users.");;
+    info!("Number of test delegation records created: {}.", inserts);
+ // TODO/TBD Should we check for any key? probably
+    // TODO return a u64
+    let inserts = db::create_test_keys().await.expect("Error creating keys for test users.");;
+    info!("Number of test keys created: {}.", inserts);
     Ok(true)
 }
 

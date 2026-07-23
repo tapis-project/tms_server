@@ -141,6 +141,10 @@ pub const GET_DELEGATION_EXISTS: &str = concat!(
     "SELECT 1 FROM delegations WHERE client_id = $1 AND client_user_id = $2"
 );
 
+pub const SEL_DELEGATION_EXISTS: &str = concat!(
+    "SELECT EXISTS(SELECT 1 FROM delegations WHERE client_id = $1 AND client_user_id = $2)"
+);
+
 pub const LIST_DELEGATIONS: &str = concat!(
     "SELECT id, client_id, client_user_id, expires_at, created, updated ",
     "FROM delegations ORDER BY client_id, client_user_id",
