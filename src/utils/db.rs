@@ -7,7 +7,7 @@ use chrono::{Utc, DateTime};
 use sqlx::Row;
 
 use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime, create_hex_secret, hash_hex_secret, MAX_TMS_UTC_STR, timestamp_utc_to_str, calc_expires_at};
-use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_PUBKEYS, INSERT_USER_HOSTS, INSERT_USER_MFA};
+use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_PUBKEYS, INSERT_USER_HOSTS, INSERT_USER_MFA, SEL_PUBKEY_EXISTS};
 use crate::utils::config::{DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_CMD_ARGS, DB_TRUE, TEST_CLIENT, TEST_APP, TEST_CLIENT_SECRET};
 
 use log::error;
@@ -62,6 +62,72 @@ pub async fn insert_new_client(rec: ClientInput) -> Result<u64> {
     Ok(result.rows_affected())
 }
 
+/*
+ * Insert a new pubkey record if there is not at least one already associated with host+host_account
+ * For testing purposes as long as there is at least one we should be good.
+ */
+pub async fn insert_new_test_pubkey_if_none(test_user: String, test_host_acct: String,
+                                            test_host: String) -> Result<u64> {
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+
+    // Check for existing record, create only if needed
+    // Note: We check for any pubkey, not for a specific pubkey.
+    let skip_create: bool = sqlx::query_scalar(SEL_PUBKEY_EXISTS)
+        .bind(test_host_acct.clone())
+        .bind(test_host.clone())
+        .fetch_one(&mut *tx).await?;
+    if skip_create { return Ok(0) }
+
+    // Generate the new key pair.
+    let keyinfo = match keygen::generate_key(KEY_TYPE) {
+        Ok(k) => k,
+        Err(e) => { return Result::Err(anyhow!(e)); }
+    };
+    let now  = timestamp_utc();
+    let expires_at  = calc_expires_at(now, MAX_TTL_MINUTES);
+    let remaining_uses = MAX_USES;
+    // Create the input record.
+    let input_record = PubkeyInput::new(
+        TEST_CLIENT.to_string(),
+        test_user.clone(),
+        test_host.clone(),
+        test_host_acct.clone(),
+        keyinfo.public_key_fingerprint.clone(),
+        keyinfo.public_key.clone(),
+        keyinfo.key_type.clone(),
+        keyinfo.key_bits,
+        MAX_USES,
+        remaining_uses,
+        MAX_TTL_MINUTES,
+        expires_at.clone(),
+        now.clone(),
+        now.clone(),
+    );
+
+    info!("Creating keypair for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
+    // Create the insert statement.
+    let result = sqlx::query(INSERT_PUBKEYS)
+        .bind(input_record.client_id)
+        .bind(input_record.client_user_id.clone())
+        .bind(input_record.host.clone())
+        .bind(input_record.host_account)
+        .bind(input_record.public_key_fingerprint)
+        .bind(input_record.public_key)
+        .bind(input_record.key_type.clone())
+        .bind(input_record.key_bits)
+        .bind(input_record.max_uses)
+        .bind(input_record.remaining_uses)
+        .bind(input_record.initial_ttl_minutes)
+        .bind(input_record.expires_at)
+        .bind(input_record.created)
+        .bind(input_record.updated)
+        .execute(&mut *tx)
+        .await?;
+    // Commit the transaction.
+    tx.commit().await?;
+    info!("Created keypair for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
+    Ok(result.rows_affected())
+}
 /*
  * Insert a new pubkey record
  */
@@ -214,6 +280,8 @@ pub async fn create_test_data() -> Result<u64> {
         let mut tx = RUNTIME_CTX.db.begin().await?;
 
         // Check for existing record. If found then continue;
+        // Note: checking for a delegation record is  enough since the delegation and user_hosts
+        //       records reference the user_mfa record as a foreign key.
         let skip_create: bool = sqlx::query_scalar(SEL_DELEGATION_EXISTS)
             .bind(TEST_CLIENT)
             .bind(test_user.clone())
@@ -250,10 +318,10 @@ pub async fn create_test_data() -> Result<u64> {
             .bind(now)
             .execute(&mut *tx)
             .await?;
+        insert_count += 1;
         // Commit the transaction.
         tx.commit().await?;
         info!("Created delegation records for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
-        insert_count += 1;
     }
 
     Ok(insert_count)
@@ -265,45 +333,18 @@ pub async fn create_test_data() -> Result<u64> {
 /** This function either experiences an error or returns true (false is never returned). */
 pub async fn create_test_keys() -> Result<u64> {
     // For each test user create one pubkey entry, ignore generated private key
+    let mut insert_count = 0;
     for n in 1..=100 {
         let test_user = format!("{}{:03}", TEST_USER, n);
         let test_host = format!("{}{:03}", TEST_HOST, n);
         let test_host_acct = format!("{}{:03}", TEST_HOST_ACCOUNT, n);
 
-        // Generate the new key pair.
-        let keyinfo = match keygen::generate_key(KEY_TYPE) {
-            Ok(k) => k,
-            Err(e) => {
-                return Result::Err(anyhow!(e));
-            }
-        };
-        let now  = timestamp_utc();
-        let expires_at  = calc_expires_at(now, MAX_TTL_MINUTES);
-        let remaining_uses = MAX_USES;
-        // Create the input record.
-        let input_record = PubkeyInput::new(
-            TEST_CLIENT.to_string(),
-            test_user.clone(),
-            test_host.clone(),
-            test_host_acct.clone(),
-            keyinfo.public_key_fingerprint.clone(),
-            keyinfo.public_key.clone(),
-            keyinfo.key_type.clone(),
-            keyinfo.key_bits,
-            MAX_USES,
-            remaining_uses,
-            MAX_TTL_MINUTES,
-            expires_at.clone(),
-            now.clone(),
-            now.clone(),
-        );
-        info!("Creating keypair for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
-        // Insert the new key record.
-        let inserts = insert_new_pubkey(input_record).await?;
-        info!("Created keypair for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
+        // Create a new test pubkey for user if none exists.
+        // This should return 0 if one already exists and 1 if a new one was created
+        let inserts = insert_new_test_pubkey_if_none(test_user, test_host, test_host_acct).await?;
+        insert_count += inserts;
     }
-
-    Ok(true)
+    Ok(insert_count)
 }
 
 // ---------------------------------------------------------------------------

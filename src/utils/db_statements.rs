@@ -171,6 +171,10 @@ pub const SELECT_PUBKEY: &str = concat!(
     "WHERE host_account = $1 AND host = $2 AND public_key_fingerprint = $3",
 );
 
+pub const SEL_PUBKEY_EXISTS: &str = concat!(
+"SELECT EXISTS(SELECT 1 FROM pubkeys WHERE host_account = $1 AND host = $2)"
+);
+
 pub const SELECT_PUBKEY_FOR_UPDATE: &str = concat!(
     "SELECT max_uses, remaining_uses FROM pubkeys ",
     "WHERE client_id = $1 AND host = $2 AND public_key_fingerprint = $3",
