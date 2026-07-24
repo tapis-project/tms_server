@@ -14,6 +14,10 @@ pub const GET_CLIENT: &str = concat!(
     "FROM clients WHERE client_id = $1",
 );
 
+pub const SEL_CLIENT_EXISTS: &str = concat!(
+"SELECT EXISTS(SELECT 1 FROM clients WHERE client_id = $1)"
+);
+
 // Secret elided.
 pub const LIST_CLIENTS_TEMPLATE: &str = concat!(
     "SELECT id, app_name, client_id, enabled, created, updated ",

@@ -474,26 +474,12 @@ chmod +x "$BAK_FILE_PATH"
 # Make sure everything under BAK_DIR is owned by the install user.
 chown -R $INSTALL_USR:$INSTALL_USR $BAK_DIR
 
-# Create environment file for backup script
-DB_ENV_FILE="$ROOT_DIR/tms-db-env"
-echo
-echo "===== Creating environment file for backup script. File path: $DB_ENV_FILE"
-echo "========================================================================================="
-# Construct env file
-cat >> $DB_ENV_FILE << EOB
-PG_DEPLOYMENT="tms-postgres"
-PG_USER="tms"
-PG_DBNAME="tmsdb"
-PG_HOST="$TMS_DB_HOST"
-PG_PORT="$TMS_DB_PORT"
-PG_PASSWORD="$TMS_DB_USER_PASSWORD"
-EOB
-chown $INSTALL_USR:$INSTALL_USR "$DB_ENV_FILE"
-chmod 400 "$DB_ENV_FILE"
-
 # =====================================================================================
 #  BEGIN install/upgrade specific code
 # =====================================================================================
+DB_ENV_FILE="tms-db-env"
+DB_ENV_PATH1="$ROOT_DIR/local/${DB_ENV_FILE}"
+DB_ENV_PATH2="$ROOT_DIR/${DB_ENV_FILE}"
 if [ "$UPGRADE" == "true" ]; then
   # --------------------------------------
   # Upgrade specific steps
@@ -513,6 +499,11 @@ if [ "$UPGRADE" == "true" ]; then
   echo "===== Checking for local directory at $ROOT_DIR/local"
   echo "========================================================================================="
   if [ -e "$ROOT_DIR/local" ]; then
+    # If there is a tms-db-env in local then copy it to root
+    if [ -e "$DB_ENV_PATH1" ]; then
+      echo "Copying file ${DB_ENV_FILE} from "$DB_ENV_PATH1 to "$DB_ENV_PATH2"
+      cp -p "$DB_ENV_PATH1" "$DB_ENV_PATH2"
+    fi
     echo "Backing local directory by moving it from $ROOT_DIR/local to ${ROOT_DIR}/local.bak_${BAK_TIMESTAMP}"
     mv "$ROOT_DIR/local" "${ROOT_DIR}/local.bak_${BAK_TIMESTAMP}"
   else
@@ -521,7 +512,7 @@ if [ "$UPGRADE" == "true" ]; then
 
   # Back up the existing configuration file
   echo
-  echo "===== Backing upd configuration file from $ROOT_DIR/config/tms.toml to $LOCAL_DIR/tms.toml.bak_${BAK_TIMESTAMP}"
+  echo "===== Backing up configuration file from $ROOT_DIR/config/tms.toml to $LOCAL_DIR/tms.toml.bak_${BAK_TIMESTAMP}"
   echo "========================================================================================="
   cp -p "$ROOT_DIR/config/tms.toml" "$LOCAL_DIR/tms.toml.bak_${BAK_TIMESTAMP}"
   # Copy new config file into place
@@ -533,6 +524,23 @@ else
   # --------------------------------------
   # Clean install specific steps
   # --------------------------------------
+  # Create environment file for backup script
+  DB_ENV_FILE="$DB_ENV_PATH2"
+  echo
+  echo "===== Creating environment file for backup script. File path: $DB_ENV_FILE"
+  echo "========================================================================================="
+  # Construct env file
+  cat >> $DB_ENV_FILE << EOB
+PG_DEPLOYMENT="tms-postgres"
+PG_USER="tms"
+PG_DBNAME="tmsdb"
+PG_HOST="$TMS_DB_HOST"
+PG_PORT="$TMS_DB_PORT"
+PG_PASSWORD="$TMS_DB_USER_PASSWORD"
+EOB
+  chown $INSTALL_USR:$INSTALL_USR "$DB_ENV_FILE"
+  chmod 400 "$DB_ENV_FILE"
+
   # First Time Install Processing. Save output of initial --install run to ROOT_DIR
   # Copy the SSL cert files into place
   mkdir -p $ROOT_DIR/certs

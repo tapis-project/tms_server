@@ -7,7 +7,7 @@ use chrono::{Utc, DateTime};
 use sqlx::Row;
 
 use crate::utils::tms_utils::{timestamp_utc, timestamp_utc_secs_to_str, timestamp_str_to_datetime, create_hex_secret, hash_hex_secret, MAX_TMS_UTC_STR, timestamp_utc_to_str, calc_expires_at};
-use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_PUBKEYS, INSERT_USER_HOSTS, INSERT_USER_MFA, SEL_PUBKEY_EXISTS};
+use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_PUBKEYS, INSERT_USER_HOSTS, INSERT_USER_MFA, SEL_CLIENT_EXISTS, SEL_PUBKEY_EXISTS};
 use crate::utils::config::{DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_CMD_ARGS, DB_TRUE, TEST_CLIENT, TEST_APP, TEST_CLIENT_SECRET};
 
 use log::error;
@@ -66,8 +66,8 @@ pub async fn insert_new_client(rec: ClientInput) -> Result<u64> {
  * Insert a new pubkey record if there is not at least one already associated with host+host_account
  * For testing purposes as long as there is at least one we should be good.
  */
-pub async fn insert_new_test_pubkey_if_none(test_user: String, test_host_acct: String,
-                                            test_host: String) -> Result<u64> {
+pub async fn insert_new_test_pubkey_if_none(test_user: String, test_host: String,
+                                            test_host_acct: String) -> Result<u64> {
     let mut tx = RUNTIME_CTX.db.begin().await?;
 
     // Check for existing record, create only if needed
@@ -244,6 +244,13 @@ fn print_admin_secret_message(dft_key_str: &String) -> Result<()> {
 // ---------------------------------------------------------------------------
 /** This function either experiences an error or returns true (false is never returned). */
 pub async fn create_test_client() -> Result<u64> {
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+    // If client already exists then we are done
+    let skip_create: bool = sqlx::query_scalar(SEL_CLIENT_EXISTS)
+        .bind(TEST_CLIENT)
+        .fetch_one(&mut *tx).await?;
+    if skip_create {return Ok(0)}
+
     let test_client_secret_hash: String = hash_hex_secret(&TEST_CLIENT_SECRET.to_string());
     let now = timestamp_utc();
     // Create the client
