@@ -1,0 +1,12 @@
+# Put yml here for pvc to be used by TMS server
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: tms-pvc-vol
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: cinder-csi
+  resources:
+    requests:
+      storage: 10Gi

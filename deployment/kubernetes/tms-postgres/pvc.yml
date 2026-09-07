@@ -1,0 +1,11 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: tms-postgres-18-vol
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: cinder-csi
+  resources:
+    requests:
+      storage: 20Gi

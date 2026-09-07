@@ -1,0 +1,12 @@
+#!/bin/sh
+#
+# Burnup of TMS Server service
+#
+# Note: We do not apply pvc.yml because this should always be done during
+#       first-time set up.
+#
+echo "----------------------------------------------"
+echo "Starting tms-server"
+echo "----------------------------------------------"
+kubectl apply -f service.yml
+kubectl apply -f deploy.yml

@@ -1,0 +1,33 @@
+First time deployment in kubernetes
+============================================
+1. Make sure the DB is up and available and you have the host, port and password information.
+2. Generate a secure password for the TMS DB user.
+3. Set the env variables POSTGRES_PASSWORD and TMS_DB_USER_PASSWORD. If not using the default
+   DB host and port then also set the env variables TMS_DB_HOST and TMS_DB_PORT. See script 
+   first-time-init-db-sh for the default DB host and port.
+4. Run the script first_time_setup.sh. This script will:
+    - run first-time-init-db-sh as a kubernetes job
+    - run first-time-setup-sh as a kubernetes job
+    - TODO/TBD: Copy the tms-install.out file from the pvc to local disk.
+
+The service database role (i.e. user) and schema are initially created when the postgres database for the
+TMS Server service is first deployed. The script containing SQL is run using a kubernetes job.
+
+Each time the service starts up an sqlx migration is run to bring the DB schema up to date as needed.
+This happens as part of application (main.rs) startup.
+The calling sequence is:
+
+   main.rs: static ref RUNTIME_CTX: RuntimeCtx = init_runtime_context() -> 
+       config.rs:init_runtime_context() -> db_init.rs:init_db()
+
+TODO REMOVE:
+???????????????????
+In a deployment the files may typically be found under ~/tms/tms-server.
+The two main files involved are first-time-setup-sh and first-time-setup.yml.
+Burndown involves:
+  kubectl delete -f first-time-setup.yml
+Burnup involves:
+  kubectl create configmap tms-first-time-setup-configmap --from-file first-time-setup-sh
+  kubectl create -f first-time-setup.yml
+  kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-setup
+

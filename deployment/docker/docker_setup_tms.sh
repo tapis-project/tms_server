@@ -16,7 +16,7 @@ env_list="TMS_DB_USER_PASSWORD"
 for name in $env_list
 do
   if [[ -z "${!name}" ]]; then
-    echo "Please set env var ${name} before running this script"
+    echo "Please set env var ${nam e} before running this script"
     FAILED=true
   fi
 done

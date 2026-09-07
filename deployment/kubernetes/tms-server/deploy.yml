@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+  name: tms-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tms-server
+  template:
+    metadata:
+      labels:
+        app: tms-server
+    spec:
+      containers:
+      - name: tms-server
+        image: tapis/tms_server:dev
+        imagePullPolicy: Always
+        ports:
+        - name: tms-server
+          containerPort: 8080
+        env:
+        - name: RUST_BACKTRACE
+          value: "1"
+        - name: TMS_DB_HOST
+          value: "tms-postgres-18"
+        - name: TMS_DB_PORT
+          value: 5432
+        - name: TMS_DB_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: tms-secrets
+              key: postgres-tms-user-password
