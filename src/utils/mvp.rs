@@ -1,11 +1,10 @@
 #![forbid(unsafe_code)]
 
 use anyhow::Result;
-use crate::utils::db_types::{DelegationInput, UserMfaInput, UserHostInput};
+use crate::utils::db_types::{DelegationInput, RPLoginInput};
 use crate::utils::tms_utils::{timestamp_utc};
 use crate::v1::tms::delegations_create::insert_delegation;
-use crate::v1::tms::user_mfa_create::insert_user_mfa;
-use crate::v1::tms::user_hosts_create::insert_user_host;
+use crate::v1::tms::rp_login_create::insert_rp_login;
 use log::info;
 use crate::utils::config::DB_TRUE;
 use crate::utils::tms_utils;
@@ -16,23 +15,23 @@ const NOT_STRICT:bool = false;
 pub struct MVPDependencyParms
 {
     pub client_id: String,
-    pub client_user_id: String,
+    pub tms_identity: String,
+    pub rp_id: String,
+    pub rp_account: String,
     pub host: String,
     pub host_account: String,
 }
 
 /** The Minimal Viable Product (MVP) version of TMS simplifies migration to TMS in 
- * existing environments that meet certain requirements.  Specifically, MVP 
- * supports the following:
+ * existing environments that meet certain requirements. Specifically, MVP supports the following:
  * 
  *  - Keys don't expire.
  *  - Note that to satisfy foreign key constraints, records must be created
- *      in the following order: user_mfa, delegations, user_host
+ *      in the following order: rp_login, delegations
  *  - Key dependency records are automatically created in these tables:
- *      - user_mfa - non-expiring MFA set up for user
+ *      - rp_login - non-expiring RP_LOGIN set up for user
  *      - delegations - delegation established between user and client 
- *      - user_host - user binding created to host_account
- *  
+ *
  * When the enable_mvp flag is turned on in the configuration file, clients can
  * create keys without prior configuration in the above 3 tables. TMS will
  * automatically create those records based on the input to the key create call,
@@ -48,37 +47,41 @@ pub async fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64
      // Use the same current UTC timestamp in all related time calculations.
      let now = timestamp_utc();
 
-    // --------------------- Insert user_mfa record ------------------------
-    // Required inputs: client_user_id
+    // --------------------- Insert rp_login record ------------------------
+    // Required inputs: tms_identity, rp_id, rp_account, enabled
     //
     // Create the input record.
-    let input_record = UserMfaInput::new(
-        parms.client_user_id.clone(),
-        expires_at,
+    let input_record = RPLoginInput::new(
+        parms.tms_identity.clone(),
+        parms.rp_id.clone(),
+        parms.rp_account.clone(),
         DB_TRUE,
-        now.clone(), 
+        now.clone(),
+        now.clone(),
         now.clone(),
     );
 
     // Insert the new record if it doesn't already exist.
-    let count = insert_user_mfa(input_record, NOT_STRICT).await?;
+    let count = insert_rp_login(input_record, NOT_STRICT).await?;
     if count > 0 {
         insert_count += count;
-        info!("MVP: MFA for user '{}' created with expiration at {}.",
-            parms.client_user_id, expires_at);
+        info!("MVP: RP_LOGIN created for tms_identity: {} rp_id: {} rp_account: {} expires_at: {}.",
+              parms.tms_identity, parms.rp_id, parms.rp_account, expires_at);
     }
 
     // --------------------- Insert delegations record ---------------------
-    // Required inputs: client_id, client_user_id
+    // Required inputs: client_id, rp_account, tms_identity
     //
     // Create the input record.  Note that we save the hash of
     // the hex secret, but never the secret itself.  
     let input_record = DelegationInput::new(
         parms.client_id.clone(),
-        parms.client_user_id.clone(),
+        parms.tms_identity.clone(),
+        parms.rp_id.clone(),
+        parms.rp_account.clone(),
         expires_at,
-        now.clone(), 
         now.clone(),
+        now.clone()
     );
 
     // Insert the new record if it doesn't already exist.
@@ -86,30 +89,7 @@ pub async fn create_pubkey_dependencies(parms: MVPDependencyParms) -> Result<u64
     if count > 0 {
         insert_count += count;
         info!("MVP: Delegation for user '{}' to client '{}' created with expiration at {}.",
-              parms.client_user_id, parms.client_id, expires_at);
+              parms.rp_account, parms.client_id, expires_at);
     }
-
-    // --------------------- Insert user_hosts record ---------------------
-    // Required inputs: client_user_id, host, host_account
-    //
-    // Create the input record.  Note that we save the hash of
-    // the hex secret, but never the secret itself.  
-    let input_record = UserHostInput::new(
-        parms.client_user_id.clone(),
-        parms.host.clone(),
-        parms.host_account.clone(),
-        expires_at,
-        now.clone(), 
-        now.clone(),
-    );
-
-    // Insert the new record if it doesn't already exist.
-    let count = insert_user_host(input_record, NOT_STRICT).await?;
-    if count > 0 {
-        insert_count += count;
-        info!("MVP: Host mapping for user '{}' created with experation at {}.",
-                parms.client_user_id, expires_at);
-    }
-
     Ok(insert_count)
 }

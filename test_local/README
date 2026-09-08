@@ -1,1 +1,19 @@
+Docker
+---------
+Script to uninstall and re-install using a docker image.
+
+Requirements:
+  * Note that is assumes the image to use is tapis/tms_server:dev
+  * The seeding sql for the portal tables (providers, etc) must be at:
+           $HOME/tms_portal_seed_local.sql
+  * The following environment variables should be set, the first 2 are required:
+    - POSTGRES_PASSWORD (required)
+    - TMS_DB_USER_PASSWORD (required)
+    - TMS_DB_HOST (optional, default = localhost)
+    - TMS_DB_PORT (optional, default = 5432)
+
+Native
+---------
 Various scripts for testing a native local install or upgrade.
+
+

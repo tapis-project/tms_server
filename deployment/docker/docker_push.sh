@@ -1,11 +1,20 @@
 #!/bin/sh
-#set -x
+# ----------------------------------------------------------------
+# Publish docker image for tms_server
+# ----------------------------------------------------------------
 
-# Build docker image for tms_server.
 PrgName=$(basename "$0")
-if [ $# -ne 1 ]; then 
-    echo "Usage: $PrgName <docker tag>"
-    echo "  where <docker tag> is the image version tag"
+# Determine absolute path to location from which we are running and change to that directory.
+RUN_DIR=$(pwd)
+PRG_RELPATH=$(dirname "$0")
+cd "$PRG_RELPATH"/. || exit
+PRG_PATH=$(pwd)
+
+# Check arguments
+if [ $# -ne 1 ]; then
+    echo "Usage: $PrgName <image_tag>"
+    echo "  where <image_tag> is the image version tag"
+    echo "For example $PrgName dev"
     exit 1
 fi
 
@@ -14,6 +23,6 @@ TAG=$1
 
 # Publish image
 echo "=================================================="
-echo "To push: docker push "tapis/tms_server:"${TAG}"
+echo "docker push tapis/tms_server:${TAG}"
 echo "=================================================="
-docker push "tapis/tms_server:"${TAG}"
+docker push "tapis/tms_server:${TAG}"

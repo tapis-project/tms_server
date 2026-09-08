@@ -28,14 +28,14 @@ use super::tms_utils::get_absolute_path;
 // ***************************************************************************
 //                                Constants
 // ***************************************************************************
-// Directory and file locations. Unless otherwise noted, all files and directories
-// are relative to the TMS root directory.
-const DEFAULT_ROOT_DIR     : &str = "~/.tms";
+// Directory and file locations.
+// Unless otherwise noted, all files and directories are relative to the TMS root directory.
+const DEFAULT_ROOT_DIR     : &str = "~/tms";
 const MIGRATIONS_DIR       : &str = "/migrations";
 const CONFIG_DIR           : &str = "/config";
 const LOGS_DIR             : &str = "/logs";
 const CERTS_DIR            : &str = "/certs";
-const RESOURCES_DIR        : &str = "./resources"; // relative to currnent dir
+const RESOURCES_DIR        : &str = "./resources"; // relative to current dir
 
 const LOG4RS_CONFIG_FILE   : &str = "/log4rs.yml"; // relative to config dir
 const TMS_CONFIG_FILE      : &str = "/tms.toml";   // relative to config dir
@@ -166,7 +166,7 @@ pub struct TmsCmdArgs {
     ///
     ///   2. Otherwise, if set, the value of the environment variable TMS_ROOT_DIR,
     ///
-    ///   3. Otherwise, ~/.tms
+    ///   3. Otherwise, ~/tms
     #[arg(short, long)]
     pub install: bool,
     /// Create the DB schema, skip data initialization.
@@ -324,9 +324,9 @@ pub fn set_directories_and_check_install() {
     // Construct root_dir path and perform checks
     let root_dir = get_root_dir();
     let root_path = Path::new(&root_dir);
-    if root_path.is_file() {
-        // Expected either nothing or a directory, but found a file.
-        let msg = 
+    if root_path.exists() && !root_path.is_dir() {
+        // Expected either nothing or a directory.
+        let msg =
             format!("\n***********************************************************************\n\
                     ERROR: Detected an existing file at TMS root directory.\n\
                     ERROR: Expected a directory or nothing at path. Path: {}\n\n\
@@ -338,8 +338,8 @@ pub fn set_directories_and_check_install() {
     let config_dir = format!("{}/config", root_dir);
     let config_path = Path::new(&config_dir);
 
-    if config_path.is_file() {
-        // Expected either nothing or a directory, but found a file.
+    if config_path.exists() && !config_path.is_dir() {
+        // Expected either nothing or a directory.
         let msg =
             format!("\n***********************************************************************\n\
                     ERROR: Detected an existing file at TMS root config directory.\n\
@@ -563,7 +563,7 @@ fn copy_resource_files(target_dir: &String, dir_suffix: &str, root_dir: &String)
  * The log4rs.yml and tms.toml files have already been checked and read, so no need to do
  * that here, see init_log() and get_parms().
  * 
- * We panic if either of the pem files are not found or don't have the proper permissions.
+ * We panic if pem files not found or do not have proper permissions.
  */
 fn check_resource_files() {
     // Get the directory in which the pem files reside.

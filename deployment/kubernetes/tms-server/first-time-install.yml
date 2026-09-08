@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tms-first-time-install
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: tms-first-time-install
+        image: postgres:18
+        imagePullPolicy: Always
+        command: ["/tmp/first-time-install-sh"]
+        volumeMounts:
+        - name: tms-first-time-install-vol
+          mountPath: /tmp
+        env:
+        - name: TMS_DB_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: tms-secrets
+              key: postgres-tms-user-password
+      volumes:
+      - name: tms-first-time-install-vol
+        configMap:
+          name: tms-first-time-install-configmap
+          defaultMode: 0777
+  backoffLimit: 4

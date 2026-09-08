@@ -1,0 +1,153 @@
+#![forbid(unsafe_code)]
+
+use poem::Request;
+use poem_openapi::{ OpenApi, payload::Json, Object, ApiResponse };
+use anyhow::Result;
+
+use crate::utils::errors::HttpResult;
+use crate::utils::db_types::ClientInput;
+use crate::utils::db::insert_new_client;
+use crate::utils::config::{DB_TRUE, NEW_CLIENTS_DISALLOW};
+use crate::utils::tms_utils::{self, create_hex_secret, hash_hex_secret, timestamp_utc, RequestDebug};
+use log::{error, info};
+
+use crate::RUNTIME_CTX;
+
+// ***************************************************************************
+//                          Request/Response Definitions
+// ***************************************************************************
+pub struct CreateClientApi;
+
+// ***************************************************************************
+//                          Request/Response Definitions
+// ***************************************************************************
+#[derive(Object)]
+pub struct ReqCreateClient
+{
+    client_id: String,
+    name: String
+}
+
+#[derive(Object, Debug)]
+pub struct RespCreateClient
+{
+    result_code: String,
+    result_msg: String,
+    client_id: String,
+    secret: String,
+}
+
+// Implement the debug record trait for logging.
+impl RequestDebug for ReqCreateClient {   
+    type Req = ReqCreateClient;
+    fn get_request_info(&self) -> String {
+        let mut s = String::with_capacity(255);
+        s.push_str("  Request body:");
+        s.push_str("\n    client_id: ");
+        s.push_str(&self.client_id);
+        s.push_str("\n    name: ");
+        s.push_str(&self.name);
+        s
+    }
+}
+
+// ------------------- HTTP Status Codes -------------------
+#[derive(Debug, ApiResponse)]
+enum TmsResponse {
+    #[oai(status = 201)]
+    Http201(Json<RespCreateClient>),
+    #[oai(status = 400)]
+    Http400(Json<HttpResult>),
+    #[oai(status = 500)]
+    Http500(Json<HttpResult>),
+}
+
+fn make_http_201(resp: RespCreateClient) -> TmsResponse {
+    TmsResponse::Http201(Json(resp))
+}
+fn make_http_400(msg: String) -> TmsResponse {
+    TmsResponse::Http400(Json(HttpResult::new(400.to_string(), msg)))
+}
+fn make_http_500(msg: String) -> TmsResponse {
+    TmsResponse::Http500(Json(HttpResult::new(500.to_string(), msg)))    
+}
+
+// ***************************************************************************
+//                             OpenAPI Endpoint
+// ***************************************************************************
+#[OpenApi]
+impl CreateClientApi {
+    #[oai(path = "/tms/client", method = "post")]
+    async fn create_client(&self, http_req: &Request, req: Json<ReqCreateClient>) -> TmsResponse {
+        match RespCreateClient::process(http_req, &req).await {
+            Ok(r) => r,
+            Err(e) => {
+                // Assume a server fault if a raw error came through.
+                let msg = "ERROR: ".to_owned() + e.to_string().as_str();
+                error!("{}", msg);
+                make_http_500(msg)
+            }
+        }
+    }
+}
+
+// ***************************************************************************
+//                          Request/Response Methods
+// ***************************************************************************
+impl RespCreateClient {
+    /// Create a new response.
+    fn new(result_code: &str, result_msg: &str, client_id: String, secret: String,) -> Self {
+        Self {result_code: result_code.to_string(), 
+              result_msg: result_msg.to_string(), 
+              client_id,
+            secret: secret,
+            }
+    }
+
+    /// Process the request.
+    async fn process(http_req: &Request, req: &ReqCreateClient) -> Result<TmsResponse, anyhow::Error> {
+        // Conditional logging depending on log level.
+        tms_utils::debug_request(http_req, req);
+
+        // -------------------- Client Creation Check ------------------
+        // Client creation is disabled if we are running in MVP mode because of the
+        // security implications of automating user/host mappings, client delegations 
+        // and unlimited rp_login lifetimes.  Users also can explicitly disable client creation.
+        if RUNTIME_CTX.parms.config.enable_mvp || 
+           RUNTIME_CTX.parms.config.new_clients == NEW_CLIENTS_DISALLOW {
+            let msg = "Client creation is disallowed due either to running in MVP mode \
+                             or by explicit assignment of the new_clients configuration parameter.";
+            error!("{}", msg);
+            return Ok(make_http_400(msg.to_string()));
+        }
+
+        // ------------------------ Generate Secret --------------------
+        let secret_str  = create_hex_secret();
+        let secret_hash = hash_hex_secret(&secret_str);
+
+        // ------------------------ Update Database --------------------
+        let now = timestamp_utc();
+
+        // Create the input record. Note we save the hash of the hex secret, but never the secret.
+        let input_record = ClientInput::new(
+            req.name.clone(),
+            req.client_id.clone(),
+            secret_hash,
+            DB_TRUE,
+            now.clone(),
+            now.clone(),
+        );
+
+        // Insert the new key record.
+        insert_new_client(input_record).await?;
+        info!("Client '{}' created for application '{}'.",
+              req.client_id, req.name);
+        
+        // Return the secret represented in hex.
+        Ok(make_http_201(Self::new("0", "success", req.client_id.clone(), secret_str)))
+    }
+}
+
+// ***************************************************************************
+//                          Private Functions
+// ***************************************************************************

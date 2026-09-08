@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:  
+  name: tms-postgres-18
+spec:
+  selector:    
+    app: tms-postgres-18
+  ports:  
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+

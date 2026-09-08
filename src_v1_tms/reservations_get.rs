@@ -41,7 +41,7 @@ pub struct RespGetReservation
     parent_resid: String,
     tenant: String,
     client_id: String,
-    client_user_id: String,
+    rp_account: String,
     host: String,
     public_key_fingerprint: String, 
     expires_at: DateTime<Utc>,
@@ -165,11 +165,11 @@ impl RespGetReservation {
     // Create a new response.
     #[allow(clippy::too_many_arguments)]
     fn new(result_code: &str, result_msg: String, id: i32, resid: String, parent_resid: String, 
-            tenant: String, client_id: String, client_user_id: String, host: String, 
+            tenant: String, client_id: String, rp_account: String, host: String, 
             public_key_fingerprint: String, expires_at: DateTime<Utc>, created: DateTime<Utc>, updated: DateTime<Utc>) 
     -> Self {
             Self {result_code: result_code.to_string(), result_msg, 
-              id, resid, parent_resid, tenant, client_id, client_user_id, host, public_key_fingerprint, 
+              id, resid, parent_resid, tenant, client_id, rp_account, host, public_key_fingerprint, 
               expires_at, created, updated}
         }
 
@@ -183,7 +183,7 @@ impl RespGetReservation {
         match db_result {
             Ok(res) => Ok(make_http_200(Self::new("0", "success".to_string(), 
                                     res.id, res.resid, res.parent_resid, res.tenant, res.client_id, 
-                                    res.client_user_id, res.host, res.public_key_fingerprint, 
+                                    res.rp_account, res.host, res.public_key_fingerprint, 
                                     res.expires_at, res.created, res.updated))),
             Err(e) => {
                 // Determine if this is a real db error or just record not found.

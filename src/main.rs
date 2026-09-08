@@ -13,12 +13,6 @@ use poem::{listener::TcpListener, Route};
 use poem_openapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
 use poem_extensions::api;
 // TMS APIs
-use crate::v1::tms::client_create::CreateClientApi;
-use crate::v1::tms::client_delete::DeleteClientApi;
-use crate::v1::tms::client_get::GetClientApi;
-use crate::v1::tms::client_list::ListClientApi;
-use crate::v1::tms::client_update_secret::UpdateClientSecretApi;
-use crate::v1::tms::client_update::UpdateClientApi;
 use crate::v1::tms::pubkeys_create::NewSshKeysApi;
 use crate::v1::tms::pubkeys_retrieve::PublicKeyApi;
 use crate::v1::tms::pubkeys_delete::DeletePubkeysApi;
@@ -130,9 +124,7 @@ async fn main() -> Result<(), std::io::Error> {
     // endpoints to be defined (!).  Consult the poem_extensions documentation if generic 
     // endpoint support is needed.
     let endpoints = 
-        api!(HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, 
-         CreateClientApi, GetClientApi, UpdateClientApi, DeleteClientApi, UpdateClientSecretApi, ListClientApi,
-         GetPubkeysApi, DeletePubkeysApi, UpdatePubkeyApi);
+        api!(HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, GetPubkeysApi, DeletePubkeysApi, UpdatePubkeyApi);
     let mut api_service = 
         OpenApiService::new(endpoints, "TMS Server", version_str);
     let urls = &RUNTIME_CTX.parms.config.server_urls;
@@ -185,17 +177,24 @@ async fn main() -> Result<(), std::io::Error> {
  * This function either experiences an error or returns true (false is never returned).
  */
 async fn tms_init_data() -> Result<bool> {
-    // Insert default records into database if they don't already exist.
-
+    // Insert default records into database if they do not already exist.
     // This call is a no-op except when the --install option is set.
     let inserts = db::create_default_admin().await.expect("Error creating default admin user.");
     info!("Number of admin user records created: {}.", inserts);
+
+    // Create test IdP if it does not already exist.
+    let inserts = db::create_test_idp().await.expect("Error creating test IdP.");
+    info!("Number of test IDPs created: {}.", inserts);
+
+    // Create test RP if it does not already exist.
+    let inserts = db::create_test_rp().await.expect("Error creating test resource provider.");
+    info!("Number of test resource providers created: {}.", inserts);
 
     // Create test client if it does not already exist.
     let inserts = db::create_test_client().await.expect("Error creating test client.");
     info!("Number of test clients created: {}.", inserts);
 
-    // Create test delegation, user_mfa and user_host records if they do not already exist.
+    // Create test tms_identities, delegation and resource_provider_logins records if they do not already exist.
     let inserts = db::create_test_data().await.expect("Error creating delegation records for test users.");
     info!("Number of test delegation related records created: {}.", inserts);
 

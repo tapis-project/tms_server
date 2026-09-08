@@ -36,7 +36,7 @@ pub struct RespGetPubkeys
     result_msg: String,
     id: i32,
     client_id: String,
-    client_user_id: String,
+    rp_account: String,
     host: String,
     host_account: String,
     public_key_fingerprint: String,
@@ -139,7 +139,7 @@ impl RespGetPubkeys {
         result_msg: String,
         id: i32,
         client_id: String,
-        client_user_id: String,
+        rp_account: String,
         host: String,
         host_account: String,
         public_key_fingerprint: String,
@@ -155,7 +155,7 @@ impl RespGetPubkeys {
     ) 
     -> Self {
             Self {result_code: result_code.to_string(), result_msg, 
-                  id, client_id, client_user_id, host, host_account, public_key_fingerprint,
+                  id, client_id, rp_account, host, host_account, public_key_fingerprint,
                   public_key, key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes, 
                   expires_at, created, updated}
         }
@@ -170,7 +170,7 @@ impl RespGetPubkeys {
         match get_pubkey(authz_result, req).await {
             Ok(pubkey) => 
                 Ok(make_http_200(Self::new("0", "success".to_string(), pubkey.id, 
-                    pubkey.client_id,pubkey.client_user_id, pubkey.host, pubkey.host_account,
+                    pubkey.client_id,pubkey.rp_account, pubkey.host, pubkey.host_account,
                     pubkey.public_key_fingerprint, pubkey.public_key, pubkey.key_type, pubkey.key_bits, 
                     pubkey.max_uses, pubkey.remaining_uses, pubkey.initial_ttl_minutes, pubkey.expires_at, 
                     pubkey.created, pubkey.updated))),
@@ -214,7 +214,8 @@ async fn get_pubkey(authz_result: &AuthzResult, req: &ReqGetPubkeys) -> Result<P
             Ok(Pubkey::new(row.get(0), row.get(1), row.get(2), row.get(3),
                            row.get(4), row.get(5), row.get(6), row.get(7),
                            row.get(8), row.get(9), row.get(10), row.get(11),
-                           row.get(12), row.get(13), row.get(14)))
+                           row.get(12), row.get(13), row.get(14), row.get(15),
+                           row.get(16)))
         },
         None => {Err(anyhow!("NOT_FOUND"))},
     }

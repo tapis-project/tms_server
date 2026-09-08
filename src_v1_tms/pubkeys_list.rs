@@ -51,7 +51,7 @@ pub struct PubkeysListElement
     id: i32,
     tenant: String,
     client_id: String,
-    client_user_id: String,
+    rp_account: String,
     host: String,
     host_account: String,
     public_key_fingerprint: String,
@@ -156,12 +156,12 @@ impl ListPubkeysApi {
 impl PubkeysListElement {
     /// Create response elements.
     #[allow(clippy::too_many_arguments)]
-    fn new(id: i32, tenant: String, client_id: String, client_user_id: String, 
+    fn new(id: i32, tenant: String, client_id: String, rp_account: String, 
            host: String, host_account: String, public_key_fingerprint: String, 
            public_key: String, key_type: String, key_bits: i32, max_uses: i32,
            remaining_uses: i32, initial_ttl_minutes: i32, expires_at: DateTime<Utc>, 
            created: DateTime<Utc>, updated: DateTime<Utc>) -> Self {
-        Self {id, tenant, client_id, client_user_id, host, host_account, public_key_fingerprint,
+        Self {id, tenant, client_id, rp_account, host, host_account, public_key_fingerprint,
               public_key, key_type, key_bits, max_uses, remaining_uses, initial_ttl_minutes,
               expires_at, created, updated}
     }

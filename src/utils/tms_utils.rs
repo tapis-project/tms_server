@@ -120,7 +120,7 @@ pub fn calc_expires_at(now : DateTime<Utc>, ttl_minutes : i32) -> DateTime<Utc> 
 
 // ---------------------------------------------------------------------------
 // get_max_tms_utc:
-//   Return a utc time far in the future, for use with mfa expiry
+//   Return a utc time far in the future, for use with rp_login expiry
 // ---------------------------------------------------------------------------
 pub fn get_max_tms_utc() -> DateTime<Utc> {
         DateTime::parse_from_rfc3339(MAX_TMS_UTC_STR).unwrap().with_timezone(&Utc)

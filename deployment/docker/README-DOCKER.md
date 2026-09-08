@@ -1,86 +1,136 @@
 # TMS Web Server Deployment
 
-This directory (*deployment/docker*) contains files related to the deployment of the TMS server container, including Dockerfiles, scripts and a docker-compose file.  The procedures discussed here focus on the standard cargo build of TMS using *Dockerfile*.  Unless otherwise noted, the current directory from which commands are issued is *deployment/docker*.  
+This directory (*tms_server/deployment/docker*) contains files related to the deployment of TMS server using a docker
+image. This includes Dockerfiles, scripts and a docker-compose file.
 
-## Installing TMS Server (tms_server)
+**Please note, the setup script must be run once before starting up the server as a daemon.**
 
-The TMS Server must first be installed on the user account under which it will run.  We recommend dedicating a no-password account on the host to run *tms_server*.  The same installation process described here is used for both "docker run" and "docker compose" launch methods.  
+## Environment Variables
+Please note that for the setup, run and uninstall scripts some environment variables are required and others may be
+used for a non-default postgres configuration:
+- POSTGRES_PASSWORD (required for uninstall)
+- TMS_DB_USER_PASSWORD (required)
+- TMS_DB_HOST (optional)
+- TMS_DB_PORT (optional)
 
-Set up is handled by the *./docker_install.sh* script, which is invoked as follows:
+## Building the Docker Image
+The following scripts can be used to build and push *tms_server* images:
+- `./docker_build.sh <image tag>`
+- `./docker_push.sh <image tag>`
 
-   - ./docker_install.sh \<image tag\>
+For example:
+```
+./docker_build.sh dev
+./docker_push.sh dev
+```
 
-where \<image tag\> is the tag of the *tms_server* image to be run.
+## Initial Setup
+Set up is handled by the `./docker_setup_tms.sh` script, which is invoked, e.g., as follows:
+```
+./docker_setup_tms.sh dev
+```
 
-The above script should be run once before any attempt is made to execute the server.  See the script to learn about the host directories and persistent docker volumes initialized during installation. 
+**The above script must be run once before starting the server.**
 
-## Customizing TMS Server
+See the script to learn about the host directories and persistent docker volumes initialized during installation. 
 
-The host's *~/tms-docker/tms_customizations* directory is used by both *tms_server* and the host user to exchange information.  *tms_server* writes the **tms-install.out** file to that directory to pass administrator credentials created during installation to the host user.  The host user can write configuaration files to the directory to customize server execution.  
+One environment variable is required and others may be used for a non-default postgres configuration.
+- TMS_DB_USER_PASSWORD (required)
+- TMS_DB_HOST (optional)
+- TMS_DB_PORT (optional)
+
+## Customizing the TMS Server
+The directory `/home/tms/tms_local` is used as a location for placing customized `tms.toml` and `log4rs.yml` files
+as well as for output of the initial setup run. `tms_server` writes the `tms-install.out` file to that directory to
+pass administrator credentials created during installation
 
 ### Customizing the TMS Runtime
 
-The *resources/config* directory in the TMS server repository contains the two configuration files that can be customized by the host user.
+ TODO ??????????????
+The `/home/tms/tms/config` directory in the TMS server repository contains the two configuration files that can be
+customized.
 
    - **tms.toml** - This file contains default values read by *tms_server* on start up.
    - **log4rs.yml** - This file contains the default logging configuration for *tms_server*.
 
-Placing modified versions of either of these files in the *~/tms-docker/tms_customizations* directory is the conventional way to document your local runtime customizations.  To reliably activate the your modifications, however, run one or both of the following commands from *~/tms-docker/tms_customizations*: 
-
-   - docker cp tms.toml tms_server_container:/tms-root/.tms/config/tms.toml
-   - docker cp log4rs.yml tms_server_container:/tms-root/.tms/config/log4rs.yml
+Placing modified versions of either of these files in the *~/tms-docker/* directory is the conventional way to
+document your local runtime customizations. To reliably activate the modifications, however, run one or both of the
+following commands from *~/tms-docker/*:
+```
+docker cp tms.toml tms_server_container:/tms-root/tms/config/tms.toml
+docker cp log4rs.yml tms_server_container:/tms-root/tms/config/log4rs.yml
+```
 
 ### Installing Certificates for TMS
 
-TMS ships with self-signed certificates for use on *localhost* or *testserver.com*.  This is useful in development environments or for evaluation purposes, but is not appropriate in production environments.  To see the content of the shipped certificate, issue this call from the TMS server repository's *resources/certs* directory.  
+TMS ships with self-signed certificates for use on *localhost* or *testserver.com*.
+This is useful in development environments or for evaluation purposes, but is not appropriate in production
+environments. To see the content of the shipped certificate, issue this call from the TMS server
+repository's *resources/certs* directory.
 
    - openssl x509 -in cert.pem -text
 
-In production, certificates and keys generated by a trusted Certificate Authority need to be installed in TMS's runtime environment.  *tms_server* loads its certificate and private key from the */tms-root/.tms/certs* directory.  Run these commands to replace the shipped certificate and key PEM files with ones generated for the host on which TMS will run:
-
-   - docker cp <path-to-cert-file> tms_server_container:/tms-root/.tms/certs/cert.pem
-   - docker cp <path-to-key-file > tms_server_container:/tms-root/.tms/certs/key.pem
+In production, certificates and keys generated by a trusted Certificate Authority need to be installed in TMS's runtime
+environment. *tms_server* loads its certificate and private key from the */tms-root/tms/certs* directory.
+Run these commands to replace the shipped certificate and key PEM files with ones generated for the host on which TMS
+will run:
+```
+docker cp <path-to-cert-file> tms_server_container:/tms-root/tms/certs/cert.pem
+docker cp <path-to-key-file > tms_server_container:/tms-root/tms/certs/key.pem
+```
 
 Note that both files must have 600 permissions, which is the default.
 
 ## Running TMS Server
 
-*tms_server* can be started using either "docker run" or "docker compose".  Each method is encapsulated in a script.
+*tms_server* can be started using either `docker run` or `docker compose`. Each method is encapsulated in a script.
 
 ### Docker run 
 
-Once TMS is installed and any customizations applied, run the following script to launch the TMS container in the background:
+Once TMS is installed and any customizations applied, run the following script to launch the TMS container in the
+background:
+```
+./docker_run.sh` <image tag>
+```
 
-   - *./docker_run.sh* \<image tag\>
+where `\<image tag\>` is the tag of the *tms_server* image to be run.
 
-where \<image tag\> is the tag of the *tms_server* image to be run. 
+To view the logs:
+```
+docker logs tms_server
+```
 
 To stop the container (but not remove it), issue:
-
-- *./docker_stop.sh*
+```
+./docker_stop.sh
+```
 
 ### Docker compose
 
-Once TMS is installed and any customizations applied, run the following script to launch the TMS container in the background:
+Once TMS is installed and any customizations applied, run the following script to launch the TMS container in
+the background:
+```
+./docker-compose_up.sh <image tag>
+```
 
-   - *./docker-compose_up.sh* \<image tag\>
-
-where \<image tag\> is the tag of the *tms_server* image to be run.
+where `<image tag>` is the tag of the *tms_server* image to be run.
 
 To stop and remove the container, issue:
+```
+./docker-compose_down.sh <image tag>
+```
 
-   - *./docker-compose_down.sh* \<image tag\>
+## Uninstalling TMS Server
 
-## Reinstalling TMS
+>[!WARNING]
+>WARNING - DESTRUCTIVE UNINSTALL!
 
-If you want to wipe out and/or reinstall TMS from scratch, these two manual steps should be performed:
+If you want to wipe out and/or reinstall TMS from scratch, the script `docker_uninstall.sh` may be used.
+This script should kill any running containers, remove any containers that have exited but not been removed,
+remove the docker volume and remove the directory `$HOME/tms-docker`.
 
-   - *docker volume rm tms_docker_vol*
-   - *rm ~/tms-docker/tms_customizations/tms-install.out* to preserve customization files, OR *rm -r ~/tms-docker* to wipe clean all traces of TMS.
-
-# Developer Notes
-
-The following scripts can be used to build and push *tms_server* images:
-
-   - *./docker_build.sh* \<image tag\>
-   - *./docker_push.sh* \<image tag\>
+Two environment variables are required and others may be used for a non-default postgres configuration.
+ - POSTGRES_PASSWORD (required)
+ - TMS_DB_USER_PASSWORD (required)
+ - TMS_DB_HOST (optional)
+ - TMS_DB_PORT (optional)

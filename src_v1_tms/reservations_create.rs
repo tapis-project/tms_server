@@ -27,7 +27,7 @@ const MAX_RESERVATION_MINUTES: i32 = 48 * 60;
 // ***************************************************************************
 /** Create a new reservation on an active (non-expired) pubkey record.  All 
  * dependency checking required for pubkey creation is also performed here.  
- * Specifically, the user mfa, user/host mapping and client delegation records 
+ * Specifically, the user rp_login, user/host mapping and client delegation records
  * must be in order and active before a reservation can be created.
  */
 pub struct CreateReservationsApi;
@@ -35,7 +35,7 @@ pub struct CreateReservationsApi;
 #[derive(Object)]
 pub struct ReqCreateReservation
 {
-    client_user_id: String,
+    rp_account: String,
     host: String,
     public_key_fingerprint: String,
     ttl_minutes: i32,  // negative means i32::MAX
@@ -57,8 +57,8 @@ impl RequestDebug for ReqCreateReservation {
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
-        s.push_str("\n    client_user_id: ");
-        s.push_str(&self.client_user_id);
+        s.push_str("\n    rp_account: ");
+        s.push_str(&self.rp_account);
         s.push_str("\n    host: ");
         s.push_str(&self.host);
         s.push_str("\n    public_key_fingerprint: ");
@@ -225,9 +225,8 @@ impl RespCreateReservation {
         // --------------------- Check Expirations -----------------------
         // The 3 tables whose expiration times need to be checked before we create this key are:
         //
-        //  user_mfa - use tenant and client_user_id to target unique record
-        //  delegations - use tenant, client_id and client_user_id to target unique record
-        //  user_hosts - use tenant, client_user_id, host and host_account to target unique record
+        //  rp_login - use tenant and rp_account to target unique record
+        //  delegations - use tenant, client_id and rp_account to target unique record
         //
         // Each of the above tables is queried using values that define a unique index on that
         // target table.  This guarantees that either 0 or 1 records will be returned.  In the 
@@ -239,7 +238,7 @@ impl RespCreateReservation {
         // contain the required values and whether the error resulted from a missing or 
         // expired record.  
         match check_pubkey_dependencies(&req_ext.tenant, &req_ext.client_id,
-                                        &req.client_user_id, &req.host, &pubkey_info.host_account).await
+                                        &req.rp_account, &req.host, &pubkey_info.host_account).await
         {
             Ok(_) => (),
             Err(e) => {
@@ -272,7 +271,7 @@ impl RespCreateReservation {
             resid.clone(),
             req_ext.tenant.clone(),
             req_ext.client_id.clone(),
-            req.client_user_id.clone(), 
+            req.rp_account.clone(), 
             req.host.clone(), 
             req.public_key_fingerprint.clone(), 
             expires_at.clone(), 
@@ -283,7 +282,7 @@ impl RespCreateReservation {
         // Insert the new key record.
         create_reservation(input_record).await?;
         info!("Reservation '{}' created for '{}@{}' for host '{}' expires at {}.", 
-              resid, req.client_user_id, req_ext.tenant, req.host, expires_at);
+              resid, req.rp_account, req_ext.tenant, req.host, expires_at);
 
         // Success! 
         Ok(make_http_201(Self::new("0", "success", 
@@ -311,7 +310,7 @@ async fn create_reservation(rec: ReservationInput) -> Result<u64> {
         .bind(&rec.resid)
         .bind(rec.tenant)
         .bind(rec.client_id)
-        .bind(rec.client_user_id)
+        .bind(rec.rp_account)
         .bind(rec.host)
         .bind(rec.public_key_fingerprint)
         .bind(rec.expires_at)

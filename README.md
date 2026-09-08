@@ -73,7 +73,7 @@ TMSS must be run with the `--install` option before it can be run for request ha
  ./tms_server --install
 ```
 
-Installation initializes TMSS's root directory, sets up the standard tenants (*default* and *test*), inserts test
+Installation initializes TMSS's root directory, sets up a test client, inserts test
 records into the database and then immediately exits. By exiting, the configuration files in the TMSS root directory
 can be customized before TMSS starts handling requests. Once customization is complete, TMSS can be invoked as follows:
 ```
@@ -95,14 +95,9 @@ At runtime TMSS needs to be pointed at MYDIR to use it as its root directory. Th
 
 If both methods are used, the environment variable setting takes priority.
 
-## Tenancy 
+## The Test Client
 
-When TMS initializes its database it creates two tenants: *default* and *test*. The former is the standard TMS tenant
-used in production; the latter is a tenant for use in development.
-
-## The Test Tenant
-
-As part of database initialization, TMS populates the *test* tenant with test data useful for running the
+As part of database initialization, TMS uses the test client to populate test data useful for running the
 `/creds/sshkeys` and `/creds/publickey` APIs. This preloaded test data includes records in the clients, user_mfa,
 user_hosts and delgations tables. These records establish the following entities:
 - **Client ID:** testclient1
@@ -121,8 +116,7 @@ Select the `/creds/sshkeys` API and submit this input:
 {
   "client_id": "testclient1",
   "client_secret": "secret1",
-  "tenant": "test",
-  "client_user_id": "testuser1",
+  "rp_account": "testuser1",
   "host": "testhost1",
   "host_account": "testhostaccount1",
   "num_uses": 0,

@@ -7,25 +7,37 @@ use chrono::{Utc, DateTime};
 use sqlx::Row;
 
 use crate::utils::tms_utils::{timestamp_utc, create_hex_secret, hash_hex_secret, MAX_TMS_UTC_STR, timestamp_utc_to_str, calc_expires_at};
-use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_PUBKEYS, INSERT_USER_HOSTS, INSERT_USER_MFA, SEL_CLIENT_EXISTS, SEL_PUBKEY_EXISTS};
+use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_PUBKEYS, INSERT_RP_LOGIN, SEL_CLIENT_EXISTS,
+                                  SEL_PUBKEY_EXISTS, SEL_IDP_EXISTS, INSERT_IDP, INSERT_TMS_IDENTITY};
 use crate::utils::config::{DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_CMD_ARGS, DB_TRUE, TEST_CLIENT, TEST_APP, TEST_CLIENT_SECRET};
 
 use log::error;
-
 use crate::RUNTIME_CTX;
-use crate::utils::db_types::{ClientInput, PubkeyInput};
+use crate::utils::db_types::{ClientInput, IdPInput, PubkeyInput};
 use crate::utils::keygen;
 use crate::utils::keygen::KeyType;
 use super::db_statements::{GET_DELEGATION_ACTIVE, GET_DELEGATION_EXISTS, GET_RESERVATION_FOR_EXTEND,
-                           GET_USER_HOST_ACTIVE, GET_USER_HOST_EXISTS, GET_USER_MFA_ACTIVE,
-                           GET_USER_MFA_EXISTS, INSERT_ADMIN, INSERT_CLIENT,
+                           GET_RP_LOGIN_ACTIVE, GET_RP_LOGIN_EXISTS, INSERT_ADMIN, INSERT_CLIENT,
                            SELECT_PUBKEY_HOST_ACCOUNT, UPDATE_CLIENT_ENABLED, SEL_DELEGATION_EXISTS};
 
-const TEST_USER: &str = "testuser";
+const TEST_IDP_ID: &str = "danger_mode_idp";
+const TEST_IDP_NAME: &str = "Fake Test IdP";
+const TEST_IDP_CLIENT_ID: &str = "12345678-1234-1234-1234-abcdefghtest";
+const TEST_IDP_CLIENT_SECRET: &str = "FakeTestdf894adfduG89JRazpE6DCDvkrM";
+const TEST_IDP_REDIRECT_URL: &str = "https://auth.fake.test.org/v2/oauth2/authorize";
+const TEST_IDP_TOKEN_URL: &str = "https://auth.fake.test.org/v2/oauth2/token";
+const TEST_IDP_PROVIDER_TYPE: &str = "danger_mode";
+const TEST_RP_ID: &str = "test_fake_rp";
+const TEST_RP_NAME: &str = "Fake Test RP";
+const TEST_IDP_SUPPORTS_LOGIN: bool = true;
+const TEST_IDP_SUPPORTS_RESOURCES: bool = false;
+const TEST_TMS_USER_BASE: &str = "testtmsuser";
+const TEST_TMS_USER_DOMAIN: &str = "DangerModeTestIdP";
 const TEST_HOST: &str = "testhost";
 const TEST_HOST_ACCOUNT: &str = "testhostaccount";
-const TEST_FIXED_USER: &str  = "testuser101";
-const TEST_FIXED_FINGERPRINT: &str= "SHA256:wUKFDv4LAQo7OtMUZenzupG5DB95Dxi+n3s4rd/UQ00";
+const TEST_RP_ACCOUNT: &str = "testrpaccount";
+const TEST_FIXED_RP_ACCT: &str  = "testrpaccount101";
+const TEST_FIXED_FINGERPRINT: &str= "SHA256:0EddP3z8IwV4YqzewwoiJVyfKhmFj4VlsDBZqCaan24";
 const TEST_RECORD_CNT: i32 = 101;
 const MAX_USES: i32 = i32::MAX;
 const MAX_TTL_MINUTES: i32 = i32::MAX;
@@ -45,15 +57,41 @@ const KEY_TYPE: KeyType = KeyType::Ed25519;
 */
 
 /*
+ * Insert a IdP record
+ */
+pub async fn insert_new_idp(rec: IdPInput) -> Result<u64> {
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+    // Create the insert statement.
+    let result = sqlx::query(INSERT_IDP)
+        .bind(rec.id.clone())
+        .bind(rec.name.clone())
+        .bind(rec.client_id.clone())
+        .bind(rec.client_secret.clone())
+        .bind(rec.identity_redirect_url.clone())
+        .bind(rec.oauth2_token_url.clone())
+        .bind(rec.provider_type.clone())
+        .bind(rec.supports_login)
+        .bind(rec.supports_resources)
+        .bind(rec.created)
+        .bind(rec.updated)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    info!("New IdP created. Id: {} ClientId: {} Name: {} ProviderType: {} SupportsLogin: {} SupportsResources: {}",
+          rec.id, rec.client_id, rec.name, rec.provider_type, rec.supports_login, rec.supports_resources);
+    Ok(result.rows_affected())
+}
+
+/*
  * Insert a client pubkey record
  */
 pub async fn insert_new_client(rec: ClientInput) -> Result<u64> {
     let mut tx = RUNTIME_CTX.db.begin().await?;
     // Create the insert statement.
     let result = sqlx::query(INSERT_CLIENT)
-        .bind(rec.app_name.clone())
+        .bind(rec.name.clone())
         .bind(rec.client_id.clone())
-        .bind(rec.client_secret)
+        .bind(rec.secret)
         .bind(rec.enabled)
         .bind(rec.created)
         .bind(rec.updated)
@@ -61,7 +99,7 @@ pub async fn insert_new_client(rec: ClientInput) -> Result<u64> {
         .await?;
     tx.commit().await?;
     info!("New client created. ClientId: {} App: '{}' enabled: {} created: {} updated: {}",
-          rec.client_id, rec.app_name, rec.enabled, rec.created, rec.updated);
+          rec.client_id, rec.name, rec.enabled, rec.created, rec.updated);
     Ok(result.rows_affected())
 }
 
@@ -72,8 +110,8 @@ pub async fn insert_new_client(rec: ClientInput) -> Result<u64> {
  * If asked to generate for 'testuser001' use a fixed pubkey fingerprint.
  * Fingerprint will not be correct but having at lease one fixed value is convenient for testing.
  */
-pub async fn insert_new_test_pubkey_if_none(test_user: String, test_host: String,
-                                            test_host_acct: String) -> Result<u64> {
+pub async fn insert_new_test_pubkey_if_none(test_tms_identity: String, test_rp_acct: String,
+                                            test_host: String, test_host_acct: String) -> Result<u64> {
     let mut tx = RUNTIME_CTX.db.begin().await?;
 
     // Check for existing record, create only if needed
@@ -87,11 +125,11 @@ pub async fn insert_new_test_pubkey_if_none(test_user: String, test_host: String
     // Generate the new key pair.
     let keyinfo = match keygen::generate_key(KEY_TYPE) {
         Ok(k) => k,
-        Err(e) => { return Result::Err(anyhow!(e)); }
+        Err(e) => { return Err(anyhow!(e)); }
     };
     // Determine the fingerprint.
     let pubkey_fingerprint =
-        if test_user == TEST_FIXED_USER { String::from(TEST_FIXED_FINGERPRINT) }
+        if test_rp_acct == TEST_FIXED_RP_ACCT { String::from(TEST_FIXED_FINGERPRINT) }
         else { keyinfo.public_key_fingerprint };
     let now  = timestamp_utc();
     let expires_at  = calc_expires_at(now, MAX_TTL_MINUTES);
@@ -99,7 +137,9 @@ pub async fn insert_new_test_pubkey_if_none(test_user: String, test_host: String
     // Create the input record.
     let input_record = PubkeyInput::new(
         TEST_CLIENT.to_string(),
-        test_user.clone(),
+        test_tms_identity.clone(),
+        TEST_RP_ID.to_string(),
+        test_rp_acct.clone(),
         test_host.clone(),
         test_host_acct.clone(),
         pubkey_fingerprint.clone(),
@@ -114,11 +154,14 @@ pub async fn insert_new_test_pubkey_if_none(test_user: String, test_host: String
         now.clone(),
     );
 
-    info!("Creating keypair for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
+    info!("Creating keypair for ClientId: {} TmsId: {} RPId: {} RPAcct: {} Host: {} HostAcct: {}",
+          TEST_CLIENT, test_tms_identity, TEST_RP_ID, test_rp_acct, test_host, test_host_acct);
     // Create the insert statement.
     let result = sqlx::query(INSERT_PUBKEYS)
         .bind(input_record.client_id)
-        .bind(input_record.client_user_id.clone())
+        .bind(input_record.tms_identity.clone())
+        .bind(TEST_RP_ID)
+        .bind(input_record.rp_account.clone())
         .bind(input_record.host.clone())
         .bind(input_record.host_account)
         .bind(input_record.public_key_fingerprint.clone())
@@ -135,7 +178,8 @@ pub async fn insert_new_test_pubkey_if_none(test_user: String, test_host: String
         .await?;
     // Commit the transaction.
     tx.commit().await?;
-    info!("Created keypair for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
+    info!("Created keypair for ClientId: {} TmsId: {} RpId: {} RpAcct: {} Host: {} HostAcct: {}",
+          TEST_CLIENT, test_tms_identity, TEST_RP_ID, test_rp_acct, test_host, test_host_acct);
     info!("Pubkey fingerprint: {}", input_record.public_key_fingerprint);
     Ok(result.rows_affected())
 }
@@ -149,12 +193,14 @@ pub async fn insert_new_pubkey(rec: PubkeyInput) -> Result<u64> {
     let mut tx = RUNTIME_CTX.db.begin().await?;
     // Create the insert statement.
     let result = sqlx::query(INSERT_PUBKEYS)
-        .bind(rec.client_id)
-        .bind(rec.client_user_id.clone())
+        .bind(rec.client_id.clone())
+        .bind(rec.tms_identity.clone())
+        .bind(rec.rp_id.clone())
+        .bind(rec.rp_account.clone())
         .bind(rec.host.clone())
-        .bind(rec.host_account)
-        .bind(rec.public_key_fingerprint)
-        .bind(rec.public_key)
+        .bind(rec.host_account.clone())
+        .bind(rec.public_key_fingerprint.clone())
+        .bind(rec.public_key.clone())
         .bind(rec.key_type.clone())
         .bind(rec.key_bits)
         .bind(rec.max_uses)
@@ -167,8 +213,9 @@ pub async fn insert_new_pubkey(rec: PubkeyInput) -> Result<u64> {
         .await?;
     // Commit the transaction.
     tx.commit().await?;
-    info!("A key of type '{}' created for '{}' for host '{}' expires at {} and has {} remaining uses.", 
-            rec.key_type.clone(), rec.client_user_id, rec.host, rec.expires_at, rec.remaining_uses);
+    info!("pubkey record created. ClientId: {} TmsId: {} RpId: {} RpAcct: {} Host: {} HostAcct: {} ExpiresAt: {} RemainingUses: {} KeyType: {}.",
+           rec.client_id, rec.tms_identity, rec.rp_id, rec.rp_account, rec.host, rec.host_account,
+           rec.expires_at, rec.remaining_uses, rec.key_type);
     Ok(result.rows_affected())
 }
 
@@ -279,9 +326,79 @@ pub async fn create_test_client() -> Result<u64> {
 }
 
 // ---------------------------------------------------------------------------
-// create_test_data:
+// create_test_idp:
 // ---------------------------------------------------------------------------
 /** This function either experiences an error or returns true (false is never returned). */
+pub async fn create_test_idp() -> Result<u64> {
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+    // If client already exists then we are done
+    let skip_create: bool = sqlx::query_scalar(SEL_IDP_EXISTS)
+        .bind(TEST_IDP_ID)
+        .fetch_one(&mut *tx).await?;
+    if skip_create {return Ok(0)}
+
+    let test_idp_client_secret_hash: String = hash_hex_secret(&TEST_IDP_CLIENT_SECRET.to_string());
+    let now = timestamp_utc();
+    // Create the IdP
+    // Create the input record. Note we save the hash of the hex secret, but never the secret.
+    let idp_input = IdPInput::new(
+        TEST_IDP_ID.to_string(),
+        TEST_IDP_NAME.to_string(),
+        TEST_IDP_CLIENT_ID.to_string(),
+        test_idp_client_secret_hash,
+        TEST_IDP_REDIRECT_URL.to_string(),
+        TEST_IDP_TOKEN_URL.to_string(),
+        TEST_IDP_PROVIDER_TYPE.to_string(),
+        TEST_IDP_SUPPORTS_LOGIN,
+        TEST_IDP_SUPPORTS_RESOURCES,
+        now.clone(),
+        now.clone()
+    );
+    let inserts = insert_new_idp(idp_input).await?;
+    Ok(inserts)
+}
+
+// ---------------------------------------------------------------------------
+// create_test_idp:
+// ---------------------------------------------------------------------------
+/** This function either experiences an error or returns true (false is never returned). */
+pub async fn create_test_rp() -> Result<u64> {
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+    // If client already exists then we are done
+    let skip_create: bool = sqlx::query_scalar(SEL_IDP_EXISTS)
+        .bind(TEST_RP_ID)
+        .fetch_one(&mut *tx).await?;
+    if skip_create {return Ok(0)}
+
+    let test_idp_client_secret_hash: String = hash_hex_secret(&TEST_IDP_CLIENT_SECRET.to_string());
+    let now = timestamp_utc();
+    // Create the RP
+    // Create the input record. Note we save the hash of the hex secret, but never the secret.
+    let idp_input = IdPInput::new(
+        TEST_RP_ID.to_string(),
+        TEST_RP_NAME.to_string(),
+        TEST_IDP_CLIENT_ID.to_string(),
+        test_idp_client_secret_hash,
+        TEST_IDP_REDIRECT_URL.to_string(),
+        TEST_IDP_TOKEN_URL.to_string(),
+        TEST_IDP_PROVIDER_TYPE.to_string(),
+        TEST_IDP_SUPPORTS_LOGIN,
+        TEST_IDP_SUPPORTS_RESOURCES,
+        now.clone(),
+        now.clone()
+    );
+    let inserts = insert_new_idp(idp_input).await?;
+    Ok(inserts)
+}
+
+// ------------------------------------------------------------------------------------------------
+// create_test_data:
+// Create records in tables: tms_identities, resource_provider_logins, delegations
+// ------------------------------------------------------------------------------------------------
+/*
+ This function either experiences an error or returns true (false is never returned).
+ Use now timestamp for created, updated and last_login
+ */
 pub async fn create_test_data() -> Result<u64> {
     // Max expires_at
     let max_tms_utc = DateTime::parse_from_rfc3339(MAX_TMS_UTC_STR).unwrap().with_timezone(&Utc);
@@ -289,40 +406,42 @@ pub async fn create_test_data() -> Result<u64> {
     let now = timestamp_utc();
 
     // Create records for 101 test users in the test client. Do this in a txn
-    // User 101 will have a fixed pubkey fingerprint to smoke test.
+    // User 101 will have a fixed pubkey fingerprint to support smoke test getPubKey scenario.
     // Get a connection to the db and start a transaction.
     let mut insert_count = 0;
     for n in 1..=TEST_RECORD_CNT {
-        let test_user = format!("{}{:03}", TEST_USER, n);
+        let test_tms_identity = format!("{}{:03}@{}", TEST_TMS_USER_BASE, n, TEST_TMS_USER_DOMAIN);
         let test_host = format!("{}{:03}", TEST_HOST, n);
         let test_host_acct = format!("{}{:03}", TEST_HOST_ACCOUNT, n);
+        let test_rp_account = format!("{}{:03}", TEST_RP_ACCOUNT, n);
         let mut tx = RUNTIME_CTX.db.begin().await?;
 
         // Check for existing record. If found then continue;
-        // Note: checking for a delegation record is  enough since the delegation and user_hosts
-        //       records reference the user_mfa record as a foreign key.
+        // Note: checking for a delegation record is enough since the delegation records reference the rp_login record as a foreign key.
         let skip_create: bool = sqlx::query_scalar(SEL_DELEGATION_EXISTS)
             .bind(TEST_CLIENT)
-            .bind(test_user.clone())
+            .bind(test_tms_identity.clone())
+            .bind(TEST_RP_ID)
+            .bind(test_rp_account.clone())
             .fetch_one(&mut *tx).await?;
         if skip_create {continue};
-        info!("Creating delegation records for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
-        // -------- Populate user_mfa
-        sqlx::query(INSERT_USER_MFA)
-            .bind(test_user.clone())
-            .bind(max_tms_utc)
-            .bind(DB_TRUE)
-            .bind(now)
-            .bind(now)
+
+        // First create a TMS identity in table tms_identities
+        info!("Creating TMS identity record for TMS user: {}", test_tms_identity.clone());
+        sqlx::query(INSERT_TMS_IDENTITY)
+            .bind(test_tms_identity.clone())
             .execute(&mut *tx)
             .await?;
 
-        // -------- Populate user_hosts
-        sqlx::query(INSERT_USER_HOSTS)
-            .bind(test_user.clone())
-            .bind(test_host.clone())
-            .bind(test_host_acct.clone())
-            .bind(max_tms_utc)
+        info!("Creating test records for tms identity: {} rp_id: {} rp_account {} host: {} host_acct {}",
+              test_tms_identity, TEST_RP_ID, test_rp_account, test_host, test_host_acct);
+        // -------- Populate rp_login
+        sqlx::query(INSERT_RP_LOGIN)
+            .bind(test_tms_identity.clone())
+            .bind(TEST_RP_ID)
+            .bind(test_rp_account.clone())
+            .bind(DB_TRUE)
+            .bind(now)
             .bind(now)
             .bind(now)
             .execute(&mut *tx)
@@ -331,7 +450,9 @@ pub async fn create_test_data() -> Result<u64> {
         // -------- Populate delegations
         sqlx::query(INSERT_DELEGATIONS)
             .bind(TEST_CLIENT)
-            .bind(test_user.clone())
+            .bind(test_tms_identity.clone())
+            .bind(TEST_RP_ID)
+            .bind(test_rp_account.clone())
             .bind(max_tms_utc)
             .bind(now)
             .bind(now)
@@ -340,7 +461,8 @@ pub async fn create_test_data() -> Result<u64> {
         insert_count += 1;
         // Commit the transaction.
         tx.commit().await?;
-        info!("Created delegation records for user: {} host: {} host_acct {}", test_user, test_host, test_host_acct);
+        info!("Created delegation records for tms identity: {} host: {} host_acct {}",
+              test_tms_identity, test_host, test_host_acct);
     }
 
     Ok(insert_count)
@@ -357,13 +479,15 @@ pub async fn create_test_keys() -> Result<u64> {
     // For each test user create one pubkey entry, ignore generated private key
     let mut insert_count = 0;
     for n in 1..=TEST_RECORD_CNT {
-        let test_user = format!("{}{:03}", TEST_USER, n);
+        let test_tms_identity = format!("{}{:03}@{}", TEST_TMS_USER_BASE, n, TEST_TMS_USER_DOMAIN);
+        let test_rp_acct = format!("{}{:03}", TEST_RP_ACCOUNT, n);
         let test_host = format!("{}{:03}", TEST_HOST, n);
         let test_host_acct = format!("{}{:03}", TEST_HOST_ACCOUNT, n);
 
         // Create a new test pubkey for user if none exists.
         // This should return 0 if one already exists and 1 if a new one was created
-        let inserts = insert_new_test_pubkey_if_none(test_user, test_host, test_host_acct).await?;
+        let inserts = insert_new_test_pubkey_if_none(test_tms_identity, test_rp_acct,
+                                                          test_host, test_host_acct).await?;
         insert_count += inserts;
     }
     Ok(insert_count)
@@ -372,118 +496,51 @@ pub async fn create_test_keys() -> Result<u64> {
 // ---------------------------------------------------------------------------
 // check_pubkey_dependencies:
 // ---------------------------------------------------------------------------
-/** When creating a public key or a reservation on a public key we must check
- * that the user's MFA, user/host mapping and client delegation are currently 
- * active.  Active means that the records exist in their respective tables, are
- * enabled and have not expired.
+/**
+ * When creating a public key or a reservation on a public key we must check that the user's
+ * RP_LOGIN and client delegation are currently active. Active means that the records exist in their
+ *   respective tables, are enabled and have not expired.
  * 
- * We return as soon as we encounter any dependency that cannot be fulfilled or
- * any other type of error.  The database transaction is read-only, so exiting
- * abruptly causes the transaction to roll back, which frees up the database 
- * just as commit.
+ * We return as soon as we encounter any dependency that cannot be fulfilled or any other type of
+ * error. The database transaction is read-only, so exiting abruptly causes the transaction to roll
+ * back, which frees up the database just as commit.
  * 
- * Note that message that contains "INTERNAL ERROR:" should trigger a 500 http 
- * return code.
+ * Note that message that contains "INTERNAL ERROR:" should trigger a 500 http return code.
  */
-pub async fn check_pubkey_dependencies(client_id: &String, client_user_id: &String,
-                                       host: &String, host_account: &String)
+pub async fn check_pubkey_dependencies(tms_identity: &String, rp_id: &String, rp_account: &String)
     -> Result<()>
 {
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
 
-    // -------- Check user_mfa dependency
-    let mfa_row = sqlx::query(GET_USER_MFA_ACTIVE)
-        .bind(client_user_id)
+    // -------- Check rp_login dependency
+    let rplogin_row = sqlx::query(GET_RP_LOGIN_ACTIVE)
+        .bind(tms_identity)
+        .bind(rp_id)
+        .bind(rp_account)
         .fetch_optional(&mut *tx)
         .await?;
 
-    match mfa_row {
+    match rplogin_row {
         Some(row) => {
             // Unpack row.
-            let expires_at: DateTime<Utc> = row.get(0);
-            let enabled: bool = row.get(1);
+            let enabled: bool = row.get(0);
 
-            // Check whether the user's mfa is enabled.
+            // Check whether the user's rplogin is enabled.
             if enabled != DB_TRUE {
-                let msg = format!("Required user MFA record for user ID {} is disabled.",
-                                          client_user_id);
-                error!("{}", msg);
-                return Result::Err(anyhow!(msg));
-            }
-
-            // Check whether the mfa has expired.
-            if expires_at < timestamp_utc() {
-                let msg = format!("Required user MFA record for user ID '{}' expired at {}.",
-                                          client_user_id, expires_at);
+                let msg = format!("Required RP_LOGIN record is disabled. TmsId: {} RpId: {} RpAcct: {}",
+                                  tms_identity, rp_id, rp_account);
                 error!("{}", msg);
                 return Result::Err(anyhow!(msg));
             }
         },
         None => {
-            let msg = format!("Required user MFA record not found for user ID {}.", client_user_id);
+            let msg = format!("Required user RP_LOGIN record not found. msId: {} RpId: {} RpAcct: {}",
+                              tms_identity, rp_id, rp_account);
             error!("{}", msg);
             return Result::Err(anyhow!(msg));
         }
     };
-
-    // -------- Check user_hosts dependency
-    let host_row = sqlx::query(GET_USER_HOST_ACTIVE)
-        .bind(client_user_id)
-        .bind(host)
-        .bind(host_account)
-        .fetch_optional(&mut *tx)
-        .await?;
-
-        match host_row {
-            Some(row) => {
-                // Unpack row.
-                let expires_at: DateTime<Utc> = row.get(0);
-    
-                // Check whether the user host mapping has expired.
-                if expires_at < timestamp_utc() {
-                    let msg = format!("Required user host record for user {} with account {} on host {} expired at {}.",
-                                              client_user_id, host_account, host, expires_at);
-                    error!("{}", msg);
-                    return Result::Err(anyhow!(msg));
-                }
-            },
-            None => {
-                let msg = format!("Required user host record not found for user {} with account {} on host {}.",
-                                          client_user_id, host_account, host);
-                error!("{}", msg);
-                return Result::Err(anyhow!(msg));
-            }
-        };
-    
-    // -------- Check delegations dependency
-    let delg_row = sqlx::query(GET_DELEGATION_ACTIVE)
-        .bind(client_id)
-        .bind(client_user_id)
-        .fetch_optional(&mut *tx)
-        .await?;
-
-        match delg_row {
-            Some(row) => {
-                // Unpack row.
-                let expires_at: DateTime<Utc> = row.get(0);
-    
-                // Check whether the delegation has expired.
-                if expires_at < timestamp_utc() {
-                    let msg = format!("Required delegation record for client {} and client_user_id {} \
-                                              in expired at {}.", client_id, client_user_id, expires_at);
-                    error!("{}", msg);
-                    return Result::Err(anyhow!(msg));
-                }
-            },
-            None => {
-                let msg = format!("Required delegation record not found for client {} and client_user_id {}.",
-                                          client_id, client_user_id);
-                error!("{}", msg);
-                return Result::Err(anyhow!(msg));
-            }
-        };
-    
     // Commit the transaction.
     tx.commit().await?;
 
@@ -510,12 +567,11 @@ pub async fn check_pubkey_dependencies(client_id: &String, client_user_id: &Stri
  * 
  * Other Constraints
  * -----------------
- * The user_mfa, user_hosts and delegations tables must also contain records that the
+ * The rp_login and delegations tables must also contain records that the
  * new extended reservation will depend on.
  * 
- *  - user_mfa - the user must have an mfa record
- *  - user_hosts - the user must have established a link to the reservation's host
- *  - delegations - the user must of delegated access to the reservation's client 
+ *  - rp_login - the user must have an rplogin record
+ *  - delegations - the user must have delegated access to the reservation's client
  * 
  * Validating these constraints before actually submitting the reservation extension
  * request allows us to return meaningful messages to users on error. The final arbiter, 
@@ -527,13 +583,12 @@ pub async fn check_pubkey_dependencies(client_id: &String, client_user_id: &Stri
  * The resid parameter designates the candidate parent reservation for a new extended reservation.
  * The client_id are used to guarantee that clients can only extend their own reservations.
  * The host specifies the where the public key represented by the public_key_fingerprint can be applied.
- *   
- * Note that message that contains "INTERNAL ERROR:" should trigger a 500 http 
+ * Note that message that contains "INTERNAL ERROR:" should trigger a 500 http
  * return code.
  */
-pub async fn check_parent_reservation(resid: &String, client_id: &String, client_user_id: &String,
-                                      host: &String, public_key_fingerprint: &String)
--> Result<DateTime<Utc>>
+pub async fn check_parent_reservation(resid: &String, client_id: &String, tms_identity: &String,
+                                      rp_id: &String, rp_account: &String, host: &String,
+                                      public_key_fingerprint: &String) -> Result<DateTime<Utc>>
 {
     // Get a connection to the db and start a transaction.
     let mut tx = RUNTIME_CTX.db.begin().await?;
@@ -581,49 +636,18 @@ pub async fn check_parent_reservation(resid: &String, client_id: &String, client
         }
     };  
 
-    // -------- Check user_mfa dependency
-    let mfa_row = sqlx::query(GET_USER_MFA_EXISTS)
-        .bind(client_user_id)
+    // -------- Check rp_login dependency
+    let rplogin_row = sqlx::query(GET_RP_LOGIN_EXISTS)
+        .bind(tms_identity)
+        .bind(rp_id)
+        .bind(rp_account)
         .fetch_optional(&mut *tx)
         .await?;
-    match mfa_row {
+    match rplogin_row {
         Some(_) => (),
         None => {
-            let msg = format!("No MFA entry found for user {}.", client_user_id);
-            error!("{}", msg);
-            return Result::Err(anyhow!(msg));
-        }
-    };
-
-    // -------- Check user_hosts dependency
-    // First get host account.
-    let pkey_row = sqlx::query(SELECT_PUBKEY_HOST_ACCOUNT)
-        .bind(client_id)
-        .bind(host)
-        .bind(public_key_fingerprint)
-        .fetch_optional(&mut *tx)
-        .await?; 
-    let host_account: String = match pkey_row {
-        Some(h) => h.get(0),
-        None => {
-            let msg = format!("Unable to retrieve host account from pubkey record for client {} on host {} with fingerprint {}.",
-                                        client_id, host, public_key_fingerprint);
-            error!("{}", msg);
-            return Result::Err(anyhow!(msg));
-        }    
-    };
-
-    let host_row = sqlx::query(GET_USER_HOST_EXISTS)
-        .bind(client_user_id)
-        .bind(host)
-        .bind(&host_account)
-        .fetch_optional(&mut *tx)
-        .await?;
-    match host_row {
-        Some(_) => (),
-        None => {
-            let msg = format!("No user/host mapping found for user {} for account {} on host {}.",
-                                        client_user_id, host_account, host);
+            let msg = format!("No RP_LOGIN entry found. TmsId: {} RpId: {} RpAcct: {}",
+                                     tms_identity, rp_id, rp_account);
             error!("{}", msg);
             return Result::Err(anyhow!(msg));
         }
@@ -632,13 +656,16 @@ pub async fn check_parent_reservation(resid: &String, client_id: &String, client
     // -------- Check delegation dependency
     let delg_row = sqlx::query(GET_DELEGATION_EXISTS)
         .bind(client_id)
-        .bind(client_user_id)
+        .bind(tms_identity)
+        .bind(rp_id)
+        .bind(rp_account)
         .fetch_optional(&mut *tx)
         .await?;
     match delg_row {
         Some(_) => (),
         None => {
-            let msg = format!("No delegation to client {} found for user {}.", client_id, client_user_id);
+            let msg = format!("No delegation record found. ClientId: {} TmsId: {} RpId: {} RpAcct: {}",
+                                     client_id, tms_identity, rp_id, rp_account);
             error!("{}", msg);
             return Result::Err(anyhow!(msg));
         }
@@ -675,3 +702,7 @@ pub async fn set_test_enabled_internal(test_client: &String, enabled: bool) -> R
     tx.commit().await?;
     Ok(updates)
 }
+
+// ***************************************************************************
+//                          Private Functions
+// ***************************************************************************

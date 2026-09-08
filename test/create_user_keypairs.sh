@@ -1,6 +1,5 @@
 #!/bin/bash
 # Create ssh key pairs for users and store results in json files
-# Data for each user must already be seeded in the user_hosts table.
 #-- Example data for case
 #--   tms tenant = test, app client = testclient1
 #--   host=testhost1, tms user=testuser0001, host login user=testuser0001
@@ -34,7 +33,7 @@ do
   # Create json request body and place it in tmp file
   TMP_FILE=$(mktemp)
   echo "{\"tenant\":\"${TENANT}\",\"client_id\":\"${CLIENT_ID}\",\"client_secret\":\"${CLIENT_SECRET}\"," > ${TMP_FILE}
-  echo "\"client_user_id\":\"${CLIENT_USR}\",\"host\":\"${HOST}\",\"host_account\":\"${HOST_USR}\"," >> ${TMP_FILE}
+  echo "\"rp_account\":\"${CLIENT_USR}\",\"host\":\"${HOST}\",\"host_account\":\"${HOST_USR}\"," >> ${TMP_FILE}
   echo "\"num_uses\":0,\"ttl_minutes\":0,\"key_type\":\"\"}" >> ${TMP_FILE}
 
   # Generate keypair and place output in a file

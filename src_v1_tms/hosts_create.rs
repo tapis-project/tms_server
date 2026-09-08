@@ -114,7 +114,7 @@ impl CreateHostsApi {
         }
 
         // -------------------- Authorize ----------------------------
-        // Currently, only the tenant admin can create a user mfa record.
+        // Currently, only the tenant admin can create a user rp_login record.
         // When user authentication is implemented, we'll add user-own 
         // authorization and any additional validation.
         let allowed = [AuthzTypes::TenantAdmin];

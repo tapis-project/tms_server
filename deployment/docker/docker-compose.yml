@@ -1,25 +1,25 @@
-# The project name gets an underscore appended to it and 
-# then the whole string is prepended to named volumes.
-# Specifically, "tms_" gets prepended to "docker_vol" below.
+# Docker compose file for starting up tms_server as a docker container.
+# Note that the name gets an underscore appended to it and then the whole string is prepended to named volumes.
+# Specifically, "tms_" gets prepended to "server_vol" below so the volume name is "tms_server_vol".
 name: tms
 services:
   tms_server:
     image: tapis/tms_server:${TMS_VERSION}
-    container_name: tms_server_container
+    container_name: tms_server
     environment:
       - HOME=/tms-root
+      - TMS_ROOT_DIR=/tms-root/tms
     user: ${TMS_UID}:${TMS_GID}
-    command: ["./tms_server", "--root-dir", "/tms-root/.tms"]
+    command: ["./tms_server", "--root-dir", "/tms-root/tms"]
     ports:
-      - "3000:3000"
+      - "4201:4201"
     volumes:
-      - docker_vol:/tms-root
+      - server_vol:/tms-root
       - type: bind
-        source: ${HOME}/tms-docker/tms_customizations
-        target: /tms-root/tms_customizations
+        source: ${HOME}/tms-docker/tms_local
+        target: /tms-root/tms_local
       - /etc/group:/etc/group:ro
       - /etc/passwd:/etc/passwd:ro
       - /etc/shadow:/etc/shadow:ro
 volumes:
-  docker_vol:
-
+  server_vol:

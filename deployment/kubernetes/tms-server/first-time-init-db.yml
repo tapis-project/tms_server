@@ -1,0 +1,33 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tms-first-time-init-db
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: tms-first-time-seutp
+        image: postgres:18
+        imagePullPolicy: Always
+        command: ["/tmp/first-time-init-db-sh"]
+        volumeMounts:
+        - name: tms-first-time-init-db-vol
+          mountPath: /tmp
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: tms-secrets
+              key: postgres-password
+        - name: TMS_DB_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: tms-secrets
+              key: postgres-tms-user-password
+      volumes:
+      - name: tms-first-time-init-db-vol
+        configMap:
+          name: tms-first-time-init-db-configmap
+          defaultMode: 0777
+  backoffLimit: 4

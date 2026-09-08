@@ -1,0 +1,9 @@
+#!/bin/bash
+#
+# Undeploy and let pod be deleted in background while new one comes up.
+# NOTE: We do not wait which hopefully minimizes downtime.
+
+kubectl delete -f deploy.yml
+#
+# In case we ever want to wait
+#kubectl wait --timeout=200s --for=delete pod -l app=tms-postgres-18

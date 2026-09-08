@@ -1,0 +1,78 @@
+# 
+# Dockerfile for TMS Server.
+#
+# Use cargo during an initial phase to build the executable.
+# NOTE: The docker_setup_tms.sh script must be run before starting the server.
+#
+# Directory Structure
+# -------------------
+# TMS server deployment involves subdirectories under the root installation directory.
+# For containers, the root installation directory is /home/tms and its subdirectories are:
+#
+#  - tms, which has five subdirectories which are created during set up.
+#    During set up the tms/certs directory needs to be populated with the host-specific certificate
+#    chain and private key. These can be updated as needed.
+#
+#  - tms_local, which is a bind mounted host directory used by TMS running in the container to
+#    (1) write the tms-install.out file that contains administrative secrets, and
+#    (2) optional configuration files customized for the host on which TMS executes.
+#
+#  - tms_server, contains the binary executable and the resource files copied to TMS_ROOT_DIR during set up.
+#
+# PHASE 1 - Build executable using cargo
+# ===============================================
+# Start with rust image for the build
+FROM rust:1.96 AS builder
+
+# Set up directory with cargo project
+RUN USER=root cargo new --bin tms_server
+WORKDIR /tms_server
+
+# Copy build set up
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./Cargo.toml ./Cargo.toml
+
+# Build dependencies for caching
+RUN cargo build --release
+RUN rm -fr src/*.rs
+
+# Copy source and resources
+COPY ./build.rs ./build.rs
+COPY ./src ./src
+COPY ./resources ./resources
+# .git needed for cargo build
+COPY ./.git ./.git
+
+# Build release
+RUN rm -fr ./target/release/deps/tms_server*
+ENV RUST_BACKTRACE=1
+RUN cargo build --release
+
+# PHASE 2 - Create final docker image based on debian
+# ===================================================
+# Switch to final base image
+FROM debian:bookworm-slim
+
+# Install less, vim and some required libraries.
+RUN apt update && apt install -y libssl-dev libssl3 less vim-tiny coreutils
+# Add user tms and create the root tms install directory
+RUN useradd -m tms -u 4873
+RUN mkdir -p /home/tms/tms
+RUN mkdir -p /home/tms/tms_local
+RUN mkdir -p /home/tms/tms_server
+RUN chown -R tms:tms /home/tms
+RUN chmod 700 /home/tms/tms
+
+# Copy the server executable
+WORKDIR /home/tms
+COPY --from=builder --chown=tms:tms /tms_server/target/release/tms_server ./tms_server/tms_server
+RUN chmod 700 ./tms_server/tms_server
+
+# Copy the resource files used during set up.
+COPY --from=builder --chown=tms:tms /tms_server/resources ./tms_server/resources
+
+# Start the server by default
+CMD ["/home/tms/tms_server/tms_server"]
+
+# Example sleep startup
+#CMD ["/usr/bin/sleep", "10000"]

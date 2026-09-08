@@ -5,8 +5,8 @@ title = "My TMS Server"
 # Setting to http: allows non-tls api calls; Setting to https: uses tls 
 # and requires a certificate. In some environments, the self-signed
 # cerficate shipped with TMS might work.  
-http_addr = "https://localhost"
-http_port = 3000
+http_addr = "http://localhost"
+http_port = 4201
 
 # Setting this flag causes the server to run in Minimal Viable Product (MVP)
 # mode, which affects the level of automation during key creation
@@ -58,4 +58,4 @@ enable_test_client = false
 
 # At least one server should be specified.  The base urls listed here
 # get displayed as targets in the openapi generated livedocs.
-server_urls = ["https://localhost:3000/v1"]
+server_urls = ["https://localhost:4201/v1"]

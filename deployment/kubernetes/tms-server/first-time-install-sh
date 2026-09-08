@@ -1,0 +1,21 @@
+#!/bin/bash
+# Script to run tms_server docker image container in the first time install mode.
+# TMS DB user password must be set in TMS_DB_USER_PASSWORD
+#
+# This script ....TODO/TBD???c
+#   
+
+TMS_DB_HOST="${TMS_DB_HOST:-tms-postgres-18}"
+TMS_DB_PORT="${TMS_DB_PORT}:-5432"
+DB_USER=postgres
+DB_NAME=tmsdb
+export TMS_DB_SCHEMA=tms
+
+PSQL_CMD="psql --host=${TMS_DB_HOST} --port=${TMS_DB_PORT}"
+
+if [ -z "${TMS_DB_USER_PASSWORD}" ]; then
+  echo "Please set env var TMS_DB_USER_PASSWORD before running this script"
+  exit 1
+fi
+
+# TODO

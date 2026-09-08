@@ -215,7 +215,7 @@ echo
 read -p "WARNING DESTRUCTIVE UNINSTALL! Please review above settings. If they are correct enter Y to continue: " resp
 case $resp in
   [yY]* ) echo "Continuing ... " ;;
-  *) echo "Install cancelled. Exiting ... " ; exit 1 ;;
+  *) echo "UnInstall cancelled. Exiting ... " ; exit 1 ;;
 esac
 
 # =====================================================================================

@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tms-drop-db
+spec:
+  ttlSecondsAfterFinished: 60
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: tms-drop-db
+        image: postgres:18
+        imagePullPolicy: Always
+        command: ["/tmp/tms-drop-db-sh"]
+        volumeMounts:
+        - name: tms-drop-db-vol
+          mountPath: /tmp
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: tms-secrets
+              key: postgres-password
+      volumes:
+      - name: tms-drop-db-vol
+        configMap:
+          name: tms-drop-db-configmap
+          defaultMode: 0777
+  backoffLimit: 4

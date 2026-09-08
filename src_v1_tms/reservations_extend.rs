@@ -29,7 +29,7 @@ pub struct ExtendReservationsApi;
 #[derive(Object)]
 pub struct ReqExtendReservation
 {
-    client_user_id: String,
+    rp_account: String,
     host: String,
     public_key_fingerprint: String,
     parent_resid: String,
@@ -51,8 +51,8 @@ impl RequestDebug for ReqExtendReservation {
     fn get_request_info(&self) -> String {
         let mut s = String::with_capacity(255);
         s.push_str("  Request body:");
-        s.push_str("\n    client_user_id: ");
-        s.push_str(&self.client_user_id);
+        s.push_str("\n    rp_account: ");
+        s.push_str(&self.rp_account);
         s.push_str("\n    host: ");
         s.push_str(&self.host);
         s.push_str("\n    public_key_fingerprint: ");
@@ -176,7 +176,7 @@ impl RespExtendReservation {
         // Check that the designated parent reservation can be extended and retrieve the
         //   parent's expiration time.
         let expires_at = match check_parent_reservation(&req.parent_resid, &req_ext.tenant,
-                        &req_ext.client_id, &req.client_user_id, &req.host, &req.public_key_fingerprint).await
+                        &req_ext.client_id, &req.rp_account, &req.host, &req.public_key_fingerprint).await
         {
             Ok(expiry) => expiry,
             Err(e) => {
@@ -204,7 +204,7 @@ impl RespExtendReservation {
             req.parent_resid.clone(),
             req_ext.tenant.clone(),
             req_ext.client_id.clone(),
-            req.client_user_id.clone(), 
+            req.rp_account.clone(), 
             req.host.clone(), 
             req.public_key_fingerprint.clone(), 
             expires_at.clone(), 
@@ -215,7 +215,7 @@ impl RespExtendReservation {
         // Insert the new key record.
         extend_reservation(input_record).await?;
         info!("Reservation '{}' created for '{}@{}' for host '{}' expires at {}.", 
-              resid, req.client_user_id, req_ext.tenant, req.host, expires_at);
+              resid, req.rp_account, req_ext.tenant, req.host, expires_at);
 
         // Success! 
         Ok(make_http_201(Self::new("0", "success", 
@@ -241,7 +241,7 @@ async fn extend_reservation(rec: ReservationInput) -> Result<u64> {
         .bind(rec.parent_resid)
         .bind(rec.tenant)
         .bind(rec.client_id)
-        .bind(rec.client_user_id)
+        .bind(rec.rp_account)
         .bind(rec.host)
         .bind(rec.public_key_fingerprint)
         .bind(rec.expires_at)
