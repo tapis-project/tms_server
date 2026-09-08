@@ -7,13 +7,14 @@
 # This script creates the TMS DB and user (i.e. schema) and
 #   runs the tms_server docker image in first time setup mode.
 
-TAPIS_DB_HOST="${TMS_DB_HOST:-tms-postgres-18}"
-TAPIS_DB_PORT="${TMS_DB_PORT}:-5432"
-DB_USER=postgres
-DB_NAME=tmsdb
+export TMS_DB_HOST="${TMS_DB_HOST:-tms-postgres-18}"
+export TMS_DB_PORT="${TMS_DB_PORT:-5432}"
+export DB_USER=postgres
+export DB_NAME=tmsdb
+export TMS_DB_USER=tms
 export TMS_DB_SCHEMA=tms
 
-PSQL_CMD="psql --host=${TAPIS_DB_HOST} --port=${TAPIS_DB_PORT}"
+PSQL_CMD="psql --host=${TMS_DB_HOST} --port=${TMS_DB_PORT}"
 
 if [ -z "${POSTGRES_PASSWORD}" ]; then
   echo "Please set env var POSTGRES_PASSWORD before running this script"
@@ -23,7 +24,6 @@ if [ -z "${TMS_DB_USER_PASSWORD}" ]; then
   echo "Please set env var TMS_DB_USER_PASSWORD before running this script"
   exit 1
 fi
-
 
 # Put PGPASSWORD in environment for psql to pick up
 export PGPASSWORD=${POSTGRES_PASSWORD}
@@ -38,15 +38,15 @@ $PSQL_CMD --username=${DB_USER} --dbname=${DB_NAME} -q << EOB
 -- Create user if it does not exist
 DO \$\$
 BEGIN
-  CREATE ROLE ${TAPIS_DB_USER} WITH LOGIN;
+  CREATE ROLE ${TMS_DB_USER}  WITH LOGIN;
   EXCEPTION WHEN DUPLICATE_OBJECT THEN
-  RAISE NOTICE 'User already exists. User name: ${TAPIS_DB_USER}';
+  RAISE NOTICE 'User already exists. User name: ${TMS_DB_USER}';
 END
 \$\$;
-ALTER USER ${TAPIS_DB_USER} WITH ENCRYPTED PASSWORD '${POSTGRES_PASSWORD}';
-GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${TAPIS_DB_USER};
+ALTER USER ${TMS_DB_USER} WITH ENCRYPTED PASSWORD '${TMS_DB_USER_PASSWORD}';
+GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${TMS_DB_USER};
 
 -- Create schema if it does not exist
-CREATE SCHEMA IF NOT EXISTS ${TAPIS_DB_SCHEMA} AUTHORIZATION ${TAPIS_DB_USER};
-ALTER ROLE ${TAPIS_DB_USER} SET search_path = '${TAPIS_DB_SCHEMA}';
+CREATE SCHEMA IF NOT EXISTS ${TMS_DB_SCHEMA} AUTHORIZATION ${TMS_DB_USER};
+ALTER ROLE ${TMS_DB_USER} SET search_path = ${TMS_DB_SCHEMA};
 EOB

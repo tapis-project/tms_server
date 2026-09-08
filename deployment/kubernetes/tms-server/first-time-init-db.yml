@@ -11,7 +11,7 @@ spec:
       - name: tms-first-time-seutp
         image: postgres:18
         imagePullPolicy: Always
-        command: ["/tmp/tms-first-time-init-db-sh"]
+        command: ["/tmp/first-time-init-db-sh"]
         volumeMounts:
         - name: tms-first-time-init-db-vol
           mountPath: /tmp

@@ -1,10 +1,11 @@
 First time deployment in kubernetes
 ============================================
-1. Make sure the DB is up and available and you have the host, port and password information.
+1. Make sure the DB is up and available and you have the host, port and postgres user password information.
 2. Generate a secure password for the TMS DB user.
-3. Set the env variables POSTGRES_PASSWORD and TMS_DB_USER_PASSWORD. If not using the default
-   DB host and port then also set the env variables TMS_DB_HOST and TMS_DB_PORT. See script 
-   first-time-init-db-sh for the default DB host and port.
+3. Create a kubernetes secret named "tms-secrets" that contains the passwords using the names "postgres-password" and
+   "postgres-tms-user-password". When bas64 encoding a secret before placing it an yml file be sure to use "echo -n".
+3. If not using the default DB host and port then update the kubernetes environment variables to also set those
+   as desired. See script "first-time-init-db-sh" for the default DB host and port.
 4. Run the script first_time_setup.sh. This script will:
     - run first-time-init-db-sh as a kubernetes job
     - run first-time-setup-sh as a kubernetes job
