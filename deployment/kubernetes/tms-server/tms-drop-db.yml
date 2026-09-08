@@ -3,7 +3,6 @@ kind: Job
 metadata:
   name: tms-drop-db
 spec:
-  ttlSecondsAfterFinished: 60
   template:
     spec:
       restartPolicy: Never

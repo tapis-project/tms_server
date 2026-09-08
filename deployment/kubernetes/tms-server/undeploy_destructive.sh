@@ -22,9 +22,9 @@ echo " Dropping the TMS database"
 echo "---------------------------------------------------"
 echo
 kubectl delete configmap tms-drop-db-configmap
-kubectl delete -f drop-db.yml
-kubectl create configmap tms-drop-db-configmap --from-file drop-db-sh
-kubectl create -f drop-db.yml
+kubectl delete -f tms-drop-db.yml
+kubectl create configmap tms-drop-db-configmap --from-file tms-drop-db-sh
+kubectl create -f tms-drop-db.yml
 kubectl wait --timeout=200s --for=condition=complete job/tms-drop-db
 
 echo "---------------------------------------------------"

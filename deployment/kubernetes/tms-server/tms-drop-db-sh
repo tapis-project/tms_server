@@ -8,7 +8,7 @@
 #   runs the tms_server docker image in first time setup mode.
 
 TMS_DB_HOST="${TMS_DB_HOST:-tms-postgres-18}"
-TMS_DB_PORT="${TMS_DB_PORT}:-5432"
+TMS_DB_PORT="${TMS_DB_PORT:-5432}"
 DB_USER=postgres
 DB_NAME=tmsdb
 export TMS_DB_SCHEMA=tms
