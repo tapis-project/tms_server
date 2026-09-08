@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-docker stop tms_server
+docker stop tms-server

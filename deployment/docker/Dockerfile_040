@@ -63,6 +63,8 @@ RUN mkdir -p /home/tms/tms_server
 RUN chown -R tms:tms /home/tms
 RUN chmod 700 /home/tms/tms
 
+USER tms
+
 # Copy the server executable
 WORKDIR /home/tms
 COPY --from=builder --chown=tms:tms /tms_server/target/release/tms_server ./tms_server/tms_server

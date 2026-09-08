@@ -15,5 +15,5 @@ fi
 TAG=$1
 
 # Start up a container that stays up for one week
-docker run --name tms_sleep --user "tms" -d --rm --volume tms_server_vol:/home/tms tapis/tms_server:${TAG} \
+docker run --name tms_sleep --user "tms" -d --rm --volume tms_server_vol:/home/tms tapis/tms-server:${TAG} \
     /bin/bash -c "sleep 6048000"

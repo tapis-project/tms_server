@@ -8,12 +8,13 @@ spec:
       restartPolicy: Never
       containers:
       - name: tms-first-time-install
-        image: postgres:18
+        image: tapis/tms-server:dev
         imagePullPolicy: Always
-        command: ["/tmp/first-time-install-sh"]
+        command: ["cd /home/tms/tms_server; ./tms_server --root-dir /home/tms/tms --install > /home/tms/tms_local/tms-install.out 2>&1"]
+        restartPolicy: never
         volumeMounts:
-        - name: tms-first-time-install-vol
-          mountPath: /tmp
+        - name: tms-server-vol
+          mountPath: /home/tms
         env:
         - name: TMS_DB_USER_PASSWORD
           valueFrom:
@@ -21,8 +22,5 @@ spec:
               name: tms-secrets
               key: postgres-tms-user-password
       volumes:
-      - name: tms-first-time-install-vol
-        configMap:
-          name: tms-first-time-install-configmap
-          defaultMode: 0777
+      - name: tms-server-vol
   backoffLimit: 4

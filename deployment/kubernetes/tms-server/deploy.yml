@@ -1,6 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
-  name: tms-server
+name: tms-server
 spec:
   replicas: 1
   selector:

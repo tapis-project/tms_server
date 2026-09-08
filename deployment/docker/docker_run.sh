@@ -38,4 +38,4 @@ TAG=$1
 docker run --name tms_server --user "tms" --network="host" -d --rm \
   -e TMS_DB_HOST=$TMS_DB_HOST -e TMS_DB_PORT=$TMS_DB_PORT -e TMS_DB_USER_PASSWORD=$TMS_DB_USER_PASSWORD \
   --volume tms_server_vol:/home/tms \
-  tapis/tms_server:${TAG}
+  tapis/tms-server:${TAG}

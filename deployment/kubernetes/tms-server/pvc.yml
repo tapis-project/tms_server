@@ -2,7 +2,7 @@
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: tms-pvc-vol
+  name: tms-server-vol
 spec:
   accessModes:
     - ReadWriteOnce

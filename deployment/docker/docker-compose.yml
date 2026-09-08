@@ -1,11 +1,11 @@
-# Docker compose file for starting up tms_server as a docker container.
+# Docker compose file for starting up tms-server as a docker container.
 # Note that the name gets an underscore appended to it and then the whole string is prepended to named volumes.
 # Specifically, "tms_" gets prepended to "server_vol" below so the volume name is "tms_server_vol".
 name: tms
 services:
   tms_server:
-    image: tapis/tms_server:${TMS_VERSION}
-    container_name: tms_server
+    image: tapis/tms-server:${TMS_VERSION}
+    container_name: tms-server
     environment:
       - HOME=/tms-root
       - TMS_ROOT_DIR=/tms-root/tms

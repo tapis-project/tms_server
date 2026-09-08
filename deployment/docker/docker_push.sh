@@ -1,6 +1,6 @@
 #!/bin/sh
 # ----------------------------------------------------------------
-# Publish docker image for tms_server
+# Publish docker image for tms-server
 # ----------------------------------------------------------------
 
 PrgName=$(basename "$0")
@@ -23,6 +23,6 @@ TAG=$1
 
 # Publish image
 echo "=================================================="
-echo "docker push tapis/tms_server:${TAG}"
+echo "docker push tapis/tms-server:${TAG}"
 echo "=================================================="
-docker push "tapis/tms_server:${TAG}"
+docker push "tapis/tms-server:${TAG}"

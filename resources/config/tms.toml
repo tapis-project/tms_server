@@ -1,12 +1,12 @@
 # A descriptive name for this TMS server instance.
-title = "My TMS Server"
+title = "TMS Server"
 
 # The address and port bound by the TMS server.
 # Setting to http: allows non-tls api calls; Setting to https: uses tls 
 # and requires a certificate. In some environments, the self-signed
 # cerficate shipped with TMS might work.  
 http_addr = "http://localhost"
-http_port = 4201
+http_port = 8080
 
 # Setting this flag causes the server to run in Minimal Viable Product (MVP)
 # mode, which affects the level of automation during key creation
@@ -58,4 +58,4 @@ enable_test_client = false
 
 # At least one server should be specified.  The base urls listed here
 # get displayed as targets in the openapi generated livedocs.
-server_urls = ["https://localhost:4201/v1"]
+server_urls = ["http://localhost:8080/v1"]

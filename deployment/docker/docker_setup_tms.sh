@@ -58,13 +58,13 @@ TAG=$1
 #  --volume="/etc/group:/etc/group:ro" \
 #  --volume="/etc/passwd:/etc/passwd:ro" \
 #  --volume="/etc/shadow:/etc/shadow:ro" \
-#  tapis/tms_server:${TAG} \
+#  tapis/tms-server:${TAG} \
 #  /bin/bash -c "/tms-root/tms_server/tms_server --root-dir /tms-root/tms_server --install > \
 #  /tms-root/tms_local/tms-install.out 2>&1"
 docker run --name tms_server --user "tms" --network="host" --rm \
    -e TMS_DB_HOST=$TMS_DB_HOST -e TMS_DB_PORT=$TMS_DB_PORT -e TMS_DB_USER_PASSWORD=$TMS_DB_USER_PASSWORD \
   --volume tms_server_vol:/home/tms \
-  tapis/tms_server:${TAG} \
+  tapis/tms-server:${TAG} \
   /bin/bash -c "cd /home/tms/tms_server; ./tms_server --root-dir /home/tms/tms --install > /home/tms/tms_local/tms-install.out 2>&1"
 
 # TODO remove or do this via a docker run command?

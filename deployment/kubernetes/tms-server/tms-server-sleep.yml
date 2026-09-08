@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tms-server-sleep
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: tms-server-sleep
+        image: tapis/tms-server:dev
+        imagePullPolicy: Always
+        command: ["sleep 6048000"]
+        restartPolicy: never
+        volumeMounts:
+        - name: tms-server-vol
+          mountPath: /home/tms
+      volumes:
+      - name: tms-server-vol
+        persistentVolumeClaim:
+          claimName: tms-server-vol
+  backoffLimit: 4
