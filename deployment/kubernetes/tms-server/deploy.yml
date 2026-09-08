@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: tms-server
-        image: tapis/tms_server:dev
+        image: tapis/tms-server:dev
         imagePullPolicy: Always
         ports:
         - name: tms-server

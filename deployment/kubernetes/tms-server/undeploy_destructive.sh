@@ -18,13 +18,23 @@ case $resp in
 esac
 echo
 echo "---------------------------------------------------"
+echo " Removing jobs"
+echo "---------------------------------------------------"
+echo
+kubectl delete -f first-time-install.yml
+kubectl delete -f first-time-stage.yml
+kubectl delete -f tms-server-sleep.yml
+kubectl delete -f first-time-init-db.yml
+kubectl delete -f tms-drop-db.yml
+echo
+echo "---------------------------------------------------"
 echo " Dropping the TMS database"
 echo "---------------------------------------------------"
 echo
 kubectl delete configmap tms-drop-db-configmap
 kubectl delete -f tms-drop-db.yml
 kubectl create configmap tms-drop-db-configmap --from-file tms-drop-db-sh
-kubectl create -f tms-drop-db.yml
+kubectl apply -f tms-drop-db.yml
 kubectl wait --timeout=200s --for=condition=complete job/tms-drop-db
 
 echo "---------------------------------------------------"

@@ -20,14 +20,20 @@ echo "---------------------------------------------------"
 kubectl delete configmap tms-first-time-init-db-configmap
 kubectl delete -f first-time-init-db.yml
 kubectl create configmap tms-first-time-init-db-configmap --from-file first-time-init-db-sh
-kubectl create -f first-time-init-db.yml
+kubectl apply -f first-time-init-db.yml
 kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-init-db
+
+# TODO/TBD
+echo "---------------------------------------------------"
+echo " Staging files in pvc"
+echo "---------------------------------------------------"
+kubectl delete -f first-time-stage.yml
+kubectl apply -f first-time-stage.yml
+kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-stage
 
 echo "---------------------------------------------------"
 echo " Running first time install"
 echo "---------------------------------------------------"
-kubectl delete configmap tms-first-time-install-configmap
 kubectl delete -f first-time-install.yml
-kubectl create configmap tms-first-time-install-configmap --from-file first-time-install-sh
-kubectl create -f first-time-install.yml
+kubectl apply -f first-time-install.yml
 kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-install
