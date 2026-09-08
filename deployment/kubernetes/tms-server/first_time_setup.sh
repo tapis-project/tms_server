@@ -17,7 +17,6 @@ PRG_PATH=$(pwd)
 echo "---------------------------------------------------"
 echo " Initializing the DB"
 echo "---------------------------------------------------"
-set -xv
 kubectl delete configmap tms-first-time-init-db-configmap
 kubectl delete -f first-time-init-db.yml
 kubectl create configmap tms-first-time-init-db-configmap --from-file first-time-init-db-sh
@@ -27,6 +26,7 @@ kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-init-db
 echo "---------------------------------------------------"
 echo " Running first time install"
 echo "---------------------------------------------------"
+kubectl delete configmap tms-first-time-install-configmap
 kubectl delete -f first-time-install.yml
 kubectl create configmap tms-first-time-install-configmap --from-file first-time-install-sh
 kubectl create -f first-time-install.yml

@@ -3,7 +3,6 @@ kind: Job
 metadata:
   name: tms-first-time-install
 spec:
-  ttlSecondsAfterFinished: 60
   template:
     spec:
       restartPolicy: Never
@@ -11,7 +10,7 @@ spec:
       - name: tms-first-time-install
         image: postgres:18
         imagePullPolicy: Always
-        command: ["/tmp/tms-first-time-install-sh"]
+        command: ["/tmp/first-time-install-sh"]
         volumeMounts:
         - name: tms-first-time-install-vol
           mountPath: /tmp
