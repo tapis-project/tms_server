@@ -23,7 +23,12 @@ kubectl create configmap tms-first-time-init-db-configmap --from-file first-time
 kubectl apply -f first-time-init-db.yml
 kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-init-db
 
-# TODO/TBD
+echo "---------------------------------------------------"
+echo " Resetting PVC"
+echo "---------------------------------------------------"
+kubectl delete -f pvc.yml
+kubectl apply -f pvc.yml
+
 echo "---------------------------------------------------"
 echo " Staging files in pvc"
 echo "---------------------------------------------------"
@@ -34,6 +39,6 @@ kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-stage
 echo "---------------------------------------------------"
 echo " Running first time install"
 echo "---------------------------------------------------"
-kubectl delete -f first-time-install.yml
-kubectl apply -f first-time-install.yml
-kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-install
+kubectl delete -f first-time-setup.yml
+kubectl apply -f first-time-setup.yml
+kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-setup

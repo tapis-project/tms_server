@@ -17,9 +17,10 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
           - |
-            echo "Copy from /home/tms to /data/pvc"
+            echo "Copy from /home/tms to /data/pvc/tms"
             cp -pr /home/tms /data/pvc
-            ls -la /data/pvc/
+            chown -R tms:tms /data/pvc/tms
+            ls -la /data/pvc/tms
         volumeMounts:
         - name: tms-server-vol
           mountPath: /data/pvc

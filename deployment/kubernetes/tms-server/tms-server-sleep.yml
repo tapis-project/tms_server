@@ -10,11 +10,15 @@ spec:
       - name: tms-server-sleep
         image: tapis/tms-server:dev
         imagePullPolicy: Always
-        command: ["sleep 6048000"]
-        restartPolicy: never
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          runAsNonRoot: false
+        command: ["/bin/sh", "-c"]
+        args: ["sleep 6048000"]
         volumeMounts:
         - name: tms-server-vol
-          mountPath: /home/tms
+          mountPath: /home
       volumes:
       - name: tms-server-vol
         persistentVolumeClaim:

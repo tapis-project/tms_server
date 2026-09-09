@@ -1,13 +1,13 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: tms-first-time-install
+  name: tms-first-time-setup
 spec:
   template:
     spec:
       restartPolicy: Never
       containers:
-      - name: tms-first-time-install
+      - name: tms-first-time-setup
         image: tapis/tms-server:dev
         imagePullPolicy: Always
         command: ["/bin/sh", "-c"]
@@ -25,9 +25,9 @@ spec:
                 key: postgres-tms-user-password
         volumeMounts:
         - name: tms-server-vol
-          mountPath: /home/tms
+          mountPath: /home
       volumes:
-          - name: tms-server-vol
-            persistentVolumeClaim:
-              claimName: tms-server-vol
+      - name: tms-server-vol
+        persistentVolumeClaim:
+          claimName: tms-server-vol
   backoffLimit: 4

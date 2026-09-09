@@ -56,7 +56,7 @@ FROM debian:bookworm-slim
 # Install less, vim and some required libraries.
 RUN apt update && apt install -y libssl-dev libssl3 less vim-tiny coreutils
 # Add user tms and create the root tms install directory
-RUN useradd -m tms -u 4873
+RUN useradd -m tms --uid 4873 --shell /bin/bash
 RUN mkdir -p /home/tms/tms
 RUN mkdir -p /home/tms/tms_local
 RUN mkdir -p /home/tms/tms_server
