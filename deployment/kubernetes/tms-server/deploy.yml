@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 name: tms-server
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: tms-server
@@ -30,3 +29,10 @@ spec:
             secretKeyRef:
               name: tms-secrets
               key: postgres-tms-user-password
+        volumeMounts:
+          - name: tms-server-vol
+            mountPath: /home
+      volumes:
+        - name: tms-server-vol
+          persistentVolumeClaim:
+            claimName: tms-server-vol
