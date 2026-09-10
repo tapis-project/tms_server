@@ -8,6 +8,7 @@ echo "---------------------------------------------------"
 echo
 echo "======================================================================================="
 echo "======= WARNING ======= WARNING ======= WARNING ======= WARNING ======= WARNING ======="
+echo "======================================================================================="
 echo "========================== THIS IS A DESTRUCTIVE OPERATION ============================"
 echo "======================================================================================="
 echo
@@ -21,18 +22,18 @@ echo "---------------------------------------------------"
 echo " Removing jobs"
 echo "---------------------------------------------------"
 echo
-kubectl delete -f first-time-setup.yml
-kubectl delete -f first-time-stage.yml
-kubectl delete -f tms-server-sleep.yml
-kubectl delete -f first-time-init-db.yml
-kubectl delete -f tms-drop-db.yml
+kubectl delete -f first-time-setup.yml 2>/dev/null
+kubectl delete -f first-time-stage.yml 2>/dev/null
+kubectl delete -f tms-server-sleep.yml 2>/dev/null
+kubectl delete -f first-time-init-db.yml 2>/dev/null
+kubectl delete -f tms-drop-db.yml 2>/dev/null
 echo
 echo "---------------------------------------------------"
 echo " Dropping the TMS database"
 echo "---------------------------------------------------"
 echo
 kubectl delete configmap tms-drop-db-configmap
-kubectl delete -f tms-drop-db.yml
+kubectl delete -f tms-drop-db.yml 2>/dev/null
 kubectl create configmap tms-drop-db-configmap --from-file tms-drop-db-sh
 kubectl apply -f tms-drop-db.yml
 kubectl wait --timeout=200s --for=condition=complete job/tms-drop-db
