@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# Run the TMS first time setup script
+# TMS Server first time setup and start script
 #
 echo "---------------------------------------------------"
-echo " Running first time setup script for TMS Server"
+echo " Running first time setup and start for TMS Server"
 echo "---------------------------------------------------"
 echo
 
@@ -42,3 +42,27 @@ echo "---------------------------------------------------"
 kubectl delete -f first-time-setup.yml
 kubectl apply -f first-time-setup.yml
 kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-setup
+
+echo "---------------------------------------------------"
+echo " Starting up server for the first time"
+echo "---------------------------------------------------"
+kubectl delete -f deploy.yml
+kubectl apply -f deploy.yml
+kubectl wait --timeout=200s --for=condition=available deploy/tms-server
+
+echo "---------------------------------------------------"
+echo " Setting up ingress network access"
+echo "---------------------------------------------------"
+kubectl apply -f tms-server-ingress.yml
+
+echo "---------------------------------------------------"
+echo " Seeding initial config for tms-portal"
+echo "---------------------------------------------------"
+TMS_PORTAL_SQL_FILE="$HOME/tms-portal/init.sql"
+if [ -r "$TMS_PORTAL_SQL_FILE" ]; then
+  # Seed config for tms-portal from file $HOME/tms-portal/init.sql
+  cat "$TMS_PORTAL_SQL_FILE" | kubectl exec -i deploy/tms-postgres-18 -- psql -U tms tmsdb
+else
+  echo "NOTE: TMS Portal init sql file not found. Initial seeding for tms-portal will not be done"
+  echo "File: $TMS_PORTAL_SQL_FILE Portal init sql file not found. Initial seeding for tms-portal will not be done"
+fi
