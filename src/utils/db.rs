@@ -7,8 +7,7 @@ use chrono::{Utc, DateTime};
 use sqlx::Row;
 
 use crate::utils::tms_utils::{timestamp_utc, create_hex_secret, hash_hex_secret, MAX_TMS_UTC_STR, timestamp_utc_to_str, calc_expires_at};
-use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_PUBKEYS, INSERT_RP_LOGIN, SEL_CLIENT_EXISTS,
-                                  SEL_PUBKEY_EXISTS, SEL_IDP_EXISTS, INSERT_IDP, INSERT_TMS_IDENTITY};
+use crate::utils::db_statements::{INSERT_DELEGATIONS, INSERT_PUBKEYS, INSERT_RP_LOGIN, SEL_CLIENT_EXISTS, SEL_PUBKEY_EXISTS, SEL_IDP_EXISTS, INSERT_IDP, INSERT_TMS_IDENTITY, SEL_ADMIN_EXISTS};
 use crate::utils::config::{DEFAULT_ADMIN_ID, PERM_ADMIN, TMS_CMD_ARGS, DB_TRUE, TEST_CLIENT, TEST_APP, TEST_CLIENT_SECRET};
 
 use log::error;
@@ -226,21 +225,19 @@ pub async fn insert_new_pubkey(rec: PubkeyInput) -> Result<u64> {
 }
 
 /*
- * Create the default admin user ~~admin
- * This method should only be called when the --install option is specified.  
- * It's a no-op if called during regular execution.
+ * As needed, create the default admin user ~~admin
  */
 pub async fn create_default_admin() -> Result<u64> {
-    // Guard against repeated initialization of admin.
-    if !TMS_CMD_ARGS.install {
-        return Ok(0);
-    }
+    // Get a connection to the db and start a transaction.
+    let mut tx = RUNTIME_CTX.db.begin().await?;
+    // If default admin already exists then we are done
+    let skip_create: bool = sqlx::query_scalar(SEL_ADMIN_EXISTS)
+        .bind(DEFAULT_ADMIN_ID)
+        .fetch_one(&mut *tx).await?;
+    if skip_create { return Ok(0) }
 
     // Get the timestamp string.
     let now = timestamp_utc();
-
-    // Get a connection to the db and start a transaction.
-    let mut tx = RUNTIME_CTX.db.begin().await?;
 
     // Create admin user ids.
     let dft_key_str = create_hex_secret();

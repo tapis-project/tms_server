@@ -13,13 +13,6 @@ pub const INSERT_IDP: &str = concat!(
   "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
 );
 
-// TODO/TBD Will tms_server ever need this?
-// pub const GET_IDP: &str = concat!(
-// "SELECT id, name, client_id, secret, enabled, created, updated ",
-// "FROM clients WHERE client_id = $1",
-// );
-
-
 pub const SEL_IDP_EXISTS: &str = concat!(
 "SELECT EXISTS(SELECT 1 FROM identity_providers WHERE id = $1)"
 );
@@ -222,6 +215,10 @@ pub const DELETE_PUBKEY: &str = concat!(
 );
 
 // ========================= admin table ===========================
+pub const SEL_ADMIN_EXISTS: &str = concat!(
+"SELECT EXISTS(SELECT 1 FROM admins WHERE admin_user = $1)"
+);
+
 pub const INSERT_ADMIN: &str = concat!(
     "INSERT INTO admin (admin_user, admin_secret, privilege, created, updated) ",
     "VALUES ($1, $2, $3, $4, $5)",

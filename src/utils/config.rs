@@ -118,25 +118,13 @@ pub struct TmsDirs {
     pub certs_dir: String
 }
 
-// ---------------------------------------------------------------------------
-// TmsDbConfig:
-// ---------------------------------------------------------------------------
-#[derive(Debug, Deserialize)]
-pub struct TmsDbConfig {
-    // pub db_host: String,
-    // pub db_port: u16,
-    // pub db_user: String,
-    // pub db_password: String,
-    pub db_url: String
-}
-
 // ***************************************************************************
 //                               Config Structs
 // ***************************************************************************
 // ---------------------------------------------------------------------------
 // TMS CommandLineArgs:
 // These are combined with values from the config file to determine final settings.
-// During initial setup the config file is not used so arguments need to be set here if needed.
+// During initial set up the config file is not used so arguments need to be set here if needed.
 // Arguments:
 //  -i, --install Must be used during initial execution of tms_server. Creates directories and
 //                initializes the DB
@@ -167,14 +155,6 @@ pub struct TmsCmdArgs {
     ///   2. Otherwise, if set, the value of the environment variable TMS_ROOT_DIR,
     ///
     ///   3. Otherwise, ~/tms
-    #[arg(short, long)]
-    pub install: bool,
-    /// Create the DB schema, skip data initialization.
-    ///
-    /// Use when migrating DB from SQLite to Postgres
-    #[arg(short, long)]
-    pub schema_only: bool,
-    /// Display the version and exit
     #[arg(short, long)]
     pub version: bool,
     /// Specify TMS root install directory.
@@ -229,7 +209,6 @@ pub struct RuntimeCtx {
 // ---------------------------------------------------------------------------
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    pub title: String,
     pub http_addr: String,
     pub http_port: u16,
     pub enable_mvp: bool,
@@ -267,7 +246,6 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            title: "TMS Server".to_string(),
             http_addr: DEFAULT_HTTP_ADDR.to_string(),
             http_port: DEFAULT_HTTP_PORT,
             enable_mvp: false,
@@ -300,71 +278,11 @@ pub fn prohibit_root_user() {
     // Get the effective user ID.
     let uid = get_effective_uid();
     if uid == 0 {
-        let msg = 
-            format!("\n***********************************************************************\n\
-                    ERROR: This program should not execute under UID 0 (root). \n\n\
-                    Please restart as a non-privileged user.\n\
-                    ***********************************************************************\n");
-        panic!("{}", msg);
-    }
-}
-
-// ---------------------------------------------------------------------------
-// check_prior_installation:
-// ---------------------------------------------------------------------------
-/* Panic if we are trying to run the server before an installation run. */
-pub fn set_directories_and_check_install() {
-
-    // Check that --schema_only and --install are not specified together
-    if TMS_CMD_ARGS.schema_only && TMS_CMD_ARGS.install {
-        panic!("\n***********************************************************************\n\
-                    ERROR: Option --schema-only may not be used along with --install. \n\
-                  ***********************************************************************\n");
-    }
-    // Construct root_dir path and perform checks
-    let root_dir = get_root_dir();
-    let root_path = Path::new(&root_dir);
-    if root_path.exists() && !root_path.is_dir() {
-        // Expected either nothing or a directory.
         let msg =
-            format!("\n***********************************************************************\n\
-                    ERROR: Detected an existing file at TMS root directory.\n\
-                    ERROR: Expected a directory or nothing at path. Path: {}\n\n\
-                    Please correct the path and try again.\n\
-                    ***********************************************************************\n", root_dir);
-        panic!("{}", msg);
-    }
-    // Construct config_dir path from root_dir path and perform checks
-    let config_dir = format!("{}/config", root_dir);
-    let config_path = Path::new(&config_dir);
-
-    if config_path.exists() && !config_path.is_dir() {
-        // Expected either nothing or a directory.
-        let msg =
-            format!("\n***********************************************************************\n\
-                    ERROR: Detected an existing file at TMS root config directory.\n\
-                    ERROR: Expected a directory or nothing at path. Path: {}\n\n\
-                    Please correct the path and try again.\n\
-                    ***********************************************************************\n", config_dir);
-        panic!("{}", msg);
-    }
-    if !config_path.is_dir() && !TMS_CMD_ARGS.install {
-        // We are not installing and no directory found.
-        let msg = 
-            format!("\n***********************************************************************\n\
-                    ERROR: Expected the TMS root config directory to exist at path. Path: {}. \n\n\
-                    Please run 'tms_server --install' to initialize root directory at the default path \n\
-                    or consult the README file for configuring a non-default root directory location.\n\
-                    ***********************************************************************\n", config_dir);
-        panic!("{}", msg);
-    }
-    if config_path.is_dir() && TMS_CMD_ARGS.install {
-        // We are installing and root config directory already exists.
-        let msg =
-            format!("\n***********************************************************************\n\
-                    ERROR: Cannot install over existing TMS root config directory at {}. \n\n\
-                    Please correct or run tms_server without the --install option.\n\
-                    ***********************************************************************\n", config_dir);
+            "\n***********************************************************************\n\
+            ERROR: This program should not execute under UID 0 (root). \n\n\
+            Please restart as a non-privileged user.\n\
+            ***********************************************************************\n";
         panic!("{}", msg);
     }
 }
@@ -374,9 +292,7 @@ pub fn set_directories_and_check_install() {
 // ---------------------------------------------------------------------------
 /*
  * Setup for TmsDirs.
- * During the initial installation create and populate the directories.
- * During normal startup check the directories.
-
+ * Create and populate directories as needed.
  */
 fn init_tms_dirs() -> TmsDirs {
     // Initialize the mistrust object.
@@ -407,9 +323,7 @@ fn init_tms_dirs() -> TmsDirs {
     if dir_created {copy_resource_files(&migrations_dir, MIGRATIONS_DIR, &root_dir);}
 
     // Package up and return the directories.
-    TmsDirs {
-        root_dir, migrations_dir, config_dir, logs_dir, certs_dir,
-    }
+    TmsDirs { root_dir, migrations_dir, config_dir, logs_dir, certs_dir }
 }
 
 // ---------------------------------------------------------------------------

@@ -22,7 +22,7 @@ use crate::v1::tms::version::VersionApi;
 
 // TMS Utilities
 use crate::utils::config::{TMS_CMD_ARGS, TMS_DIRS, TEST_CLIENT, init_log, init_runtime_context,
-                           set_directories_and_check_install, prohibit_root_user, RuntimeCtx};
+                           prohibit_root_user, RuntimeCtx};
 use crate::utils::errors::Errors;
 use crate::utils::{keygen, db};
 
@@ -76,14 +76,9 @@ async fn main() -> Result<(), std::io::Error> {
     keygen::init_keygen();
     println!("*** Keygen initialized ***");
 
-    // Set directories and make sure we are not trying to start without running --install first.
-    set_directories_and_check_install();
-
     // Directory setup. init_tms_dirs is triggered by lazy_static init of TMS_DIRS
-    // During the initial install this creates and populates the directories
-    // During normal startup it checks the directories and constructs the TmsDirs object
-    // After this all directories and files should be in place, including the config file tms.toml.
-    // NOTE: This is where --install is handled.
+    // Constructs this TmsDirs object
+    // This is where directories are created and populated as needed.
     println!("*** Runtime file locations *** \n{:?}\n", *TMS_DIRS);
 
     // Configure output log
@@ -99,24 +94,13 @@ async fn main() -> Result<(), std::io::Error> {
     // NOTE: This makes a block_on call to initialize the DB pool
     info!("{}", Errors::InputParms(format!("{:#?}", *RUNTIME_CTX)));
 
-    // Initialize test data. Skip if --schema-only specified.
-    if (!TMS_CMD_ARGS.schema_only) {
-        tms_init_data().await.expect("Error initializing data");
-    }
+    // Initialize test data as needed.
+    tms_init_data().await.expect("Error initializing data");
 
-    // If this was an installation run then we are done
-    if (TMS_CMD_ARGS.install) {
-        println!("Exiting: TMS root directory installed and initialized at {}", &TMS_DIRS.root_dir);
-        return Ok(());
-    }
-    // If this was a schema-only run then we are done
-    if (TMS_CMD_ARGS.schema_only) {
-        println!("Exiting: TMS DB Schema initialized.");
-        return Ok(());
-    }
+    // Initialize test client based on current value for enabled.
+    init_test_client().await.expect("Error during second stage initialization.");
 
-    // This is a non-install startup. Perform second stage initialization
-    tms_init2().await.expect("Error during second stage initialization.");
+    println!("Directories set and initialization complete.");
 
     // --------------- Main Loop Set Up ---------------
     // Create a tuple with all the endpoints, create the service and add the server urls to it.
@@ -125,7 +109,7 @@ async fn main() -> Result<(), std::io::Error> {
     // endpoint support is needed.
     let endpoints = 
         api!(HelloApi, NewSshKeysApi, PublicKeyApi, VersionApi, GetPubkeysApi, DeletePubkeysApi, UpdatePubkeyApi);
-    let mut api_service = 
+    let mut api_service =
         OpenApiService::new(endpoints, "TMS Server", version_str);
     let urls = &RUNTIME_CTX.parms.config.server_urls;
     for url in urls.iter() {
@@ -204,14 +188,11 @@ async fn tms_init_data() -> Result<bool> {
     Ok(true)
 }
 
-// ---------------------------------------------------------------------------
-// tms_init2:
-// ---------------------------------------------------------------------------
 /*
  * Perform initialization steps for a normal non-install run.
  * Currently, this simply updates enabled flag for the test client based on current configuration.
  */
-async fn tms_init2() -> Result<u64> {
+async fn init_test_client() -> Result<u64> {
     // Manage test client enablement by always setting flag based on current configuration.
     let test_client = TEST_CLIENT.to_string();
     db::set_test_enabled_internal(&test_client, RUNTIME_CTX.parms.config.enable_test_client).await

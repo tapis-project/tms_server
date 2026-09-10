@@ -41,6 +41,5 @@ echo "---------------------------------------------------"
 echo " Undeploying TMS server and removing PVC"
 echo "---------------------------------------------------"
 echo
-# Stop the service and delete the pvc
-# Note: k8s should automatically wait for the pod to be removed before attempting to remove the pvc.
-kubectl delete deployment tms-server pvc tms-server-vol
+kubectl delete -f deploy.yml
+kubectl delete -f pvc.yml
