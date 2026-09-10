@@ -214,20 +214,20 @@ pub const DELETE_PUBKEY: &str = concat!(
     "DELETE FROM pubkeys WHERE client_id = $1 AND host = $2 AND public_key_fingerprint = $3"
 );
 
-// ========================= admin table ===========================
+// ========================= admins table ===========================
 pub const SEL_ADMIN_EXISTS: &str = concat!(
 "SELECT EXISTS(SELECT 1 FROM admins WHERE admin_user = $1)"
 );
 
 pub const INSERT_ADMIN: &str = concat!(
-    "INSERT INTO admin (admin_user, admin_secret, privilege, created, updated) ",
+    "INSERT INTO admins (admin_user, admin_secret, privilege, created, updated) ",
     "VALUES ($1, $2, $3, $4, $5)",
 );
 
 // Conforms to the signature required for secret retrieval queries as defined by 
 // get_authz_secret() in authz.rs.
 pub const GET_ADMIN_SECRET: &str = concat!(
-    "SELECT admin_secret FROM admin WHERE admin_user = $1",
+    "SELECT admin_secret FROM admins WHERE admin_user = $1",
 );
 
 // ========================= hosts table ===========================
