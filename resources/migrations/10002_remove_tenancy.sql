@@ -89,6 +89,12 @@ ALTER TABLE user_hosts DROP COLUMN tenant;
 ALTER TABLE user_mfa DROP COLUMN tenant;
 ALTER TABLE clients DROP COLUMN tenant;
 
+----------------------------------------------------------------------------------------------------------------
+-- Rename table admin to admins and create new unique constraint to replace constraint (tenant,admin_user).
+----------------------------------------------------------------------------------------------------------------
+ALTER TABLE IF EXISTS admin RENAME TO admins;
+ALTER TABLE admins ADD CONSTRAINT admins_admin_user UNIQUE (admin_user);
+
 ------------------------------------------
 -- Remove app_version column from table clients
 ------------------------------------------

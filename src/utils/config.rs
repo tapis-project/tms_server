@@ -35,7 +35,7 @@ const MIGRATIONS_DIR       : &str = "/migrations";
 const CONFIG_DIR           : &str = "/config";
 const LOGS_DIR             : &str = "/logs";
 const CERTS_DIR            : &str = "/certs";
-const RESOURCES_DIR        : &str = "./resources"; // relative to current dir
+const RESOURCES_SRC_DIR    : &str = "./tms_server/resources_src";
 
 const LOG4RS_CONFIG_FILE   : &str = "/log4rs.yml"; // relative to config dir
 const TMS_CONFIG_FILE      : &str = "/tms.toml";   // relative to config dir
@@ -126,8 +126,6 @@ pub struct TmsDirs {
 // These are combined with values from the config file to determine final settings.
 // During initial set up the config file is not used so arguments need to be set here if needed.
 // Arguments:
-//  -i, --install Must be used during initial execution of tms_server. Creates directories and
-//                initializes the DB
 //  -r, --root-dir <root-dir> Installation directory.
 //  -?, --db-host Database host name. Default is localhost.
 //  -?, --db-port Database port. Default is 5432
@@ -384,7 +382,7 @@ fn check_tms_dir(dir: &String, msgname: &str, mistrust: &Mistrust) -> bool {
  */
 fn copy_resource_files(target_dir: &String, dir_suffix: &str, root_dir: &String) {
     // Create the source directory pathname.
-    let source_dir = env::var(ENV_TMS_RESOURCES_DIR).unwrap_or_else(|_| RESOURCES_DIR.to_string()) + dir_suffix;
+    let source_dir = env::var(ENV_TMS_RESOURCES_DIR).unwrap_or_else(|_| RESOURCES_SRC_DIR.to_string()) + dir_suffix;
     let source_dir = get_absolute_path(&source_dir);
     println!("copy_resource_files source_dir: {}", source_dir);
     println!("copy_resource_files target_dir: {}", target_dir);

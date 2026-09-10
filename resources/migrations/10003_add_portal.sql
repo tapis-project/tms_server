@@ -6,9 +6,9 @@
 -- ---------------------------------------
 CREATE TABLE IF NOT EXISTS identity_provider_types
 (
-    provider_type TEXT PRIMARY KEY            NOT NULL,
-    created               TIMESTAMPTZ       NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    updated               TIMESTAMPTZ       NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc')
+    provider_type TEXT PRIMARY KEY  NOT NULL,
+    created       TIMESTAMPTZ       NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    updated       TIMESTAMPTZ       NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 ALTER TABLE identity_provider_types OWNER TO tms;
 --
@@ -83,7 +83,7 @@ VALUES ('danger_mode_unknown', 'DangerMode Unkown RP', '12345678-1234-unknown-da
 CREATE TABLE IF NOT EXISTS tms_identities
 (
     seq_id SERIAL PRIMARY KEY,
-    tms_identity TEXT NOT NULL UNIQUE,
+    tms_identity TEXT   NOT NULL UNIQUE,
     created TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 ALTER TABLE tms_identities OWNER TO tms;
@@ -103,11 +103,11 @@ INSERT INTO tms_identities (tms_identity) VALUES ('dangerUserUnknown@dangerModeI
 -- TODO brief description
 CREATE TABLE IF NOT EXISTS keys
 (
-    kid             TEXT PRIMARY KEY            NOT NULL,
-    jwt_public_key  TEXT                        NOT NULL,
-    jwt_private_key TEXT                        NOT NULL,
-    created               TIMESTAMPTZ       NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    updated               TIMESTAMPTZ       NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc')
+    kid             TEXT PRIMARY KEY NOT NULL,
+    jwt_public_key  TEXT             NOT NULL,
+    jwt_private_key TEXT             NOT NULL,
+    created         TIMESTAMPTZ      NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    updated         TIMESTAMPTZ      NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 ALTER TABLE keys OWNER TO tms;
 
@@ -117,10 +117,10 @@ ALTER TABLE keys OWNER TO tms;
 -- TODO brief description
 CREATE TABLE IF NOT EXISTS configuration
 (
-    config_name  TEXT PRIMARY KEY            NOT NULL,
-    config_value JSONB                       NOT NULL,
-    created               TIMESTAMPTZ       NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    updated               TIMESTAMPTZ       NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc')
+    config_name  TEXT PRIMARY KEY NOT NULL,
+    config_value JSONB            NOT NULL,
+    created      TIMESTAMPTZ      NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    updated      TIMESTAMPTZ      NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 ALTER TABLE configuration OWNER TO tms;
 
@@ -130,10 +130,10 @@ ALTER TABLE configuration OWNER TO tms;
 -- Allowable re-directs for each client
 CREATE TABLE IF NOT EXISTS allowed_redirects
 (
-    uri       TEXT                        NOT NULL,
-    client_id TEXT                        NOT NULL,
-    created               TIMESTAMPTZ       NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    updated               TIMESTAMPTZ       NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    uri       TEXT        NOT NULL,
+    client_id TEXT        NOT NULL,
+    created   TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    updated   TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
     constraint fk_client_id FOREIGN KEY (client_id) REFERENCES clients (client_id)
 );
 ALTER TABLE allowed_redirects OWNER TO tms;
@@ -143,14 +143,14 @@ ALTER TABLE allowed_redirects OWNER TO tms;
 -- ---------------------------------------
 CREATE TABLE IF NOT EXISTS auth_code_data
 (
-    auth_code       TEXT PRIMARY KEY            NOT NULL,
-    client_id       TEXT                        NOT NULL,
-    redirect_uri    TEXT                        NOT NULL,
-    idp_id          TEXT                        NOT NULL,
-    idp_type        TEXT                        NOT NULL,
-    claims          JSONB                       NOT NULL,
-    created               TIMESTAMPTZ       NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
-    updated               TIMESTAMPTZ       NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    auth_code       TEXT PRIMARY KEY NOT NULL,
+    client_id       TEXT             NOT NULL,
+    redirect_uri    TEXT             NOT NULL,
+    idp_id          TEXT             NOT NULL,
+    idp_type        TEXT             NOT NULL,
+    claims          JSONB            NOT NULL,
+    created         TIMESTAMPTZ      NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+    updated         TIMESTAMPTZ      NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
     FOREIGN KEY(client_id) REFERENCES clients(client_id)
 );
 

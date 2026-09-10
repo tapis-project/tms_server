@@ -35,13 +35,13 @@ kubectl delete -f first-time-stage.yml
 kubectl apply -f first-time-stage.yml
 kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-stage
 
-echo "---------------------------------------------------"
-echo " Running first time install"
-echo "---------------------------------------------------"
-kubectl delete -f first-time-setup.yml
-kubectl apply -f first-time-setup.yml
-kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-setup
-
+#echo "---------------------------------------------------"
+#echo " Running first time install"
+#echo "---------------------------------------------------"
+#kubectl delete -f first-time-setup.yml
+#kubectl apply -f first-time-setup.yml
+#kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-setup
+#
 echo "---------------------------------------------------"
 echo " Starting up server for the first time"
 echo "---------------------------------------------------"

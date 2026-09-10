@@ -71,7 +71,8 @@ COPY --from=builder --chown=tms:tms /tms_server/target/release/tms_server ./tms_
 RUN chmod 700 ./tms_server/tms_server
 
 # Copy the resource files used during set up.
-COPY --from=builder --chown=tms:tms /tms_server/resources ./tms_server/resources
+# Initial startup expects resources to be copied to be under tms_server/resources_src
+COPY --from=builder --chown=tms:tms /tms_server/resources ./tms_server/resources_src
 
 # Start the server by default
 CMD ["/home/tms/tms_server/tms_server"]
