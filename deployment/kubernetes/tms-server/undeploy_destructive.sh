@@ -39,13 +39,13 @@ kubectl apply -f tms-drop-db.yml
 kubectl wait --timeout=200s --for=condition=complete job/tms-drop-db
 
 # Bring down tms-portal if we have a deploy file for it
-TMS_PORTAL_BURNDOWN="$HOME/tms-portal/deployment/burndown"
-if [ -e "$TMS_PORTAL_BURNDOWN" ]; then
+TMS_PORTAL_DEPLOY="$HOME/tms-portal/deployment/deploy.yml"
+if [ -e "$TMS_PORTAL_DEPLOY" ]; then
  echo "---------------------------------------------------"
  echo " Undeploying TMS portal"
  echo "---------------------------------------------------"
-  $TMS_PORTAL_BURNDOWN
-  kubectl wait --for=delete -f deploy/tms-portal
+  kubectl apply -f $TMS_PORTAL_DEPLOY
+  kubectl wait --for=delete deploy/tms-portal
 else
  echo "---------------------------------------------------"
  echo " Skipping undeploy of TMS portal"
@@ -57,5 +57,5 @@ echo " Undeploying TMS server and removing PVC"
 echo "---------------------------------------------------"
 echo
 kubectl delete -f deploy.yml
-kubectl wait --for=delete -f deploy/tms-server
+kubectl wait --for=delete deploy/tms-server
 kubectl delete -f pvc.yml

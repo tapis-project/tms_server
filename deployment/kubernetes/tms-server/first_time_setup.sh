@@ -63,12 +63,12 @@ else
 fi
 
 # Bring down tms-portal if we have a deploy file for it
-TMS_PORTAL_BURNUP="$HOME/tms-portal/deployment/burnup"
-if [ -e "$TMS_PORTAL_BURNUP" ]; then
+TMS_PORTAL_DEPLOY="$HOME/tms-portal/deployment/deploy"
+if [ -e "$TMS_PORTAL_DEPLOY" ]; then
  echo "---------------------------------------------------"
  echo " Deploying TMS portal"
  echo "---------------------------------------------------"
-  $TMS_PORTAL_BURNUP
+  kubectl apply -f $TMS_PORTAL_DEPLOY
 else
  echo "---------------------------------------------------"
  echo " Skipping deploy of TMS portal"
