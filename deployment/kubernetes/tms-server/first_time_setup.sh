@@ -52,6 +52,9 @@ echo " Seeding initial config for tms-portal"
 echo "---------------------------------------------------"
 TMS_PORTAL_SQL_FILE="$HOME/tms-portal/init.sql"
 if [ -r "$TMS_PORTAL_SQL_FILE" ]; then
+  # re-generate the init sql
+  $HOME/src_git/tms_portal/deploy/createConfigData.sh \
+     -v $HOME/tms-portal/deployment/tms_portal_vars.sh -o $HOME/tms-portal/init.sql
   # Seed config for tms-portal from file $HOME/tms-portal/init.sql
   cat "$TMS_PORTAL_SQL_FILE" | kubectl exec -i deploy/tms-postgres-18 -- psql -U tms tmsdb
 else
