@@ -24,9 +24,8 @@ kubectl apply -f first-time-init-db.yml
 kubectl wait --timeout=200s --for=condition=complete job/tms-first-time-init-db
 
 echo "---------------------------------------------------"
-echo " Resetting PVC"
+echo " Creating PVC"
 echo "---------------------------------------------------"
-kubectl delete -f pvc.yml
 kubectl apply -f pvc.yml
 
 echo "---------------------------------------------------"

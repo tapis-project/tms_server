@@ -51,7 +51,17 @@ ALTER TABLE identity_providers OWNER TO tms;
 --   tenants which use TACC ldap for authentication.
 INSERT INTO identity_providers (id, name, client_id, client_secret, identity_redirect_url, oauth2_token_url,
                                 provider_type, supports_login, supports_resources)
-VALUES ('danger_mode_tacc_rp', 'DangerMode TACC Resource Provider', '12345678-1234-1234-1234-dangermode123',
+VALUES ('danger_mode_tacc_rp', 'DangerMode TACC Resource Provider', '12345678-1234-taccrp-dangermode',
+        'DangerModeZf9afuG9RzpE6DCDvkrM', 'https://auth.danger.fake.org/v2/oauth2/authorize',
+        'https://auth.danger.fake.org/v2/oauth2/token', 'danger_mode', false, false);
+--
+-- Create an identity_provider to be used as an IdP for existing MVP legacy "danger mode" records.
+-- Only TACC is running TMS server 0.3 and the IdP is always strictly just TACC.
+-- The TMS host module tms_keycmd is only running on TACC resources and the use of TMS is restricted to Tapis
+--   tenants which use TACC ldap for authentication.
+INSERT INTO identity_providers (id, name, client_id, client_secret, identity_redirect_url, oauth2_token_url,
+                                provider_type, supports_login, supports_resources)
+VALUES ('danger_mode_tacc_idp', 'DangerMode TACC Identity Provider', '12345678-1234-taccidp-dangermode',
         'DangerModeZf9afuG9RzpE6DCDvkrM', 'https://auth.danger.fake.org/v2/oauth2/authorize',
         'https://auth.danger.fake.org/v2/oauth2/token', 'danger_mode', false, false);
 --
@@ -59,7 +69,7 @@ VALUES ('danger_mode_tacc_rp', 'DangerMode TACC Resource Provider', '12345678-12
 -- This should not be in place permanently, it should get replaced during an upgrade.
 INSERT INTO identity_providers (id, name, client_id, client_secret, identity_redirect_url, oauth2_token_url,
                                 provider_type, supports_login, supports_resources)
-VALUES ('danger_mode_unknown', 'DangerMode Unkown RP', '12345678-1234-1234-dangermodeunkown',
+VALUES ('danger_mode_unknown', 'DangerMode Unkown RP', '12345678-1234-unknown-dangermode',
         'DangerModeUnknownZRzpE6DCDvkrM', '', '', 'danger_mode', false, false);
 
 -- ---------------------------------------

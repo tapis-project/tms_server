@@ -1,6 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
-name: tms-server
+metadata:
+  name: tms-server
 spec:
   selector:
     matchLabels:
@@ -22,8 +23,6 @@ spec:
           value: "1"
         - name: TMS_DB_HOST
           value: "tms-postgres-18"
-        - name: TMS_DB_PORT
-          value: 5432
         - name: TMS_DB_USER_PASSWORD
           valueFrom:
             secretKeyRef:

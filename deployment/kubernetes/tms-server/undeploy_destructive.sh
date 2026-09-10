@@ -21,7 +21,7 @@ echo "---------------------------------------------------"
 echo " Removing jobs"
 echo "---------------------------------------------------"
 echo
-kubectl delete -f first-time-install.yml
+kubectl delete -f first-time-setup.yml
 kubectl delete -f first-time-stage.yml
 kubectl delete -f tms-server-sleep.yml
 kubectl delete -f first-time-init-db.yml
