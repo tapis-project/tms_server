@@ -61,3 +61,16 @@ else
   echo "NOTE: TMS Portal init sql file not found. Initial seeding for tms-portal will not be done"
   echo "File: $TMS_PORTAL_SQL_FILE Portal init sql file not found. Initial seeding for tms-portal will not be done"
 fi
+
+# Bring down tms-portal if we have a deploy file for it
+TMS_PORTAL_BURNUP="$HOME/tms-portal/deployment/burnup"
+if [ -e "$TMS_PORTAL_BURNUP" ]; then
+ echo "---------------------------------------------------"
+ echo " Deploying TMS portal"
+ echo "---------------------------------------------------"
+  $TMS_PORTAL_BURNUP
+else
+ echo "---------------------------------------------------"
+ echo " Skipping deploy of TMS portal"
+ echo "---------------------------------------------------"
+fi

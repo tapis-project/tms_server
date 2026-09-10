@@ -38,6 +38,20 @@ kubectl create configmap tms-drop-db-configmap --from-file tms-drop-db-sh
 kubectl apply -f tms-drop-db.yml
 kubectl wait --timeout=200s --for=condition=complete job/tms-drop-db
 
+# Bring down tms-portal if we have a deploy file for it
+TMS_PORTAL_BURNDOWN="$HOME/tms-portal/deployment/burndown"
+if [ -e "$TMS_PORTAL_BURNDOWN" ]; then
+ echo "---------------------------------------------------"
+ echo " Undeploying TMS portal"
+ echo "---------------------------------------------------"
+  $TMS_PORTAL_BURNDOWN
+  kubectl wait --for=delete -f deploy/tms-portal
+else
+ echo "---------------------------------------------------"
+ echo " Skipping undeploy of TMS portal"
+ echo "---------------------------------------------------"
+fi
+echo
 echo "---------------------------------------------------"
 echo " Undeploying TMS server and removing PVC"
 echo "---------------------------------------------------"
