@@ -43,4 +43,5 @@ echo " Undeploying TMS server and removing PVC"
 echo "---------------------------------------------------"
 echo
 kubectl delete -f deploy.yml
+kubectl wait --for=delete -f deploy/tms-server
 kubectl delete -f pvc.yml
