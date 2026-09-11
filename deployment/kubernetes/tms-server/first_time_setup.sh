@@ -63,8 +63,8 @@ else
 fi
 
 # Bring down tms-portal if we have a deploy file for it
-TMS_PORTAL_DEPLOY="$HOME/tms-portal/deployment/deploy"
-if [ -e "$TMS_PORTAL_DEPLOY" ]; then
+TMS_PORTAL_DEPLOY="$HOME/tms-portal/deployment/deploy.yml"
+if [ -f "$TMS_PORTAL_DEPLOY" ]; then
  echo "---------------------------------------------------"
  echo " Deploying TMS portal"
  echo "---------------------------------------------------"

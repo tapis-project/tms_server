@@ -130,6 +130,7 @@ ALTER TABLE configuration OWNER TO tms;
 -- Allowable re-directs for each client
 CREATE TABLE IF NOT EXISTS allowed_redirects
 (
+    seq_id SERIAL PRIMARY KEY,
     uri       TEXT        NOT NULL,
     client_id TEXT        NOT NULL,
     created   TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
