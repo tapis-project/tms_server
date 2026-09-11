@@ -155,7 +155,7 @@ impl RespCreateRPLogin {
             DB_TRUE,
             now.clone(),
             now.clone(),
-            now // TODO/TBD this is last_login. Just use now? Or allow for it to be passed in somehow?
+            now
         );
 
         // Insert the new key record.
@@ -176,14 +176,9 @@ impl RespCreateRPLogin {
 // insert_rp_login:
 // ---------------------------------------------------------------------------
 pub async fn insert_rp_login(rec: RPLoginInput, strict: bool) -> Result<u64> {
+    let mut tx = RUNTIME_CTX.db.begin().await?;
     // Choose the query based on strictness requirement.
     let sql_query = if strict { INSERT_RP_LOGIN } else { INSERT_RP_LOGIN_NOT_STRICT };
-
-    // Get a connection to the db and start a transaction.  Uncommited transactions 
-    // are automatically rolled back when they go out of scope. 
-    // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
-    let mut tx = RUNTIME_CTX.db.begin().await?;
-    
     // Create the insert statement.
     let result = sqlx::query(sql_query)
         .bind(rec.tms_identity)
@@ -195,7 +190,6 @@ pub async fn insert_rp_login(rec: RPLoginInput, strict: bool) -> Result<u64> {
         .bind(rec.last_login)
         .execute(&mut *tx)
         .await?;
-
     // Commit the transaction.
     tx.commit().await?;
 

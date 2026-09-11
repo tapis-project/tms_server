@@ -225,6 +225,11 @@ DROP TABLE IF EXISTS user_hosts;
 -- ---------------------------------------
 -- delegations table
 -- ---------------------------------------
+-- TODO/TBD Also drop column expires_at as is being for resource_provider_logins table?
+-- TODO -- Drop column expires_at. No longer needed/relevant?
+-- -- ???Eventually we might have some type of policies table to support RPs specifying expiry?
+-- ALTER TABLE delegations DROP COLUMN IF EXISTS expires_at;
+
 -- Notes on the "why" for some of these changes.
 --   What is needed to authorize CRUD calls for this table? tms_identity, rp_id, rp_account
 --     - since we must already trust the TMS client (i.e. Tapis client) we can allow the client to provide these.

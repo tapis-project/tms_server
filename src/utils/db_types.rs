@@ -128,25 +128,6 @@ impl PubkeyRetrieval {
     }
 }
 
-/*
-    //TODO provide 9 columns total:
-    // "INSERT INTO identity_providers ",
-    //   "(id, name, client_id, client_secret, identity_redirect_url, oauth2_token_url, provider_type,",
-    //   " supports_login, supports_resources, created, updated) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
-    let idp_input = IdPInput::new(
-        TEST_IDP_ID.to_string(),
-        TEST_IDP_NAME.to_string(),
-        TEST_IDP_CLIENT_ID.to_string(),
-        test_idp_client_secret_hash,
-        TEST_IDP_REDIRECT_URL.to_string(),
-        TEST_IDP_TOKEN_URL.to_string(),
-        TEST_IDP_PROVIDER_TYPE.to_string(),
-        TEST_IDP_SUPPORTS_LOGIN,
-        TEST_IDP_SUPPORTS_RESOURCES,
-        now.clone(),
-        now.clone()
-    );
- */
 // ---------------------------------------------------------------------------
 // identity_providers:
 // ---------------------------------------------------------------------------

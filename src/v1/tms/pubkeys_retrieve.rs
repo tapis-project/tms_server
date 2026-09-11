@@ -23,8 +23,7 @@ struct ReqPublicKey
     user: String,
     user_uid: Option<String>,
     host: String,
-    public_key_fingerprint: String, // protocol:base64hash format
-    key_type: Option<String>,       // RSA, ECDSA, ED25519
+    public_key_fingerprint: String // protocol:base64hash format
 }
 
 #[derive(Object, Debug)]
@@ -53,12 +52,6 @@ impl RequestDebug for ReqPublicKey {
         s.push_str(&self.host);
         s.push_str("\n    public_key_fingerprint: ");
         s.push_str(&self.public_key_fingerprint);
-        s.push_str("\n    key_type: ");
-        let kt = match &self.key_type {
-            Some(k) => k,
-            None => "None",
-        };
-        s.push_str(kt);
         s.push('\n');
         s
     }
@@ -114,10 +107,11 @@ impl RespPublicKey {
     }
 
     async fn process(http_req: &Request, req: &ReqPublicKey) -> Result<TmsResponse> {
-        // Conditional logging depending on log level.
+        // Log the request
         tms_utils::debug_request(http_req, req);
 
         // Look for the key in the database.
+        // ========================================================================================
         let db_result = get_public_key(req).await;
         match db_result {
             Ok(result) => {
@@ -140,29 +134,22 @@ impl RespPublicKey {
 // get_public_key:
 // ---------------------------------------------------------------------------
 async fn get_public_key(req: &ReqPublicKey) -> Result<PubkeyRetrieval> {
-    // Get a connection to the db and start a transaction.  Uncommited transactions 
-    // are automatically rolled back when they go out of scope. 
-    // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
     let mut tx = RUNTIME_CTX.db.begin().await?;
-    
-    // Create the insert statement.
+    // Create the query statement.
     let result = sqlx::query(SELECT_PUBKEY)
         .bind(&req.user)
         .bind(&req.host)
         .bind(&req.public_key_fingerprint)
         .fetch_optional(&mut *tx)
         .await?;
-
     // Commit the transaction.
     tx.commit().await?;
 
-    // We found the key!
+    // See if we found the key
     match result {
         Some(row) => {
             Ok(PubkeyRetrieval::new(row.get(0), row.get(1), row.get(2)))
         },
-        None => {
-            Err(anyhow!("NOT_FOUND"))
-        },
+        None => { Err(anyhow!("NOT_FOUND")) },
     }
 }

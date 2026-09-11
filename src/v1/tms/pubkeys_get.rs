@@ -160,7 +160,7 @@ impl RespGetPubkeys {
                   expires_at, created, updated}
         }
 
-    /// Process the request.
+    // Process the request.
     async fn process(http_req: &Request, req: &ReqGetPubkeys, authz_result: &AuthzResult) -> Result<TmsResponse, anyhow::Error> {
         // Conditional logging depending on log level.
         tms_utils::debug_request(http_req, req);

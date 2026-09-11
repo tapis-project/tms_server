@@ -179,14 +179,9 @@ impl RespCreateDelegations {
 // insert_delegation:
 // ---------------------------------------------------------------------------
 pub async fn insert_delegation(rec: DelegationInput, strict: bool) -> Result<u64> {
+    let mut tx = RUNTIME_CTX.db.begin().await?;
     // Choose the query based on strictness requirement.
     let sql_query = if strict {INSERT_DELEGATIONS} else {INSERT_DELEGATIONS_NOT_STRICT};
-
-    // Get a connection to the db and start a transaction.  Uncommited transactions 
-    // are automatically rolled back when they go out of scope. 
-    // See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
-    let mut tx = RUNTIME_CTX.db.begin().await?;
-    
     // Create the insert statement.
     let result = sqlx::query(sql_query)
         .bind(rec.client_id)
@@ -198,7 +193,6 @@ pub async fn insert_delegation(rec: DelegationInput, strict: bool) -> Result<u64
         .bind(rec.updated)
         .execute(&mut *tx)
         .await?;
-
     // Commit the transaction.
     tx.commit().await?;
 

@@ -157,31 +157,30 @@ impl RespNewSshKeys {
     }
 
     async fn process(http_req: &Request, req: &ReqNewSshKeys) -> Result<TmsResponse, anyhow::Error> {
-        // Conditional logging depending on log level.
+        // Log the request
         tms_utils::debug_request(http_req, req);
 
+        // ========================================================================================
         // -------------------- Extract Headers ----------------------
-        // Get the headers used in this function.
+        // Get the header we need: client_id
         let req_ext = match get_header_values(http_req) {
             Ok(h) => h,
-            Err(e) => {
-                return Ok(make_http_400(e.to_string()));
-            }
+            Err(e) => { return Ok(make_http_400(e.to_string())); }
         };
 
-        // -------------------- Authorize ----------------------------
-        // Only the client and admin can query a client record.
+        // -------------------- Check Authorization ----------------------------
+        // Only the client and admin can make this call
         let allowed = [AuthzTypes::ClientOwn, AuthzTypes::TmsAdmin];
         let authz_result = authorize(http_req, &allowed).await;
         if !authz_result.is_authorized() {
-            let msg = format!("ERROR: NOT AUTHORIZED Credential mismatch for client {}.",
-                                      req_ext.client_id);
+            let msg = format!("ERROR: Not authorized to create credential for client. ClientId: {}.",
+                                     req_ext.client_id);
             error!("{}", msg);
             return Ok(make_http_401(msg));
         }
 
-        // -------------------- MVP Execution ------------------------
-        // Determine if we are running in minimal viable product mode.
+        // -------------------- MVP: DANGER_MODE ------------------------
+        // If running in MVP mode then automatically create delegation records.
         if RUNTIME_CTX.parms.config.enable_mvp {
             // Collect values required for dependency record insertions.
             let mvp_inputs = MVPDependencyParms {
@@ -192,9 +191,7 @@ impl RespNewSshKeys {
                 host_account: req.host_account.clone(), 
                 tms_identity: req.tms_identity.clone()
             };
-
             // Insert records into the resource_provider_logins and delegations tables
-            // that the key pair we are about to create depends on.
             match create_pubkey_dependencies(mvp_inputs).await {
                 Ok(inserts) => info!("{} MVP dependency records inserted.", inserts),
                 Err(e) => {
@@ -205,7 +202,7 @@ impl RespNewSshKeys {
             };
         }
 
-        // --------------------- Check Expirations -----------------------
+        // TODO --------------------- Check Expirations -----------------------
         // The 3 tables whose expiration times need to be checked before we create this key are:
         //
         //  resource_provider_logins - use rp_account to target unique record
@@ -231,7 +228,7 @@ impl RespNewSshKeys {
         }
 
         // ------------------------ Generate Keys ------------------------
-        // Get the caller's key type or use default.
+        // Get the provided key type or use default.
         let key_type_str = match &req.key_type {
             Some(k) => k.as_str(),
             None => "ED25519",
@@ -249,9 +246,7 @@ impl RespNewSshKeys {
         // Generate the new key pair.
         let keyinfo = match keygen::generate_key(key_type) {
             Ok(k) => k,
-            Err(e) => {
-                return Result::Err(anyhow!(e));
-            }
+            Err(e) => { return Result::Err(anyhow!(e)); }
         };
         
         // ------------------------ Update Database --------------------

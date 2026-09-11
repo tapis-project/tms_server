@@ -1,5 +1,10 @@
 #![forbid(unsafe_code)]
 
+/*
+ * NOTE: When a transaction is started but not committed, it will automatically be rolled back.
+ * See https://docs.rs/sqlx/latest/sqlx/struct.Transaction.html.
+ *   let mut tx = RUNTIME_CTX.db.begin().await?;
+ */
 use sqlx::{Pool, Postgres};
 use sqlx::postgres::PgPoolOptions;
 
